@@ -99,6 +99,12 @@ describe("job matching (D143)", () => {
         expect(providers(await findJobMatches(both, 1))).toEqual([tiranaPlumber.toString()]);
     });
 
+    it("never reaches the buyer's own listings", async () => {
+        // The buyer offers the same work in Tirana: their own job never reaches them, while another buyer's does.
+        expect(providers(await findJobMatches(job()))).toEqual([tiranaPlumber.toString()]);
+        expect(providers(await findJobMatches(job({requester: tiranaPlumber})))).toEqual([buyer.toString()]);
+    });
+
     it("keeps a job to the company it was posted on, or to its own company when made in the panel", async () => {
         const onDurresSite = job({category: categories.plumbing, address: {latitude: 41.3253, longitude: 19.63}, restrictedToCompany: durresFix});
         expect(providers(await findJobMatches(onDurresSite))).toEqual([durresPlumber.toString()]);
