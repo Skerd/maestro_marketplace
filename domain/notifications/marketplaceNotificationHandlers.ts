@@ -113,7 +113,7 @@ function contentFor(code: MarketplaceCode, payload: Record<string, unknown>): Re
                 ...(payload.leadId ? {leadId: payload.leadId} : {}),
             };
         case NotificationEventCodes.TASK_REQUEST_CLOSED:
-            return {taskRequestId: payload.taskRequestId, taskRequestTitle: payload.taskRequestTitle};
+            return {taskRequestId: payload.taskRequestId, taskRequestTitle: payload.taskRequestTitle, ...(payload.leadId ? {leadId: payload.leadId} : {})};
         case NotificationEventCodes.ORDER_CREATED_FROM_LISTING:
             return {orderId: payload.orderId, listingId: payload.listingId, listingTitle: payload.listingTitle};
         case NotificationEventCodes.ORDER_ACCEPTED:

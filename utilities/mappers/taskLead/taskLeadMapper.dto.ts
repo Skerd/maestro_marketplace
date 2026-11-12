@@ -19,10 +19,12 @@ import {mapOwnershipToDTO, mapSoftDeleteToDTO, mapLifeCycleToDTO} from "@coreMod
 import {mapMedia, mapSnippet, nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 
 /**
- * The job as a lead's provider sees it before the award (D143): city level only, no street, postcode, pin or buyer.
- * Built from the job read across companies; the lead itself never stores a copy.
+ * The job as a lead's provider sees it (D143): before the award city level only, no street, postcode, pin or buyer;
+ * `awarded` (their quote won) adds those. Built from the job read across companies; the lead never stores a copy.
  */
-export function taskLeadJobToDTO(job: ITaskRequest): TaskLeadJob {
+export function taskLeadJobToDTO(job: ITaskRequest, awarded?: Pick<ITaskRequest, "address" | "requester"> | null): TaskLeadJob {
+    const place = awarded?.address;
+    const client = awarded?.requester;
     return {
         _id: job._id.toString(),
         name: job.name,
@@ -35,7 +37,11 @@ export function taskLeadJobToDTO(job: ITaskRequest): TaskLeadJob {
             country: mapSnippet<CountrySimple>()(job.address?.country, CountrySimpleSnippet),
             state: mapSnippet<StateSimple>()(job.address?.state, StateSimpleSnippet),
             city: mapSnippet<CitySimple>()(job.address?.city, CitySimpleSnippet),
+            ...(place ? {street: place.street, postalCode: place.postalCode, latitude: place.latitude, longitude: place.longitude} : {}),
         },
+        ...(client?._id ? {
+            requester: {_id: client._id.toString(), name: client.name, surname: client.surname, username: client.username, phoneNumber: client.phoneNumber || undefined},
+        } : {}),
         status: job.status,
         expiresAt: job.expiresAt?.toISOString(),
         createdAt: job.createdAt?.toISOString(),
@@ -55,7 +61,7 @@ export function taskLeadQuoteToDTO(bid: IBid): TaskLeadQuote {
     };
 }
 
-export function taskLeadToDTO(lead: ITaskLead, job?: ITaskRequest | null, bid?: IBid | null): TaskLead {
+export function taskLeadToDTO(lead: ITaskLead, job?: ITaskRequest | null, bid?: IBid | null, awarded?: Pick<ITaskRequest, "address" | "requester"> | null): TaskLead {
     // Populated with its title by the lead routes; an unpopulated ref has none and is left out.
     const listingId = nestedEntityToRef(lead.listing);
     const listingTitle = lead.listing?.title;
@@ -66,7 +72,7 @@ export function taskLeadToDTO(lead: ITaskLead, job?: ITaskRequest | null, bid?: 
         provider: mapSnippet<SimpleUser>()(lead.provider, SimpleUserSnippet),
         ...(listingId && listingTitle ? {listing: {_id: listingId.toString(), title: listingTitle}} : {}),
         ...(lead.distanceKm != null ? {distanceKm: lead.distanceKm} : {}),
-        ...(job ? {taskRequest: taskLeadJobToDTO(job)} : {}),
+        ...(job ? {taskRequest: taskLeadJobToDTO(job, lead.status === "won" ? awarded : null)} : {}),
         ...(bid ? {bid: taskLeadQuoteToDTO(bid)} : {}),
         ...mapSoftDeleteToDTO(lead),
         ...mapOwnershipToDTO(lead),

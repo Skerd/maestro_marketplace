@@ -121,15 +121,17 @@ describe("a provider's leads (D143)", () => {
 
 describe("a lead's view (D143)", () => {
     // Found in the browser on 2026-11-12: the panel gates cards and sheet nodes on the lead's readable fields, so the
-    // job and the quote must be readable under their reference fields, and only the shareable parts of the job.
+    // job and the quote must be readable under their reference fields, and only the parts a lead may ever show.
     it("lets the panel read the job's shareable fields and the quote, and nothing private", () => {
         const read = COLLECTED_DATA.taskleads.readFields as Record<string, {keys?: Record<string, {keys?: Record<string, unknown>}>}>;
         const job = read.taskRequest?.keys ?? {};
         for (const key of ["title", "description", "category", "budgetMax", "currency", "mainImage", "imageGallery", "expiresAt"]) {
             expect(job).toHaveProperty(key);
         }
-        expect(Object.keys(job.address?.keys ?? {}).sort()).toEqual(["city", "country", "state"]);
-        for (const hidden of ["requester", "restrictedToCompany"]) expect(job).not.toHaveProperty(hidden);
+        // The street, pin and buyer are readable for the lead whose quote won; the server fills them only then (P12.5).
+        expect(Object.keys(job.address?.keys ?? {}).sort()).toEqual(["city", "country", "latitude", "longitude", "postalCode", "state", "street"]);
+        expect(Object.keys(job.requester?.keys ?? {}).sort()).toEqual(["_id", "name", "phoneNumber", "surname", "username"]);
+        expect(job).not.toHaveProperty("restrictedToCompany");
         expect(Object.keys(read.bid?.keys ?? {})).toEqual(expect.arrayContaining(["amount", "currency", "proposal", "deliveryDays", "status"]));
     });
 

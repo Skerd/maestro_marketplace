@@ -13,6 +13,9 @@ import {assertOwnerOrAdmin} from "@marketplaceModule/utilities/services/marketpl
 import {marketplaceOperator} from "@marketplaceModule/utilities/services/portalBuyerTargets";
 import {inJobCompany} from "@marketplaceModule/utilities/services/portalJobs";
 import {createJobLeads} from "@marketplaceModule/utilities/services/jobMatching";
+import {endJobLeads, notifyEndedLeads, reviveJobLeads} from "@marketplaceModule/utilities/services/jobOutcome";
+import type {serverLogger} from "@coreModule/loggers/serverLog";
+import type {ClientSession} from "mongoose";
 import type {ActionMessage, SingleForm} from "armonia/src/modules/core/types/shared.types";
 
 /** How long a task request takes bids, from creation or from being reopened. */
@@ -27,6 +30,31 @@ export function taskRequestExpiry(from: Date = new Date()): Date {
 export async function pendingBidderIds(taskRequestId: ObjectId, companyId: ObjectId, opts: {logger: AuthenticatedMWType["logger"]; languageCode: string}): Promise<string[]> {
     const bids = await bidService.find({taskRequest: taskRequestId, status: "pending", company: companyId}, opts, null, "bidder");
     return [...new Set(bids.map((bid) => bid.bidder._id.toString()))];
+}
+
+/**
+ * Closes an open job (BE-02: the buyer's close and the expiry cron): its open leads in the providers' companies expire,
+ * and whoever had a quote waiting is told, a lead's provider in their own company (D143), any other bidder in the job's.
+ */
+export async function closeTaskRequest(
+    taskRequest: Pick<ITaskRequest, "_id" | "title">,
+    companyId: ObjectId,
+    ctx: {session?: ClientSession | null; logger: serverLogger; languageCode: string; auditUserId?: string},
+): Promise<void> {
+    const {session, logger, languageCode} = ctx;
+    await taskRequestService.updateByIdOrThrow(taskRequest._id, {$set: {status: "closed"}}, {session: session ?? undefined, logger, languageCode, auditUserId: ctx.auditUserId});
+    const ended = await endJobLeads(taskRequest._id, "expired", ctx);
+    await notifyEndedLeads(NotificationEventCodes.TASK_REQUEST_CLOSED, ended.filter((lead) => lead.quoted), taskRequest, ctx);
+
+    const withLead = new Set(ended.map((lead) => lead.provider.toString()));
+    const bidderIds = (await pendingBidderIds(taskRequest._id, companyId, {logger, languageCode})).filter((id) => !withLead.has(id));
+    if (!bidderIds.length) return;
+    await runAfterCommit(session ?? undefined, async () => {
+        emitNotificationEvent(NotificationEventCodes.TASK_REQUEST_CLOSED, {
+            receiverIds: bidderIds,
+            payload: {companyId: companyId.toString(), languageCode, taskRequestId: taskRequest._id.toString(), taskRequestTitle: taskRequest.title},
+        });
+    });
 }
 
 async function loadOwnTaskRequest(params: TransactionRequiredParams & SingleForm): Promise<ITaskRequest> {
@@ -66,22 +94,7 @@ export class TaskRequestActions {
 
         const taskRequest = await loadOwnTaskRequest(p);
         if (taskRequest.status === "open") {
-            await taskRequestService.updateByIdOrThrow(taskRequest._id, {$set: {status: "closed"}}, {session, logger, languageCode, auditUserId: actionUserCtx.userId});
-
-            const bidderIds = await pendingBidderIds(taskRequest._id, company._id, {logger, languageCode});
-            if (bidderIds.length > 0) {
-                await runAfterCommit(session, async () => {
-                    emitNotificationEvent(NotificationEventCodes.TASK_REQUEST_CLOSED, {
-                        receiverIds: bidderIds,
-                        payload: {
-                            companyId: company._id.toString(),
-                            languageCode,
-                            taskRequestId: taskRequest._id.toString(),
-                            taskRequestTitle: taskRequest.title,
-                        },
-                    });
-                });
-            }
+            await closeTaskRequest(taskRequest, company._id, {session, logger, languageCode, auditUserId: actionUserCtx.userId});
         }
 
         logger.finish(`Finished closing task request: ${_id}`);
@@ -115,6 +128,7 @@ export class TaskRequestActions {
                 {$set: {status: "open", expiresAt: taskRequestExpiry()}},
                 {session, logger, languageCode, auditUserId: actionUserCtx.userId},
             );
+            await reviveJobLeads(taskRequest._id, {session, logger, languageCode, auditUserId: actionUserCtx.userId});
         }
 
         logger.finish(`Finished reopening task request: ${_id}`);

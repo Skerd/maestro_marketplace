@@ -9,6 +9,8 @@ import type {serverLogger} from "@coreModule/loggers/serverLog";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import type {ITaskRequest} from "@marketplaceModule/database/schemas/taskRequest/taskRequest";
 import {listingService} from "@marketplaceModule/database/schemas/listing/listing.service";
+import {taskRequestService} from "@marketplaceModule/database/schemas/taskRequest/taskRequest.service";
+import {getLogger} from "@coreModule/loggers/serverLog";
 import {listingCategoryService} from "@marketplaceModule/database/schemas/listingCategory/listingCategory.service";
 import {taskLeadService} from "@marketplaceModule/database/schemas/taskLead/taskLead.service";
 import {NotificationEventCodes} from "@marketplaceModule/domain/notifications/notificationEventCodes";
@@ -149,8 +151,13 @@ export async function findJobMatches(job: ITaskRequest, cap: number = JOB_LEAD_C
  */
 export async function createJobLeads(job: ITaskRequest, ctx: MatchContext): Promise<number> {
     const {logger, languageCode, session} = ctx;
-    const matches = await findJobMatches(job, (await marketplaceOperatorLimits()).leadCap ?? JOB_LEAD_CAP);
+    const cap = (await marketplaceOperatorLimits()).leadCap ?? JOB_LEAD_CAP;
+    // A re-match tops the job up to its cap: the leads it already gave count (D143).
+    const given = await asCrossTenant(READ_REASON, () => taskLeadService.count({taskRequest: job._id}, {session: session ?? undefined}));
+    if (given >= cap) return 0;
+    const matches = await findJobMatches(job, cap);
     if (!matches.length) return 0;
+    let room = cap - given;
 
     const media = [job.mainImage, ...(job.imageGallery ?? []), ...(job.videoGallery ?? [])]
         .map((ref) => nestedEntityToRef(ref))
@@ -158,6 +165,7 @@ export async function createJobLeads(job: ITaskRequest, ctx: MatchContext): Prom
 
     const created: NewLead[] = [];
     for (const match of matches) {
+        if (room <= 0) break;
         const lead = await withTenant(match.company, () => allowForeignReferences(LEAD_REFERENCE, async () => {
             const existing = await taskLeadService.findOne({company: match.company, taskRequest: job._id, provider: match.provider}, {session}, null, "_id");
             if (existing) return null;
@@ -174,7 +182,9 @@ export async function createJobLeads(job: ITaskRequest, ctx: MatchContext): Prom
                 {session, logger, languageCode},
             );
         }), "marketplace");
-        if (lead) created.push({company: match.company, provider: match.provider, lead: lead._id, listing: match.listing, distanceKm: match.distanceKm});
+        if (!lead) continue;
+        room -= 1;
+        created.push({company: match.company, provider: match.provider, lead: lead._id, listing: match.listing, distanceKm: match.distanceKm});
     }
     if (!created.length) return 0;
 
@@ -205,4 +215,59 @@ export async function createJobLeads(job: ITaskRequest, ctx: MatchContext): Prom
     });
     logger.debug(`Job ${job._id.toString()} reached ${created.length} new provider(s)`);
     return created.length;
+}
+
+const REMATCH_REASON = "a provider's new or changed listing is matched to the open jobs it now fits (D143)";
+
+/**
+ * Re-matching (D143): an active listing, new to the work or with a changed category or area, gets leads for the open
+ * jobs it now fits, the operator's and its own company's, each job topped up to its cap. Best-effort after the
+ * listing's commit; the daily sweep (`marketplace.taskRematch`) catches what this misses.
+ */
+export async function matchListingToOpenJobs(listingId: ObjectId, ctx: MatchContext): Promise<number> {
+    try {
+        return await asCrossTenant(REMATCH_REASON, async () => {
+            const listing = await listingService.findById(listingId, {logger: ctx.logger, languageCode: ctx.languageCode}, null, "category status company");
+            const categoryId = nestedEntityToRef(listing?.category);
+            if (!listing || listing.status !== "active" || !categoryId) return 0;
+            const scope = await categoryScope(categoryId);
+            if (!scope) return 0;
+            const companies = [nestedEntityToRef(listing.company), await findMarketplaceOperatorId()].filter((id): id is ObjectId => !!id);
+            const jobs = await taskRequestService.find(
+                {company: {$in: companies}, status: "open", expiresAt: {$gt: new Date()}, category: {$in: scope.ids}},
+                {logger: ctx.logger, languageCode: ctx.languageCode},
+                null,
+                undefined,
+                {createdAt: -1},
+                200,
+            );
+            let reached = 0;
+            for (const job of jobs) reached += await createJobLeads(job, {logger: ctx.logger, languageCode: ctx.languageCode});
+            return reached;
+        });
+    } catch (error) {
+        getLogger("marketplace_rematch", ctx.logger).err(`Re-matching listing ${listingId.toString()} failed: ${error instanceof Error ? error.message : String(error)}`);
+        return 0;
+    }
+}
+
+/** The daily sweep (`marketplace.taskRematch`): every open job of the company is topped up with the pros who now fit. */
+export async function runTaskRematch(company: ObjectId, ctx: MatchContext): Promise<number> {
+    const jobs = await taskRequestService.find(
+        {company, status: "open", expiresAt: {$gt: new Date()}},
+        {logger: ctx.logger, languageCode: ctx.languageCode},
+        null,
+        undefined,
+        {createdAt: -1},
+        500,
+    );
+    let reached = 0;
+    for (const job of jobs) {
+        try {
+            reached += await createJobLeads(job, {logger: ctx.logger, languageCode: ctx.languageCode});
+        } catch (error) {
+            ctx.logger.err(`Re-matching job ${job._id.toString()} failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    return reached;
 }

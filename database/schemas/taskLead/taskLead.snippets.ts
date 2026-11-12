@@ -9,8 +9,9 @@ import {ListingCategorySimpleSnippet} from "@marketplaceModule/database/schemas/
 import type {TaskLeadJob, TaskLeadQuote} from "armonia/src/modules/marketplace/api/marketplace/private/taskLead/taskLead.dto";
 
 /**
- * What a lead's provider may see of the job before the award (D143): the address only down to the city, and never
- * the buyer. It is also the panel's field access for `taskRequest.*` on a lead.
+ * What a lead's provider may see of the job (D143): before the award the address only down to the city and never the
+ * buyer; once their quote won, the street, postcode, pin and the buyer's contact (`taskLeadsToViews` fills those only
+ * then). It is also the panel's field access for `taskRequest.*` on a lead.
  */
 export const TaskLeadJobSnippet = defineSnippet<ITaskRequest, TaskLeadJob>()({
     keys: {
@@ -21,7 +22,8 @@ export const TaskLeadJobSnippet = defineSnippet<ITaskRequest, TaskLeadJob>()({
         category: ListingCategorySimpleSnippet,
         budgetMax: {},
         currency: CurrencySimpleSnippet,
-        address: {keys: {country: CountrySimpleSnippet, state: StateSimpleSnippet, city: CitySimpleSnippet}},
+        address: {keys: {country: CountrySimpleSnippet, state: StateSimpleSnippet, city: CitySimpleSnippet, street: {}, postalCode: {}, latitude: {}, longitude: {}}},
+        requester: {keys: {_id: {}, name: {}, surname: {}, username: {}, phoneNumber: {}}},
         status: {},
         expiresAt: {},
         createdAt: {},

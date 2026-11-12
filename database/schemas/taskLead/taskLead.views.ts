@@ -45,6 +45,44 @@ export const taskLeadSheetView: ViewConfig = {
                 },
             ],
         },
+        // Once the provider's quote won: where the work is and whom to call (D143); the server sends these only then.
+        {
+            render: "#SheetGroup",
+            props: {title: "client"},
+            dependent: "taskRequest.requester",
+            children: [
+                {
+                    render: "#SheetGrid",
+                    props: {columns: 2},
+                    children: [
+                        {
+                            render: "#DisplayCard",
+                            dependent: "taskRequest.requester.name",
+                            permissions: {read: "taskRequest"},
+                            field: {name: "taskRequest.requester.name", widget: "#DisplayCard", label: "clientName", widgetProps: {icon: "#User", valuePath: ["taskRequest.requester.name", "taskRequest.requester.surname"], joinSeparator: " "}},
+                        },
+                        {
+                            render: "#DisplayCard",
+                            dependent: "taskRequest.requester.username",
+                            permissions: {read: "taskRequest"},
+                            field: {name: "taskRequest.requester.username", widget: "#DisplayCard", label: "clientEmail", widgetProps: {icon: "#Mail", type: "email"}},
+                        },
+                        {
+                            render: "#DisplayCard",
+                            dependent: "taskRequest.requester.phoneNumber",
+                            permissions: {read: "taskRequest"},
+                            field: {name: "taskRequest.requester.phoneNumber", widget: "#DisplayCard", label: "clientPhone", widgetProps: {icon: "#Phone"}},
+                        },
+                        {
+                            render: "#DisplayCard",
+                            dependent: "taskRequest.address.street",
+                            permissions: {read: "taskRequest"},
+                            field: {name: "taskRequest.address.street", widget: "#DisplayCard", label: "street", widgetProps: {icon: "#MapPin", valuePath: ["taskRequest.address.street", "taskRequest.address.postalCode", "taskRequest.address.city.name"], joinSeparator: ", "}},
+                        },
+                    ],
+                },
+            ],
+        },
         {
             render: "#SheetGroup",
             props: {title: "job"},

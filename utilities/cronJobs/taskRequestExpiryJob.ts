@@ -1,15 +1,13 @@
 /**
- * Hourly job: close open TaskRequests whose expiresAt has passed and tell the
- * users still waiting on a bid, as a manual close does.
+ * Hourly job: close open TaskRequests whose expiresAt has passed, as a manual close does: their leads expire and
+ * the users still waiting on a bid are told.
  */
 
 import type { ObjectId } from "mongodb";
 import { CONSTANTS } from "@coreModule/environment";
 import { getLogger, serverLogger } from "@coreModule/loggers/serverLog";
-import { emitNotificationEvent } from "@coreModule/domain/notifications/notificationEventBus";
 import { taskRequestService } from "@marketplaceModule/database/schemas/taskRequest/taskRequest.service";
-import { pendingBidderIds } from "@marketplaceModule/database/schemas/taskRequest/taskRequest.actions";
-import { NotificationEventCodes } from "@marketplaceModule/domain/notifications/notificationEventCodes";
+import { closeTaskRequest } from "@marketplaceModule/database/schemas/taskRequest/taskRequest.actions";
 
 export async function runTaskRequestExpiry(company: ObjectId, parentLogger?: serverLogger): Promise<void> {
     const logger = getLogger("task_request_expiry", parentLogger);
@@ -32,25 +30,7 @@ export async function runTaskRequestExpiry(company: ObjectId, parentLogger?: ser
 
         for (const req of expiredRequests) {
             try {
-                await taskRequestService.updateById(
-                    req._id,
-                    { $set: { status: "closed" } },
-                    { logger, languageCode: lang }
-                );
-
-                const companyId = req.company._id;
-                const bidderIds = await pendingBidderIds(req._id, companyId, { logger, languageCode: lang });
-                if (bidderIds.length > 0) {
-                    emitNotificationEvent(NotificationEventCodes.TASK_REQUEST_CLOSED, {
-                        receiverIds: bidderIds,
-                        payload: {
-                            companyId: companyId.toString(),
-                            languageCode: lang,
-                            taskRequestId: req._id.toString(),
-                            taskRequestTitle: req.title,
-                        },
-                    });
-                }
+                await closeTaskRequest(req, req.company._id, {logger, languageCode: lang});
                 logger.debug(`Closed expired task request ${req._id.toString()}`);
             } catch (e: unknown) {
                 const msg = e instanceof Error ? e.message : String(e);

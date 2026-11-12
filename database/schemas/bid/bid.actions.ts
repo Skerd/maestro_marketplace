@@ -17,6 +17,7 @@ import {withTenant} from "@coreModule/utilities/endpoints/tenantScope";
 import {taskLeadService} from "@marketplaceModule/database/schemas/taskLead/taskLead.service";
 import {marketplaceOperator} from "@marketplaceModule/utilities/services/portalBuyerTargets";
 import {inJobCompany} from "@marketplaceModule/utilities/services/portalJobs";
+import {endJobLeads, notifyEndedLeads, openAwardOrder} from "@marketplaceModule/utilities/services/jobOutcome";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -74,7 +75,10 @@ async function closeQuoteLead(bid: IBid, status: "lost", p: TransactionRequiredP
 }
 
 export class BidActions {
-    /** The requester awards the task: this bid is accepted, the others rejected, and a pending order is opened. */
+    /**
+     * The requester awards the task: this bid is accepted, the others rejected, and a pending order is opened. A quote
+     * from a lead opens its order in the provider's own company, and the job's leads end won or lost (D143).
+     */
     @action({
         auth: "private",
         rateLimit: {windowMs: 60000, max: 20},
@@ -82,9 +86,14 @@ export class BidActions {
         schema: validateSingleForm,
         // The caller's own record, or one they are a party to: the party check below decides (D14).
         selfService: true,
+        // A portal buyer's job and its bids live in the marketplace operator (D143).
+        portalBuyer: marketplaceOperator,
     })
     async accept(params: Record<string, any>): Promise<ActionMessage & {_id: string}> {
-        const p = params as TransactionRequiredParams & SingleForm;
+        return inJobCompany(params as TransactionRequiredParams & SingleForm, (p) => this.acceptBid(p));
+    }
+
+    private async acceptBid(p: TransactionRequiredParams & SingleForm): Promise<ActionMessage & {_id: string}> {
         const {logger, languageCode, session, company, actionUserCtx, _id} = p;
         const writeOpts = {session, logger, languageCode, auditUserId: actionUserCtx.userId};
 
@@ -110,23 +119,31 @@ export class BidActions {
         );
         await taskRequestService.updateByIdOrThrow(taskRequest._id, {$set: {status: "awarded"}}, writeOpts);
 
-        const order = await orderService.create(
-            {
-                taskRequest: taskRequest._id,
-                bid: bid._id,
-                customer: taskRequest.requester._id,
-                provider: bid.bidder._id,
-                amount: bid.amount,
-                currency: bid.currency._id,
-                status: "pending",
-                company: company._id,
-                ...(bid.deliveryDays > 0 && {deliveryDueDate: new Date(Date.now() + bid.deliveryDays * DAY_MS)}),
-            },
-            writeOpts,
-        );
+        const fromLead = !!nestedEntityToRef(bid.bidderCompany);
+        const order = fromLead
+            ? await openAwardOrder(taskRequest, bid, writeOpts)
+            : await orderService.create(
+                {
+                    taskRequest: taskRequest._id,
+                    bid: bid._id,
+                    customer: taskRequest.requester._id,
+                    provider: bid.bidder._id,
+                    amount: bid.amount,
+                    currency: bid.currency._id,
+                    status: "pending",
+                    company: company._id,
+                    ...(bid.deliveryDays > 0 && {deliveryDueDate: new Date(Date.now() + bid.deliveryDays * DAY_MS)}),
+                },
+                writeOpts,
+            );
 
-        await notifyBidders(p, NotificationEventCodes.BID_ACCEPTED, [bid.bidder._id.toString()], bid, taskRequest);
-        await notifyBidders(p, NotificationEventCodes.BID_REJECTED, otherBidderIds, bid, taskRequest);
+        // Providers with a lead hear it in their own company; a bidder inside the job's company hears it here.
+        const ended = await endJobLeads(taskRequest._id, {winningBid: bid._id}, writeOpts);
+        await notifyEndedLeads(NotificationEventCodes.BID_ACCEPTED, ended.filter((lead) => lead.won), taskRequest, writeOpts);
+        await notifyEndedLeads(NotificationEventCodes.BID_REJECTED, ended.filter((lead) => !lead.won && lead.quoted), taskRequest, writeOpts);
+        const withLead = new Set(ended.map((lead) => lead.provider.toString()));
+        if (!fromLead) await notifyBidders(p, NotificationEventCodes.BID_ACCEPTED, [bid.bidder._id.toString()], bid, taskRequest);
+        await notifyBidders(p, NotificationEventCodes.BID_REJECTED, otherBidderIds.filter((id) => !withLead.has(id)), bid, taskRequest);
 
         logger.finish(`Successfully accepted bid: ${_id}`);
 

@@ -540,6 +540,10 @@ export class OrderActions {
         rateLimit: {windowMs: 60000, max: 30},
         transaction: true,
         schema: createOrderMilestoneFormSchema,
+        // The caller's own record, or one they are a party to: the customer check below decides (D14, TD-B190).
+        selfService: true,
+        // A portal buyer: the module is checked on the seller (D143).
+        portalBuyer: orderSeller("order"),
     })
     async createMilestone(params: Record<string, any>): Promise<ActionMessage> {
         const p = params as TransactionRequiredParams & CreateOrderMilestoneFormType;

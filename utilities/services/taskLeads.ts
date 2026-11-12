@@ -22,6 +22,9 @@ const JOB_REASON = "a lead shows the job it points at, which the marketplace ope
 /** What a provider may see of a job before the award (D143): no street, postcode, pin or buyer. */
 const JOB_POPULATE = ["category", "currency", "address.country", "address.state", "address.city", "mainImage", "imageGallery"];
 const JOB_SELECT = "name title description category budgetMax currency address.country address.state address.city status expiresAt createdAt mainImage imageGallery company";
+/** Only for a lead whose quote won the job: where the work is and whom to call (D143). */
+const AWARDED_SELECT = "address.street address.postalCode address.latitude address.longitude requester";
+const AWARDED_POPULATE = [{path: "requester", select: "name surname username phoneNumber"}];
 
 /** Non-admins see only the leads of which they are the provider. */
 export function leadVisibilityFilter(companyId: ObjectId, caller: UserContext): Record<string, unknown> {
@@ -50,6 +53,11 @@ export async function taskLeadsToViews(leads: ITaskLead[], ctx: Ctx): Promise<Ta
         bidIds.length ? asCrossTenant(JOB_REASON, () => bidService.find({_id: {$in: bidIds}}, opts, ["currency"])) : Promise.resolve([] as IBid[]),
         listingService.find({_id: {$in: listingIds}}, opts, null, "title"),
     ]);
+    const wonJobIds = leads.filter((lead) => lead.status === "won").map((lead) => refsOf(lead).job).filter((id): id is ObjectId => !!id);
+    const awarded = wonJobIds.length
+        ? await asCrossTenant(JOB_REASON, () => taskRequestService.find({_id: {$in: wonJobIds}, status: "awarded"}, opts, AWARDED_POPULATE, AWARDED_SELECT))
+        : [];
+    const awardedById = new Map(awarded.map((job: ITaskRequest) => [job._id.toString(), job]));
     const jobById = new Map(jobs.map((job: ITaskRequest) => [job._id.toString(), job]));
     const bidById = new Map(bids.map((bid: IBid) => [bid._id.toString(), bid]));
     const titleById = new Map(listings.map((listing) => [listing._id.toString(), listing.title]));
@@ -58,7 +66,8 @@ export async function taskLeadsToViews(leads: ITaskLead[], ctx: Ctx): Promise<Ta
         const own = refsOf(lead);
         const listingId = own.listing?.toString();
         const title = listingId ? titleById.get(listingId) : undefined;
-        const dto = taskLeadToDTO(lead, own.job ? jobById.get(own.job.toString()) : undefined, own.bid ? bidById.get(own.bid.toString()) : undefined);
+        const jobKey = own.job?.toString() ?? "";
+        const dto = taskLeadToDTO(lead, jobById.get(jobKey), own.bid ? bidById.get(own.bid.toString()) : undefined, awardedById.get(jobKey));
         return listingId && title ? {...dto, listing: {_id: listingId, title}} : dto;
     });
 }

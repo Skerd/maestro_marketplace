@@ -2,7 +2,8 @@ import {ObjectId} from "mongodb";
 import {action} from "@coreModule/api/actionDecorator";
 import {validateSingleForm} from "armonia/src/modules/core/utilities/zod/shared.validator";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
-import type {TransactionRequiredParams} from "@coreModule/utilities/middlewares/transactionUtils";
+import {runAfterCommit, type TransactionRequiredParams} from "@coreModule/utilities/middlewares/transactionUtils";
+import {matchListingToOpenJobs} from "@marketplaceModule/utilities/services/jobMatching";
 import type {IListing, ListingStatus} from "@marketplaceModule/database/schemas/listing/listing";
 import {listingService} from "@marketplaceModule/database/schemas/listing/listing.service";
 import {assertOwnerOrAdmin} from "@marketplaceModule/utilities/services/marketplaceAccess";
@@ -43,6 +44,10 @@ export class ListingActions {
             throw apiValidationException("listing_price_required", null, null, p.languageCode);
         }
         await setStatus(p, listing, "active");
+        // A listing that goes live may fit jobs already open (D143).
+        await runAfterCommit(p.session, async () => {
+            await matchListingToOpenJobs(listing._id, {logger: p.logger, languageCode: p.languageCode});
+        });
 
         p.logger.finish("Listing activated!");
         return {message: "Listing successfully activated!"};

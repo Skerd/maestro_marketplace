@@ -1,4 +1,6 @@
 import {ObjectId} from "mongodb";
+import {runAfterCommit} from "@coreModule/utilities/middlewares/transactionUtils";
+import {matchListingToOpenJobs} from "@marketplaceModule/utilities/services/jobMatching";
 import {mediaUploadMW} from "@coreModule/utilities/middlewares/mediaUploadMW";
 import {createCrudRouter} from "@coreModule/api/crudRouterFactory";
 import {buildCreateDataFromSchemaDef, buildUpdateDataFromSchemaDef} from "@coreModule/api/buildUpdateDataFromSchemaDef";
@@ -147,6 +149,13 @@ export const {router} = createCrudRouter<IListing, CreateListingFormType, EditLi
             if (categoryId) Object.assign(update, await listingServiceAreaFields(categoryId, area, languageCode, {session, logger, languageCode}));
         }
         return update;
+    },
+    // An active listing with a new category or area may now fit open jobs (D143); matched after the commit.
+    afterUpdate: async (params, existing) => {
+        if (existing.status !== "active" || (params.category === undefined && params.serviceArea === undefined)) return;
+        await runAfterCommit(params.session, async () => {
+            await matchListingToOpenJobs(existing._id, {logger: params.logger, languageCode: params.languageCode});
+        });
     },
     beforeDelete: async (params, doc) => {
         assertOwnerOrAdmin(doc.provider, params.actionUserCtx, params.languageCode);
