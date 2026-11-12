@@ -1,4 +1,9 @@
 import {afterAll, beforeAll, beforeEach, describe, expect, it, vi} from "vitest";
+
+// The job matching finds listed sellers by their module, whatever the local `.env` enables.
+vi.hoisted(() => {
+    process.env.ENABLED_MODULES = "core,finance,marketplace";
+});
 import mongoose from "mongoose";
 import {ObjectId} from "mongodb";
 import request from "supertest";
@@ -26,6 +31,11 @@ import * as disputeRoute from "@marketplaceModule/api/marketplace/private/disput
 import * as bookingRoute from "@marketplaceModule/api/marketplace/private/booking";
 import * as taskRequestRoute from "@marketplaceModule/api/marketplace/private/taskRequest";
 import ListingCategory from "@marketplaceModule/database/schemas/listingCategory/listingCategory";
+import MarketplaceConfig from "@marketplaceModule/database/schemas/marketplaceConfig/marketplaceConfig";
+import TaskRequest from "@marketplaceModule/database/schemas/taskRequest/taskRequest";
+import TaskLead from "@marketplaceModule/database/schemas/taskLead/taskLead";
+import City from "@coreModule/database/schemas/city/city";
+import Media from "@coreModule/database/schemas/media/media";
 import {appFor, callerHeader} from "@coreModule/_tests/httpHarness";
 import {asCrossTenant, withTenant} from "@coreModule/utilities/endpoints/tenantScope";
 import {PORTAL_ROOT_DOMAIN} from "@coreModule/environment";
@@ -172,22 +182,48 @@ describe("portal services purchase (D16, D142)", () => {
         expect((await storedOrder(pending))!.status).toBe("pending");
     });
 
-    // TD-B95: a buyer's task requests on the apex are the platform company's own records, so they post, list and open.
-    it("posts, lists and opens the buyer's task request from the apex", async () => {
-        const {category, currency} = await withTenant(platform, async () => ({
-            category: (await ListingCategory.collection.insertOne({name: "Painting", slug: "painting", order: 0, company: platform})).insertedId,
-            currency: (await new Currency({name: "Euro", symbol: "€", decimalPlaces: 2, abbreviation: "EUR", company: platform}).save())._id,
-        }));
+    // D143: a portal buyer's job lives in the marketplace operator, in the operator's own currency, places and shared
+    // photo, and reaches the listed sellers whose area holds its pin.
+    it("posts the buyer's job from the apex into the operator, reaches the seller, then lists and opens it", async () => {
+        const operator = new ObjectId();
+        await seedSeller(sellerA, "Alpha");
+        const seller = sellerA;
+        const ids = await asCrossTenant("test setup", async () => {
+            await Company.collection.insertOne({_id: operator, name: "Operator", vat: "VAT-Operator", isActive: true, modules: ["marketplace"], deletedAt: null});
+            const opEuro = (await Currency.collection.insertOne({name: "Euro", symbol: "€", decimalPlaces: 2, abbreviation: "EUR", company: operator})).insertedId;
+            await MarketplaceConfig.collection.insertOne({company: operator, currency: opEuro, isOperator: true, listedOnPortal: false, deletedAt: null});
+            await MarketplaceConfig.collection.insertOne({company: seller, currency: new ObjectId(), listedOnPortal: true, deletedAt: null});
+            const opAlbania = (await Country.collection.insertOne({name: "Albania", code: "AL", company: operator})).insertedId;
+            const opTirana = (await City.collection.insertOne({name: "Tirana", country: opAlbania, company: operator})).insertedId;
+            const euro = (await Currency.collection.insertOne({name: "Euro", symbol: "€", decimalPlaces: 2, abbreviation: "EUR", company: platform})).insertedId;
+            const tirana = (await City.collection.insertOne({name: "Tirana", country: platformAlbania, company: platform})).insertedId;
+            const category = (await ListingCategory.collection.insertOne({name: "Painting", slug: "painting", delivery: "onsite", order: 0, company: operator, deletedAt: null})).insertedId;
+            const photo = (await Media.collection.insertOne({company: platform, createdBy: buyer, deletedAt: null})).insertedId;
+            const painter = new ObjectId();
+            await Listing.collection.insertOne({
+                company: seller, provider: painter, category, title: "Painting", status: "active", avgRating: 4, deletedAt: null,
+                serviceArea: {latitude: 41.3, longitude: 19.8, radiusKm: 10}, serviceAreaPoint: {type: "Point", coordinates: [19.8, 41.3]},
+            });
+            return {opEuro, opAlbania, opTirana, euro, tirana, category, photo, painter};
+        });
 
         const created = await call("put", "/api/marketplace/taskRequest/createMine", {
-            title: "Paint my flat", category: category.toString(), budgetMin: 100, budgetMax: 300, currency: currency.toString(),
-            mainImage: new ObjectId().toString(),
-            address: {street: "Rruga 1", postalCode: "1001", country: platformAlbania.toString(), city: new ObjectId().toString(), latitude: 41.3, longitude: 19.8},
+            title: "Paint my flat", category: ids.category.toString(), budgetMin: 100, budgetMax: 300, currency: ids.euro.toString(),
+            mainImage: ids.photo.toString(),
+            address: {street: "Rruga 1", postalCode: "1001", country: platformAlbania.toString(), city: ids.tirana.toString(), latitude: 41.3, longitude: 19.81},
         });
-        const mine = await call("post", "/api/marketplace/taskRequest/my", {});
-        const single = await call("post", "/api/marketplace/taskRequest/mySingle", {_id: created.body.data?._id});
+        expect([created.status, created.body.error_code, created.body.data?.notified]).toEqual([200, undefined, 1]);
 
-        expect([created.status, created.body.error_code]).toEqual([200, undefined]);
+        const job = (await asCrossTenant("test assertions", () => TaskRequest.collection.findOne({_id: new ObjectId(created.body.data._id)})))!;
+        expect([job.company, job.currency, job.address.country, job.address.city].map(String))
+            .toEqual([operator, ids.opEuro, ids.opAlbania, ids.opTirana].map(String));
+        const lead = await asCrossTenant("test assertions", () => TaskLead.collection.findOne({taskRequest: job._id}));
+        expect([String(lead?.company), String(lead?.provider)]).toEqual([String(seller), String(ids.painter)]);
+        const photo = await asCrossTenant("test assertions", () => Media.collection.findOne({_id: ids.photo}));
+        expect(photo?.sharedWithCompanies.map(String).sort()).toEqual([operator, seller].map(String).sort());
+
+        const mine = await call("post", "/api/marketplace/taskRequest/my", {});
+        const single = await call("post", "/api/marketplace/taskRequest/mySingle", {_id: created.body.data._id});
         expect([mine.status, mine.body.total, single.status]).toEqual([200, 1, 200]);
     });
 });

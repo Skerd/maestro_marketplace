@@ -1,5 +1,6 @@
 import { Document, model, Schema, SchemaTypes } from "mongoose";
 import { IMedia } from "@coreModule/database/schemas/media/media";
+import type {ICompany} from "@coreModule/database/schemas/company/company";
 import { IUser } from "@coreModule/database/schemas/user/user";
 import { ICurrency } from "@coreModule/database/schemas/currency/currency";
 import { IListingCategory } from "@marketplaceModule/database/schemas/listingCategory/listingCategory";
@@ -33,6 +34,8 @@ export type TaskRequestStatus = "open" | "closed" | "awarded";
 
 export interface ITaskRequest extends Document, IOwnershipPluginFields, ISoftDeletePluginFields, ILifeCyclePluginFields {
     requester: IUser;
+    /** Posted on this company's own site: only its providers are matched (D143). Unset on the apex. */
+    restrictedToCompany?: ICompany;
     name: string;
     title: string;
     description: string;
@@ -76,6 +79,12 @@ const TaskRequestSchema = new Schema<ITaskRequest>(
                     write: "no-permission",
                 }
             }
+        },
+        restrictedToCompany: {
+            type: SchemaTypes.ObjectId,
+            ref: "Company",
+            permissions: {self: {write: "no-permission"}, others: {write: "no-permission"}},
+            dynamicTableConfiguration: {hideColumn: true},
         },
         name: {
             type: SchemaTypes.String,
@@ -303,4 +312,4 @@ normalizeSchemaPermissions(TaskRequest);
 export default TaskRequest;
 
 addModelData(TaskRequest, taskRequestViews);
-validateSchemaDefAgainstMongoose(TaskRequestSchema, TaskRequestSchemaDef, "TaskRequest", ["requester", "status", "expiresAt"]);
+validateSchemaDefAgainstMongoose(TaskRequestSchema, TaskRequestSchemaDef, "TaskRequest", ["requester", "status", "expiresAt", "restrictedToCompany"]);

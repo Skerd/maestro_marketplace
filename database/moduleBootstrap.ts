@@ -6,6 +6,7 @@ import ListingCategory from "@marketplaceModule/database/schemas/listingCategory
 import Listing from "@marketplaceModule/database/schemas/listing/listing";
 import TaskRequest from "@marketplaceModule/database/schemas/taskRequest/taskRequest";
 import Bid from "@marketplaceModule/database/schemas/bid/bid";
+import TaskLead from "@marketplaceModule/database/schemas/taskLead/taskLead";
 import Order from "@marketplaceModule/database/schemas/order/order";
 import Review from "@marketplaceModule/database/schemas/review/review";
 import ListingPackage from "@marketplaceModule/database/schemas/listingPackage/listingPackage";
@@ -29,6 +30,7 @@ export const marketplaceModels: Model<any>[] = [
     ListingCategory,
     Listing,
     TaskRequest,
+    TaskLead,
     Bid,
     Order,
     Review,

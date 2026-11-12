@@ -132,11 +132,13 @@ function contentFor(code: MarketplaceCode, payload: Record<string, unknown>): Re
         case NotificationEventCodes.DISPUTE_CLOSED:
             return {disputeId: payload.disputeId, orderId: payload.orderId, orderName: payload.orderName};
         case NotificationEventCodes.TASK_REQUEST_CREATED:
+            // The lead in the provider's own company is what the notification opens (D143).
             return {
+                leadId: payload.leadId,
                 taskRequestId: payload.taskRequestId,
                 taskRequestTitle: payload.taskRequestTitle,
                 categoryId: payload.categoryId,
-                cityId: payload.cityId,
+                ...(payload.distanceKm != null ? {distanceKm: payload.distanceKm} : {}),
             };
     }
 }

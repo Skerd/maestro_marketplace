@@ -6,11 +6,13 @@ import {runAfterCommit, type TransactionRequiredParams} from "@coreModule/utilit
 import type {AuthenticatedMWType} from "@coreModule/utilities/middlewares/authMW";
 import type {ITaskRequest} from "@marketplaceModule/database/schemas/taskRequest/taskRequest";
 import {taskRequestService} from "@marketplaceModule/database/schemas/taskRequest/taskRequest.service";
-import {listingService} from "@marketplaceModule/database/schemas/listing/listing.service";
 import {bidService} from "@marketplaceModule/database/schemas/bid/bid.service";
 import {emitNotificationEvent} from "@coreModule/domain/notifications/notificationEventBus";
 import {NotificationEventCodes} from "@marketplaceModule/domain/notifications/notificationEventCodes";
 import {assertOwnerOrAdmin} from "@marketplaceModule/utilities/services/marketplaceAccess";
+import {marketplaceOperator} from "@marketplaceModule/utilities/services/portalBuyerTargets";
+import {inJobCompany} from "@marketplaceModule/utilities/services/portalJobs";
+import {createJobLeads} from "@marketplaceModule/utilities/services/jobMatching";
 import type {ActionMessage, SingleForm} from "armonia/src/modules/core/types/shared.types";
 
 /** How long a task request takes bids, from creation or from being reopened. */
@@ -20,46 +22,6 @@ export function taskRequestExpiry(from: Date = new Date()): Date {
     return new Date(from.getTime() + TASK_REQUEST_OPEN_DAYS * 24 * 60 * 60 * 1000);
 }
 
-/**
- * Tells the providers with an active listing in the task's category and city
- * about it, once the surrounding transaction (if any) commits. Returns how many.
- */
-export async function notifyMatchingProviders(
-    taskRequest: ITaskRequest,
-    params: AuthenticatedMWType & {session?: TransactionRequiredParams["session"]},
-): Promise<number> {
-    const {logger, languageCode, company, session} = params;
-
-    const listings = await listingService.find(
-        {
-            company: company._id,
-            category: taskRequest.category._id,
-            "address.city": taskRequest.address.city._id,
-            status: "active",
-            provider: {$ne: taskRequest.requester._id},
-        },
-        {session, logger, languageCode},
-        null,
-        "provider",
-    );
-    const providerIds = [...new Set(listings.map((listing) => listing.provider._id.toString()))];
-    if (providerIds.length === 0) return 0;
-
-    await runAfterCommit(session, async () => {
-        emitNotificationEvent(NotificationEventCodes.TASK_REQUEST_CREATED, {
-            receiverIds: providerIds,
-            payload: {
-                companyId: company._id.toString(),
-                languageCode,
-                taskRequestId: taskRequest._id.toString(),
-                taskRequestTitle: taskRequest.title,
-                categoryId: taskRequest.category._id.toString(),
-                cityId: taskRequest.address.city._id.toString(),
-            },
-        });
-    });
-    return providerIds.length;
-}
 
 /** Ids of the users with a pending bid on the task. */
 export async function pendingBidderIds(taskRequestId: ObjectId, companyId: ObjectId, opts: {logger: AuthenticatedMWType["logger"]; languageCode: string}): Promise<string[]> {
@@ -90,9 +52,14 @@ export class TaskRequestActions {
         schema: validateSingleForm,
         // The caller's own record, or one they are a party to: the party check below decides (D14).
         selfService: true,
+        // A portal buyer's job lives in the marketplace operator, which answers the module gate (D143).
+        portalBuyer: marketplaceOperator,
     })
     async close(params: Record<string, any>): Promise<ActionMessage> {
-        const p = params as TransactionRequiredParams & SingleForm;
+        return inJobCompany(params as TransactionRequiredParams & SingleForm, (p) => this.closeJob(p));
+    }
+
+    private async closeJob(p: TransactionRequiredParams & SingleForm): Promise<ActionMessage> {
         const {logger, languageCode, company, actionUserCtx, session, _id} = p;
 
         logger.start(`Closing task request: ${_id}...`);
@@ -129,9 +96,14 @@ export class TaskRequestActions {
         schema: validateSingleForm,
         // The caller's own record, or one they are a party to: the party check below decides (D14).
         selfService: true,
+        // A portal buyer's job lives in the marketplace operator, which answers the module gate (D143).
+        portalBuyer: marketplaceOperator,
     })
     async reopen(params: Record<string, any>): Promise<ActionMessage> {
-        const p = params as TransactionRequiredParams & SingleForm;
+        return inJobCompany(params as TransactionRequiredParams & SingleForm, (p) => this.reopenJob(p));
+    }
+
+    private async reopenJob(p: TransactionRequiredParams & SingleForm): Promise<ActionMessage> {
         const {logger, languageCode, actionUserCtx, session, _id} = p;
 
         logger.start(`Reopening task request: ${_id}...`);
@@ -161,15 +133,11 @@ export class TaskRequestActions {
 
         logger.start(`Notifying providers for task request: ${_id}...`);
 
-        const taskRequest = await taskRequestService.findOneOrThrow(
-            {_id: new ObjectId(_id), company: company._id},
-            {logger, languageCode},
-            null,
-            "title category address requester status",
-        );
+        const taskRequest = await taskRequestService.findOneOrThrow({_id: new ObjectId(_id), company: company._id}, {logger, languageCode});
         assertOwnerOrAdmin(taskRequest.requester, actionUserCtx, languageCode);
 
-        const notified = await notifyMatchingProviders(taskRequest, p);
+        // Re-matching reaches only providers without a lead yet (D143).
+        const notified = await createJobLeads(taskRequest, {logger, languageCode});
 
         logger.finish(`Finished notifying ${notified} provider(s) for task request: ${_id}`);
         return {message: `Notified ${notified} provider(s)`};

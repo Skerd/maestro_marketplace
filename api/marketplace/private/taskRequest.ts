@@ -1,6 +1,10 @@
 import {ObjectId} from "mongodb";
 import {mediaUploadMW} from "@coreModule/utilities/middlewares/mediaUploadMW";
 import {createCrudRouter, type CrudCreateParams} from "@coreModule/api/crudRouterFactory";
+import {marketplaceOperator} from "@marketplaceModule/utilities/services/portalBuyerTargets";
+import {asJobBuyer, assertJobOpenLimit, intoOperator, jobSiteCompany} from "@marketplaceModule/utilities/services/portalJobs";
+import {createJobLeads} from "@marketplaceModule/utilities/services/jobMatching";
+import type {CreateMyTaskRequestResponse} from "armonia/src/modules/marketplace/api/marketplace/private/taskRequest/taskRequest.dto";
 import authMW, {type AuthenticatedMWType} from "@coreModule/utilities/middlewares/authMW";
 import {asyncHandler} from "@coreModule/utilities/middlewares/asyncHandler";
 import {rateLimiter} from "@coreModule/utilities/middlewares/rateLimiter";
@@ -13,7 +17,6 @@ import {bidsToDTOArray} from "@marketplaceModule/utilities/mappers/bid/bidMapper
 import {buildCreateDataFromSchemaDef, buildUpdateDataFromSchemaDef} from "@coreModule/api/buildUpdateDataFromSchemaDef";
 import {assertCanDelete} from "@coreModule/database/relationsRegistry";
 import {
-    notifyMatchingProviders,
     TaskRequestActions,
     taskRequestExpiry,
 } from "@marketplaceModule/database/schemas/taskRequest/taskRequest.actions";
@@ -127,8 +130,9 @@ export const {router} = createCrudRouter<ITaskRequest, CreateTaskRequestFormType
 
         return {data: taskRequestsToSelect(taskRequests), total};
     },
-    afterCreate: async (created, params) => {
-        await notifyMatchingProviders(created, params);
+    // A panel-made job reaches its own company's providers; a portal job is created by `createMine` (D143).
+    afterCreate: async (created, {logger, languageCode, session}) => {
+        await createJobLeads(created, {logger, languageCode, session});
     },
     enrichList: async (docs, params) => {
         const {logger, languageCode, company} = params;
@@ -153,15 +157,15 @@ export const {router} = createCrudRouter<ITaskRequest, CreateTaskRequestFormType
 const BUYER_TASK_POPULATE = ["category", "currency", "address.country", "address.state", "address.city"];
 
 /**
- * Buyer self-service routes (storefront account pages). Scoped hard to the
- * authenticated requester — no admin model permissions required.
+ * Buyer self-service routes (storefront account pages). Scoped hard to the authenticated requester, no admin model
+ * permissions required. A buyer's jobs live in the marketplace operator (D143), which also answers the module gate.
  */
 router.post(
     "/my",
-    authMW("private"),
+    authMW("private", {portalBuyer: marketplaceOperator}),
     rateLimiter({windowMs: 60000, max: 60}),
     validateFormZod(validatePagedForm),
-    asyncHandler(async (params: AuthenticatedMWType & PagedForm) => {
+    asyncHandler((request: AuthenticatedMWType & PagedForm) => asJobBuyer(request, async (params) => {
         const {company, actionUserCtx, logger, languageCode} = params;
         const page = params.page ?? 1;
         const limit = params.limit ?? 10;
@@ -175,15 +179,15 @@ router.post(
         const counts = await liveBidCounts(taskRequests.map((doc) => doc._id), company._id, opts);
 
         return {data: taskRequestsToDTO(taskRequests, counts), total, page, limit};
-    }),
+    })),
 );
 
 router.post(
     "/mySingle",
-    authMW("private"),
+    authMW("private", {portalBuyer: marketplaceOperator}),
     rateLimiter({windowMs: 60000, max: 60}),
     validateFormZod(validateSingleForm),
-    asyncHandler(async (params: AuthenticatedMWType & {_id: string}) => {
+    asyncHandler((request: AuthenticatedMWType & {_id: string}) => asJobBuyer(request, async (params) => {
         const {company, actionUserCtx, logger, languageCode, _id} = params;
         const opts = {logger, languageCode};
 
@@ -203,24 +207,34 @@ router.post(
         );
 
         return {data: {...taskRequestToDTO(taskRequest, bids.length), bids: bidsToDTOArray(bids)}};
-    }),
+    })),
 );
 
-/** Buyer self-service create (storefront account): the same rules as PUT, without the model permission. */
+/**
+ * Buyer self-service create (storefront account): the same rules as PUT, without the model permission. The job is
+ * saved in the marketplace operator with the operator's own currency and places, limited to the site's company when
+ * posted on a company's own site, and handed to the matching providers as leads in their companies (D143).
+ */
 router.put(
     "/createMine",
-    authMW("private"),
+    authMW("private", {portalBuyer: marketplaceOperator}),
     rateLimiter({windowMs: 60000, max: 30}),
     transactionHandler(),
     mediaUpload,
     validateFormZod(createTaskRequestFormSchema),
-    asyncHandler(async (params: CrudCreateParams<CreateTaskRequestFormType>) => {
-        const {company, actionUserCtx, session, logger, languageCode} = params;
-        const created = await taskRequestService.create(
-            {...buildTaskRequestCreate(params), company: company._id},
-            {session, logger, languageCode, auditUserId: actionUserCtx.userId},
-        );
-        await notifyMatchingProviders(created, params);
-        return {data: {_id: created._id.toString()}};
+    asyncHandler(async (request: CrudCreateParams<CreateTaskRequestFormType>): Promise<CreateMyTaskRequestResponse> => {
+        const restrictedToCompany = await jobSiteCompany(request.origin, request.languageCode);
+        return asJobBuyer(request, async (params) => {
+            const {company, actionUserCtx, session, logger, languageCode} = params;
+            const requester = new ObjectId(actionUserCtx.userId);
+            await assertJobOpenLimit(company._id, requester, languageCode, session);
+            const data = await intoOperator(buildTaskRequestCreate(params), company._id, requester, languageCode, session);
+            const created = await taskRequestService.create(
+                {...data, company: company._id, ...(restrictedToCompany ? {restrictedToCompany} : {})},
+                {session, logger, languageCode, auditUserId: actionUserCtx.userId},
+            );
+            const notified = await createJobLeads(created, {logger, languageCode, session});
+            return {data: {_id: created._id.toString(), notified}};
+        });
     }),
 );

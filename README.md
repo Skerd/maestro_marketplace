@@ -47,9 +47,13 @@ The core company seed creates **Arpeggio Services** (VAT `MARKETPLACE_OPERATOR_V
 
 `ListingCategory` is one platform-wide tree, not scoped to a company (`tenantScoped: false`): the operator owns every row and is the only company that writes one (`assertMarketplaceOperatorSession`); every read names the operator's rows (`marketplaceCategoryClause`). Each category has a `delivery`: `onsite` work is matched by distance, `remote` work anywhere. An on-site listing must have a `serviceArea` (pin + `radiusKm`); the listing router keeps its GeoJSON `serviceAreaPoint` for the 2dsphere index (`utilities/services/serviceArea.ts`). The panel asks `POST /api/marketplace/listingCategory/access` whether the session company may manage the tree.
 
+## Portal jobs, matching and leads (D143)
+
+A job a portal buyer posts (`taskRequest/createMine`) is saved in the operator (`asJobBuyer`, `intoOperator`: the operator's own currency and places, the buyer's photos shared with it), limited to the site's company when posted on a company's own site (`restrictedToCompany`), at most `JOB_OPEN_LIMIT` open per buyer. `createJobLeads` (`utilities/services/jobMatching.ts`) finds the providers who do the work (category with its sub- and parent categories; on-site: the pin inside a listing's `serviceArea`, `$geoNear`; online: anywhere), one per provider, best rated then closest, at most `JOB_LEAD_CAP`, and gives each a `TaskLead` in the provider's company, shares the photos with it and sends `TASK_REQUEST_CREATED` there with the `leadId`. Re-matching (`notifyAll`) reaches only providers without a lead.
+
 ## Portal buyer routes
 
-Portal accounts belong to the platform company, which does not have this module. Each buyer route declares the company its record lives in, and core's module gate checks that company instead (`portalBuyer`, `utilities/services/portalBuyerTargets.ts`): the order's seller for order actions and `order/mySingle` (`orderSeller("_id")`), reviews, disputes and bookings (`orderSeller("order")`); the listing's seller for `createFromListing` (`listingSeller`); the milestone's for `releaseMilestone` (`milestoneSeller`); the operator for `order/my`. Job and bid routes get theirs when jobs move to the operator (P12.2, P12.5).
+Portal accounts belong to the platform company, which does not have this module. Each buyer route declares the company its record lives in, and core's module gate checks that company instead (`portalBuyer`, `utilities/services/portalBuyerTargets.ts`): the order's seller for order actions and `order/mySingle` (`orderSeller("_id")`), reviews, disputes and bookings (`orderSeller("order")`); the listing's seller for `createFromListing` (`listingSeller`); the milestone's for `releaseMilestone` (`milestoneSeller`); the operator for `order/my`. The job routes (`createMine`, `my`, `mySingle`, `close`, `reopen`) name the operator (`marketplaceOperator`); bid routes follow in P12.3.
 
 ## Environment
 

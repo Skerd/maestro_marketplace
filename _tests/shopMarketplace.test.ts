@@ -26,6 +26,7 @@ vi.mock("@coreModule/utilities/marketing/portalStorefront", async (importOrigina
 
 import {appFor, callerHeader, type TestCaller} from "@coreModule/_tests/httpHarness";
 import User from "@coreModule/database/schemas/user/user";
+import Company from "@coreModule/database/schemas/company/company";
 import Currency from "@coreModule/database/schemas/currency/currency";
 import City from "@coreModule/database/schemas/city/city";
 import * as shopListingsRoute from "@marketplaceModule/api/marketplace/public/shopListings";
@@ -301,17 +302,19 @@ describe("buyer self-service routes", {timeout: 30000}, () => {
         expect(second.body.error_code).toBe("dispute_already_exists_for_order");
     }));
 
+    // A buyer's jobs and their bids live in the marketplace operator (D143).
     it("lists the caller's task requests and shows the bids on their own only", () => asCompany(async () => {
+        await Company.collection.insertOne({_id: operatorId, name: "Operator", vat: "VAT-Operator", isActive: true, modules: ["marketplace"], deletedAt: null});
         const base = {
             title: "Paint my flat", description: "", category: new ObjectId(), budgetMin: 100, budgetMax: 300, currency: currencyId,
             address: {street: "S", postalCode: "1000", country: new ObjectId(), city: new ObjectId(), latitude: 41, longitude: 19},
-            mainImage: new ObjectId(), status: "open", expiresAt: new Date(Date.now() + 86400000), company: companyId,
+            mainImage: new ObjectId(), status: "open", expiresAt: new Date(Date.now() + 86400000), company: operatorId,
         };
         const {insertedId: mine} = await TaskRequest.collection.insertOne({...base, name: "TASK-1", requester: customerId});
         await TaskRequest.collection.insertOne({...base, name: "TASK-2", requester: strangerId});
         await Bid.collection.insertOne({
             name: "BID-1", taskRequest: mine, bidder: providerId, amount: 200, currency: currencyId,
-            proposal: "Two coats", deliveryDays: 4, status: "pending", company: companyId,
+            proposal: "Two coats", deliveryDays: 4, status: "pending", company: operatorId,
         });
 
         const list = await post("/api/marketplace/taskRequest/my", {}, customer);
