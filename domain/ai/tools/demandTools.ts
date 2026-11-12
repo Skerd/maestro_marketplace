@@ -22,6 +22,7 @@ import {taskRequestService} from "@marketplaceModule/database/schemas/taskReques
 import {bidService} from "@marketplaceModule/database/schemas/bid/bid.service";
 import {bidVisibilityFilter} from "@marketplaceModule/utilities/services/marketplaceAccess";
 import {listingCategoryService} from "@marketplaceModule/database/schemas/listingCategory/listingCategory.service";
+import {marketplaceCategoryClause} from "@marketplaceModule/utilities/services/marketplaceOperator";
 import type {TaskRequestStatus} from "@marketplaceModule/database/schemas/taskRequest/taskRequest";
 import type {BidStatus} from "@marketplaceModule/database/schemas/bid/bid";
 import {
@@ -96,7 +97,8 @@ async function executeTaskRequests(rawArgs: unknown, ctx: AssistantToolContext):
 
     if (args.categoryName != null) {
         const categories = await listingCategoryService.find(
-            {...companyScope(ctx), name: regexClause(args.categoryName)},
+            // The shared tree (D144): every company files under the operator's categories.
+            {...(await marketplaceCategoryClause()), name: regexClause(args.categoryName)},
             findOptions(ctx),
             undefined,
             "_id",
@@ -105,7 +107,7 @@ async function executeTaskRequests(rawArgs: unknown, ctx: AssistantToolContext):
         );
         const categoryIds = categories.map((c: any) => c._id).filter(Boolean);
         if (categoryIds.length === 0) {
-            return emptyResult(`No listing category matching "${args.categoryName}" in this company.`);
+            return emptyResult(`No listing category matching "${args.categoryName}".`);
         }
         query.category = {$in: categoryIds};
     }

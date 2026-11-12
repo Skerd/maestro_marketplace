@@ -7,9 +7,8 @@ import City from "@coreModule/database/schemas/city/city";
 import User from "@coreModule/database/schemas/user/user";
 import {defaultSysUsers} from "@coreModule/database/schemas/user/user.defaults";
 import {defaultCompaniesValues} from "@coreModule/database/schemas/company/company.defaults";
-import {createCategories as createListingCategories} from "@marketplaceModule/database/schemas/listingCategory/listingCategory.defaults";
 import {createProviderProfiles} from "@marketplaceModule/database/schemas/providerProfile/providerProfile.defaults";
-import {createListings} from "@marketplaceModule/database/schemas/listing/listing.defaults";
+import {createListings, homeServiceListingSeeds} from "@marketplaceModule/database/schemas/listing/listing.defaults";
 import {createListingPackages} from "@marketplaceModule/database/schemas/listingPackage/listingPackage.defaults";
 import {createListingAddOns} from "@marketplaceModule/database/schemas/listingAddOn/listingAddOn.defaults";
 import {createTaskRequests} from "@marketplaceModule/database/schemas/taskRequest/taskRequest.defaults";
@@ -29,6 +28,9 @@ import {createPromotions} from "@marketplaceModule/database/schemas/promotion/pr
  * marketplace demo row is visible from one login. Invoked from
  * {@link seedCompanyDemoData} after the product catalog seed.
  */
+/** The demo home-repair provider ("Adria Home Fix" in the core company seed), which gets the on-site kit. */
+const HOME_SERVICES_DEMO_VAT = "Z623456789Z";
+
 async function resolveDemoUser(company: any, logger: serverLogger) {
     const mainUsername = defaultSysUsers.find((u) => u.isMainUser)?.username;
     const user =
@@ -86,8 +88,13 @@ export async function seedMarketplaceCompanyDemoData(parentLogger: serverLogger 
     const provider = user;
     const customer = user;
 
-    await createListingCategories(logger, company);
     await createProviderProfiles(logger, company, provider);
+    if (company.vat === HOME_SERVICES_DEMO_VAT) {
+        // The home-repair provider only advertises on-site services with their service areas (D143).
+        await createListings(logger, company, provider, currency, undefined, homeServiceListingSeeds);
+        logger.finish("Finished seeding marketplace demo data!");
+        return;
+    }
 
     const demoAddress = await resolveDemoAddress(company, logger);
     const listingAddress =

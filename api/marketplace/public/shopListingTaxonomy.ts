@@ -10,6 +10,7 @@ import {listingService} from "@marketplaceModule/database/schemas/listing/listin
 import {listingCategoryService} from "@marketplaceModule/database/schemas/listingCategory/listingCategory.service";
 import {resolveStorefrontContext, inStorefrontCatalog} from "@coreModule/utilities/marketing/portalStorefront";
 import {liveProviderCompanyClause} from "@marketplaceModule/utilities/shop/marketplaceSellers";
+import {marketplaceCategoryClause} from "@marketplaceModule/utilities/services/marketplaceOperator";
 import type {
     ShopListingLocation,
     ShopListingTaxonomyResponse,
@@ -42,10 +43,11 @@ router.post(
                 ? {company: ctx.company._id}
                 : await liveProviderCompanyClause();
             Object.assign(activeMatch, companyFilter);
-            const categoryFilter = companyFilter;
+            // One shared tree (D144); a company's own site keeps only the branches its listings use (below).
+            const categoryFilter = await marketplaceCategoryClause();
 
             const [categories, categoryCounts, placeRows] = await Promise.all([
-                listingCategoryService.find(categoryFilter, {withDeleted: false}, undefined, "name slug parentListingCategory order", {order: 1, name: 1}),
+                listingCategoryService.find(categoryFilter, {withDeleted: false}, undefined, "name slug delivery parentListingCategory order", {order: 1, name: 1}),
                 listingService.aggregate([
                     {$match: activeMatch},
                     {$group: {_id: "$category", count: {$sum: 1}}},
@@ -69,15 +71,22 @@ router.post(
             }));
 
             const counts = new Map(categoryCounts.map((row) => [String(row._id), row.count]));
+            const parentOf = new Map(categories.map((category) => [category._id.toString(), category.parentListingCategory?.toString()]));
+            const used = new Set<string>();
+            for (const id of counts.keys()) {
+                for (let current: string | undefined = id; current && !used.has(current); current = parentOf.get(current)) used.add(current);
+            }
+            const shown = ctx.mode === "tenant" ? categories.filter((category) => used.has(category._id.toString())) : categories;
 
             return {
                 data: {
-                    categories: categories.map((category: any) => ({
+                    categories: shown.map((category: any) => ({
                         _id: category._id.toString(),
                         name: category.name ?? "",
                         slug: category.slug ?? "",
                         parent: category.parentListingCategory ? category.parentListingCategory.toString() : undefined,
                         order: category.order,
+                        delivery: category.delivery ?? "remote",
                         listingCount: counts.get(category._id.toString()) ?? 0,
                     })),
                     locations,

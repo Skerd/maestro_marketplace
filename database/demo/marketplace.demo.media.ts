@@ -58,6 +58,13 @@ export const LISTING_PHOTO_KITS: Readonly<Record<string, MarketplacePhotoKit>> =
         "1551288049-bebda4e38f71",
         "1543286386-713bdd548da4",
     ],
+    // Home services (on-site, D143): tap, pipes, electrician, cleaning, tools.
+    "home-01-leaks": ["1585704032915-c3400ca199e7", "1584622650111-993a426fbf0a", "1607472586893-edb57bdc0e39"],
+    "home-02-drains": ["1607472586893-edb57bdc0e39", "1584622650111-993a426fbf0a", "1585704032915-c3400ca199e7"],
+    "home-03-boilers": ["1558618666-fcd25c85cd64", "1607472586893-edb57bdc0e39", "1584622650111-993a426fbf0a"],
+    "home-04-electrical": ["1621905251918-48416bd8575a", "1621905252507-b35492cc74b4", "1504148455328-c376907d081c"],
+    "home-05-cleaning": ["1581578731548-c64695cc6952", "1563453392212-326f5e854473", "1527515637462-cff94eecc1ac"],
+    "home-06-handyman": ["1504148455328-c376907d081c", "1556911220-bff31c812dba", "1600585152220-90363fe7e115"],
 };
 
 export const TASK_REQUEST_PHOTO_KITS: Readonly<Record<string, MarketplacePhotoKit>> = {

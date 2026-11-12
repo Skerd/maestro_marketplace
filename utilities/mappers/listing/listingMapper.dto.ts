@@ -42,6 +42,9 @@ export function listingToDTO(listing: IListing): Listing {
             state: mapSnippet<StateSimple>()(listing.address.state, StateSimpleSnippet),
             city: mapSnippet<CitySimple>()(listing.address.city, CitySimpleSnippet),
         } : undefined,
+        serviceArea: listing.serviceArea?.radiusKm != null
+            ? {latitude: listing.serviceArea.latitude, longitude: listing.serviceArea.longitude, radiusKm: listing.serviceArea.radiusKm}
+            : undefined,
         mainImage: listing.mainImage ? mapMedia(listing.mainImage) : undefined,
         imageGallery: listing.imageGallery?.map(mapMedia),
         videoGallery: listing.videoGallery?.length ? listing.videoGallery.map(mapMedia) : undefined,

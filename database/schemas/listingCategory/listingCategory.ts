@@ -12,12 +12,17 @@ import {generateUniqueSlug} from "@coreModule/utilities/helpers/uniqueSlug";
 import { listingCategoryViews } from "./listingCategory.views";
 import { ListingCategorySimpleSnippet } from "@marketplaceModule/database/schemas/listingCategory/listingCategory.snippets";
 import {validateSchemaDefAgainstMongoose} from "@coreModule/database/utilities/validateSchemaDefAgainstMongoose";
-import {ListingCategorySchemaDef} from "armonia/src/modules/marketplace/api/marketplace/private/listingCategory/listingCategory.schema-def";
+import {
+    ListingCategorySchemaDef,
+    listingCategoryDeliveries,
+    type ListingCategoryDelivery,
+} from "armonia/src/modules/marketplace/api/marketplace/private/listingCategory/listingCategory.schema-def";
 
 export interface IListingCategory extends Document, IOwnershipPluginFields, ISoftDeletePluginFields, ILifeCyclePluginFields {
     company: ICompany;
     name: string;
     slug: string;
+    delivery: ListingCategoryDelivery;
     parentListingCategory?: IListingCategory;
     order: number;
 }
@@ -39,6 +44,13 @@ const ListingCategorySchema = new Schema<IListingCategory>(
                 others: {write: "no-permission"},
             },
             dynamicTableConfiguration: {hideColumn: true},
+        },
+        delivery: {
+            type: SchemaTypes.String,
+            enum: listingCategoryDeliveries,
+            required: true,
+            default: "remote",
+            dynamicTableConfiguration: {enumTones: {onsite: "info", remote: "neutral"}},
         },
         parentListingCategory: {
             type: SchemaTypes.ObjectId,
@@ -66,7 +78,9 @@ ListingCategorySchema.pre("save", async function () {
     this.slug = await generateUniqueSlug(this.name || "category", this.constructor, companyId);
 });
 
-ownershipPlugin(ListingCategorySchema);
+// One tree for the whole platform (D143, D144): the marketplace operator owns the rows and every company reads them,
+// so listings and jobs anywhere point at the same categories. Writes are the operator's only (the category router).
+ownershipPlugin(ListingCategorySchema, {tenantScoped: false});
 auditPlugin(ListingCategorySchema);
 softDeletePlugin(ListingCategorySchema);
 lifeCyclePlugin(ListingCategorySchema);

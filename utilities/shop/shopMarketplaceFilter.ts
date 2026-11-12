@@ -1,6 +1,7 @@
 import {ObjectId} from "mongodb";
 import {escapeRegex} from "@coreModule/utilities/helpers";
 import {listingCategoryService} from "@marketplaceModule/database/schemas/listingCategory/listingCategory.service";
+import {marketplaceCategoryClause} from "@marketplaceModule/utilities/services/marketplaceOperator";
 import {promotionService} from "@marketplaceModule/database/schemas/promotion/promotion.service";
 import type {CrudOptions} from "@coreModule/database/services/baseCrudService";
 import type {ShopPromotionMap} from "@marketplaceModule/utilities/mappers/shopMarketplace/shopMarketplace.mapper";
@@ -16,17 +17,11 @@ export const SHOP_LISTING_SORT_SPECS: Record<Exclude<ShopListingSort, "recommend
     rating: {avgRating: -1, reviewCount: -1, createdAt: -1},
 };
 
-/** A category slug and every category below it; null when the slug matches nothing or is ambiguous on platform. */
-async function listingCategoryScope(
-    companyClause: Record<string, unknown>,
-    platform: boolean,
-    slug: string,
-): Promise<ObjectId[] | null> {
-    const categories: any[] = await listingCategoryService.find(companyClause, {withDeleted: false}, undefined, "slug parentListingCategory company");
-    const roots = categories.filter((category) => category.slug === slug);
-    if (roots.length === 0) return null;
-    if (platform && roots.length > 1) return null;
-    const root = roots[0];
+/** A category slug of the shared tree (D144) and every category below it; null when the slug matches nothing. */
+async function listingCategoryScope(slug: string): Promise<ObjectId[] | null> {
+    const categories: any[] = await listingCategoryService.find(await marketplaceCategoryClause(), {withDeleted: false}, undefined, "slug parentListingCategory");
+    const root = categories.find((category) => category.slug === slug);
+    if (!root) return null;
 
     const scope: ObjectId[] = [root._id];
     for (let i = 0; i < scope.length; i++) {
@@ -63,7 +58,7 @@ export async function buildShopListingFilter(
         ];
     }
     if (form.categorySlug) {
-        const scope = await listingCategoryScope(companyClause, platform, form.categorySlug);
+        const scope = await listingCategoryScope(form.categorySlug);
         if (!scope) return null;
         filter.category = {$in: scope};
     }

@@ -2,6 +2,7 @@ import type {HydratedDocument} from "mongoose";
 import {ObjectId} from "mongodb";
 import Listing, {type IListing, type ListingStatus, type PricingType} from "./listing";
 import ListingCategory from "@marketplaceModule/database/schemas/listingCategory/listingCategory";
+import {marketplaceCategoryClause} from "@marketplaceModule/utilities/services/marketplaceOperator";
 import {getLogger, serverLogger} from "@coreModule/loggers/serverLog";
 import {ICompany} from "@coreModule/database/schemas/company/company";
 import {IUser} from "@coreModule/database/schemas/user/user";
@@ -10,6 +11,9 @@ import {demoName} from "@coreModule/utilities/helpers";
 import {demoSeedTag} from "@coreModule/database/demo/demoSeed";
 import {resolveListingPhotoIds} from "@marketplaceModule/database/demo/marketplace.demo.media";
 import {resolveDemoImagesFromUnsplash} from "@coreModule/database/demo/demoMedia";
+import Country from "@coreModule/database/schemas/country/country";
+import City from "@coreModule/database/schemas/city/city";
+import {listingServiceAreaFields} from "@marketplaceModule/utilities/services/serviceArea";
 
 /** Address a seeded listing advertises; omitted when the geo seeds did not resolve. */
 export type DemoListingAddress = {
@@ -30,6 +34,8 @@ export type ListingSeed = {
     tags: readonly string[];
     requirements: readonly string[];
     faqs: readonly {question: string; answer: string}[];
+    /** On-site work (D143): the city the listing advertises and the area the provider covers from a pin. */
+    place?: {cityName: string; latitude: number; longitude: number; radiusKm: number};
 };
 
 export const defaultListingSeeds: readonly ListingSeed[] = [
@@ -283,10 +289,115 @@ export const defaultListingSeeds: readonly ListingSeed[] = [
     },
 ];
 
+const DURRES = {cityName: "Durrës", latitude: 41.3231, longitude: 19.4414};
+const TIRANA = {cityName: "Tirana", latitude: 41.3275, longitude: 19.8187};
+
+/** A home-repair provider's on-site services around Durrës and Tirana (D143): each has a service area. */
+export const homeServiceListingSeeds: readonly ListingSeed[] = [
+    {
+        seedKey: "home-01-leaks",
+        title: "Leaking Tap and Pipe Repairs",
+        description: "Dripping taps, leaking pipes under the sink and loose fittings fixed the same day. I bring the common washers, cartridges and seals with me.",
+        categorySlug: "home-plumbing-leaks",
+        price: 30,
+        pricingType: "fixed",
+        deliveryDays: 1,
+        status: "active",
+        tags: ["plumbing", "leak", "tap", "faucet"],
+        requirements: ["Where the leak is", "A photo of the tap or pipe if you can"],
+        faqs: [{question: "Are parts included?", answer: "Standard washers and seals are included. Larger parts such as a new mixer tap are charged at cost."}],
+        place: {...DURRES, radiusKm: 30},
+    },
+    {
+        seedKey: "home-02-drains",
+        title: "Blocked Drain and Toilet Clearing",
+        description: "Blocked sinks, showers and toilets cleared with a drain snake or pressure jet, and the cause explained so it does not come back.",
+        categorySlug: "home-plumbing-drains",
+        price: 45,
+        pricingType: "fixed",
+        deliveryDays: 1,
+        status: "active",
+        tags: ["plumbing", "drain", "blockage"],
+        requirements: ["Which drain is blocked", "Whether water is backing up"],
+        faqs: [{question: "Do you come at night?", answer: "Emergency visits are possible until 22:00 for an extra fee."}],
+        place: {...DURRES, radiusKm: 30},
+    },
+    {
+        seedKey: "home-03-boilers",
+        title: "Water Heater Service and Repair",
+        description: "Electric and gas water heaters serviced, descaled and repaired. Thermostat, element and valve replacements on the spot.",
+        categorySlug: "home-plumbing-boilers",
+        price: 25,
+        pricingType: "hourly",
+        deliveryDays: 2,
+        status: "active",
+        tags: ["boiler", "water heater", "plumbing"],
+        requirements: ["Brand and model of the heater", "What it does wrong"],
+        faqs: [{question: "Do you install new heaters?", answer: "Yes. The installation is quoted after a short visit."}],
+        place: {...TIRANA, radiusKm: 20},
+    },
+    {
+        seedKey: "home-04-electrical",
+        title: "Electrical Faults, Sockets and Lighting",
+        description: "Tripping fuses, dead sockets and new light fittings handled by a licensed electrician. Safety check of the fuse box included.",
+        categorySlug: "home-electrical",
+        price: 28,
+        pricingType: "hourly",
+        deliveryDays: 2,
+        status: "active",
+        tags: ["electrician", "sockets", "lighting"],
+        requirements: ["What stopped working", "Photos of the fuse box if possible"],
+        faqs: [{question: "Are you licensed?", answer: "Yes, and every job comes with a written report of what was done."}],
+        place: {...TIRANA, radiusKm: 20},
+    },
+    {
+        seedKey: "home-05-cleaning",
+        title: "Deep Cleaning for Flats and Houses",
+        description: "Kitchen, bathroom and floor deep cleaning with our own products and equipment. Move-in and move-out cleans too.",
+        categorySlug: "home-cleaning",
+        price: 15,
+        pricingType: "hourly",
+        deliveryDays: 3,
+        status: "active",
+        tags: ["cleaning", "deep clean", "move out"],
+        requirements: ["Size of the home", "Rooms to clean"],
+        faqs: [{question: "Do I need to be home?", answer: "No, as long as someone can let us in and lock up after."}],
+        place: {...TIRANA, radiusKm: 15},
+    },
+    {
+        seedKey: "home-06-handyman",
+        title: "Handyman: Shelves, Doors and Small Fixes",
+        description: "Shelves and curtain rails put up, sticking doors planed, furniture assembled and the small jobs on your list done in one visit.",
+        categorySlug: "home-handyman",
+        price: 20,
+        pricingType: "hourly",
+        deliveryDays: 3,
+        status: "active",
+        tags: ["handyman", "assembly", "repairs"],
+        requirements: ["A list of the jobs", "Photos if helpful"],
+        faqs: [{question: "Is there a minimum?", answer: "One hour is the minimum visit."}],
+        place: {...DURRES, radiusKm: 40},
+    },
+];
+
 export type CreateListingsResult = {
     listings: HydratedDocument<IListing>[];
     bySeedKey: Record<string, HydratedDocument<IListing>>;
 };
+
+/** The address and service area of an on-site demo listing, from the company's own country and city rows. */
+async function onsitePlace(company: ICompany, categoryId: ObjectId, place: NonNullable<ListingSeed["place"]>) {
+    const [country, city] = await Promise.all([
+        Country.findOne({company: company._id, code: "AL"}).select("_id"),
+        City.findOne({company: company._id, name: place.cityName}).select("_id"),
+    ]);
+    const area = await listingServiceAreaFields(categoryId, place, "en-US", {});
+    return {
+        address: country && city ? {country: country._id as ObjectId, city: city._id as ObjectId} : undefined,
+        serviceArea: area.serviceArea ?? undefined,
+        serviceAreaPoint: area.serviceAreaPoint ?? undefined,
+    };
+}
 
 /**
  * Seeds the marketplace demo listings for a company.
@@ -301,6 +412,7 @@ export async function createListings(
     provider: IUser,
     currency: ICurrency,
     address?: DemoListingAddress,
+    seeds: readonly ListingSeed[] = defaultListingSeeds,
 ): Promise<CreateListingsResult> {
     const logger = getLogger("mongoDbInitialization-createListings", parentLogger);
     logger.start("Creating listings...");
@@ -308,11 +420,12 @@ export async function createListings(
     const listings: HydratedDocument<IListing>[] = [];
     const bySeedKey: Record<string, HydratedDocument<IListing>> = {};
 
-    for (const seed of defaultListingSeeds) {
+    for (const seed of seeds) {
         try {
+            // Every company files under the shared tree (D144).
             const category = await ListingCategory.findOne({
                 slug: seed.categorySlug,
-                company: company._id,
+                ...(await marketplaceCategoryClause()),
             }).select("_id");
 
             if (!category) {
@@ -335,6 +448,9 @@ export async function createListings(
             const mainImageId = resolved.mainImageId;
             const galleryIds = resolved.galleryIds;
 
+            // An on-site seed advertises its own city and gets its service area through the listing rule (D143).
+            const place = seed.place ? await onsitePlace(company, category._id, seed.place) : undefined;
+
             const payload = {
                 title: demoName(seed.title),
                 description: seed.description,
@@ -345,7 +461,7 @@ export async function createListings(
                 pricingType: seed.pricingType,
                 deliveryDays: seed.deliveryDays,
                 status: seed.status,
-                ...(address ? {address} : {}),
+                ...(place ? {address: place.address, serviceArea: place.serviceArea, serviceAreaPoint: place.serviceAreaPoint} : address ? {address} : {}),
                 mainImage: mainImageId,
                 imageGallery: galleryIds,
                 faqs: seed.faqs.map((faq) => ({...faq})),

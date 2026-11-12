@@ -32,3 +32,20 @@ export async function marketplaceOperatorCompanyId(languageCode: string): Promis
     }
     return operator._id;
 }
+
+/**
+ * The rows of the shared service category tree (D144): the operator's. Matches nothing while there is no operator,
+ * so no company's leftover rows ever show.
+ */
+export async function marketplaceCategoryClause(): Promise<Record<string, unknown>> {
+    const operatorId = await findMarketplaceOperatorId();
+    return operatorId ? {company: operatorId} : {_id: {$exists: false}};
+}
+
+/** Only a session in the operator company changes the shared categories (D144). */
+export async function assertMarketplaceOperatorSession(companyId: ObjectId, languageCode: string): Promise<void> {
+    const operatorId = await findMarketplaceOperatorId();
+    if (!operatorId || !operatorId.equals(companyId)) {
+        throw apiValidationException("listing_category_operator_only", "", null, languageCode);
+    }
+}

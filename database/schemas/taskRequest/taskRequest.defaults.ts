@@ -3,6 +3,7 @@ import {ObjectId} from "mongodb";
 import type {HydratedDocument} from "mongoose";
 import TaskRequest, {type ITaskRequest, type TaskRequestStatus} from "./taskRequest";
 import ListingCategory from "@marketplaceModule/database/schemas/listingCategory/listingCategory";
+import {marketplaceCategoryClause} from "@marketplaceModule/utilities/services/marketplaceOperator";
 import {getLogger, serverLogger} from "@coreModule/loggers/serverLog";
 import {ICompany} from "@coreModule/database/schemas/company/company";
 import {IUser} from "@coreModule/database/schemas/user/user";
@@ -157,9 +158,10 @@ export async function createTaskRequests(
 
     try {
         for (const seed of defaultTaskRequestSeeds) {
+            // Every company files under the shared tree (D144).
             const category = await ListingCategory.findOne({
                 slug: seed.categorySlug,
-                company: company._id,
+                ...(await marketplaceCategoryClause()),
             }).select("_id");
 
             if (!category) {

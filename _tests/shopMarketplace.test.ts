@@ -39,6 +39,7 @@ import * as disputeRoute from "@marketplaceModule/api/marketplace/private/disput
 import * as taskRequestRoute from "@marketplaceModule/api/marketplace/private/taskRequest";
 import Listing from "@marketplaceModule/database/schemas/listing/listing";
 import ListingCategory from "@marketplaceModule/database/schemas/listingCategory/listingCategory";
+import MarketplaceConfig from "@marketplaceModule/database/schemas/marketplaceConfig/marketplaceConfig";
 import ListingPackage from "@marketplaceModule/database/schemas/listingPackage/listingPackage";
 import ListingAddOn from "@marketplaceModule/database/schemas/listingAddOn/listingAddOn";
 import Promotion from "@marketplaceModule/database/schemas/promotion/promotion";
@@ -51,6 +52,8 @@ import Bid from "@marketplaceModule/database/schemas/bid/bid";
 import {withTenant} from "@coreModule/utilities/endpoints/tenantScope";
 
 const otherCompanyId = new ObjectId();
+// The shared category tree lives in the marketplace operator (D144), not in the seller.
+const operatorId = new ObjectId();
 const currencyId = new ObjectId();
 const providerId = new ObjectId();
 const customerId = new ObjectId();
@@ -84,11 +87,12 @@ beforeEach(() => asCompany(async () => {
     ]);
     // Reference data belongs to each company, as seeded (D16 scopes it like any tenant data).
     await Currency.collection.insertOne({_id: currencyId, name: "Euro", symbol: "€", abbreviation: "EUR", decimalPlaces: 2, company: companyId});
+    await MarketplaceConfig.collection.insertOne({company: operatorId, currency: new ObjectId(), isOperator: true, listedOnPortal: false, deletedAt: null});
 }));
 
 async function seedCategory(name: string, parent?: ObjectId): Promise<{_id: ObjectId; slug: string}> {
     const slug = `lcat-${name.toLowerCase()}`;
-    const {insertedId} = await ListingCategory.collection.insertOne({name, slug, order: 0, company: companyId, ...(parent && {parentListingCategory: parent})});
+    const {insertedId} = await ListingCategory.collection.insertOne({name, slug, order: 0, delivery: "remote", company: operatorId, ...(parent && {parentListingCategory: parent})});
     return {_id: insertedId, slug};
 }
 

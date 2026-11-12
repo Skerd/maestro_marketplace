@@ -16,12 +16,23 @@ export const listingCategorySheetView: ViewConfig = {
             // Name is the title and slug/order are technical (UX-03): only the parent is left to show.
             render: "#SheetGroup",
             props: {title: "overview"},
-            dependent: "parentListingCategory",
+            dependentAny: ["delivery", "parentListingCategory"],
             children: [
                 {
                     render: "#SheetGrid",
                     props: {columns: 2},
                     children: [
+                        {
+                            render: "#DisplayCard",
+                            dependent: "delivery",
+                            permissions: {read: "delivery"},
+                            field: {
+                                name: "delivery",
+                                widget: "#DisplayCard",
+                                label: "delivery",
+                                widgetProps: {icon: "#MapPin", languageKeyCategory: "listingCategoryDelivery", type: "enum"},
+                            },
+                        },
                         {
                             render: "#DisplayCard",
                             dependent: "parentListingCategory",
@@ -45,6 +56,21 @@ export const listingCategorySheetView: ViewConfig = {
         },
         lifecycleSheetGroup,
     ],
+};
+
+/** On-site work is matched by distance to the client, remote work anywhere (D143). */
+const deliveryOptions = [
+    {value: "onsite", label: "form.delivery.onsite"},
+    {value: "remote", label: "form.delivery.remote"},
+];
+
+const deliveryField = {
+    name: "delivery",
+    widget: "#SimpleSelect",
+    label: "form.deliveryLabel",
+    placeholder: "form.deliveryPlaceholder",
+    required: true,
+    widgetProps: {options: deliveryOptions, className: "grow w-full"},
 };
 
 /** The slug is generated from the name on create (unique per company) and is never typed (UX-05). */
@@ -80,6 +106,7 @@ const categoryCreateFormNodes: ViewConfig["nodes"] = [
                             },
                         },
                     },
+                    {render: "#Field", field: deliveryField},
                 ],
             },
         ],
@@ -112,7 +139,7 @@ const categoryEditFormNodes: ViewConfig["nodes"] = [
     {
         render: "#TitleWithCollapse",
         props: {title: "form.basicsSectionTitle"},
-        permissions: {readAny: ["name", "parentListingCategory"], writeAny: ["name", "parentListingCategory"]},
+        permissions: {readAny: ["name", "parentListingCategory", "delivery"], writeAny: ["name", "parentListingCategory", "delivery"]},
         children: [
             {
                 render: "#FormGrid",
@@ -145,6 +172,7 @@ const categoryEditFormNodes: ViewConfig["nodes"] = [
                             },
                         },
                     },
+                    {render: "#Field", permissions: {read: "delivery", write: "delivery"}, field: deliveryField},
                 ],
             },
         ],

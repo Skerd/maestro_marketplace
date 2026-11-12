@@ -450,8 +450,8 @@ export const listingSheetView: ViewConfig = {
         {
             render: "#SheetGroup",
             props: {title: "details"},
-            dependentAny: ["tags", "requirements", "address"],
-            permissions: {readAny: ["tags", "requirements", "address"]},
+            dependentAny: ["tags", "requirements", "address", "serviceArea"],
+            permissions: {readAny: ["tags", "requirements", "address", "serviceArea"]},
             children: [
                 {
                     render: "#SheetGrid",
@@ -511,6 +511,25 @@ export const listingSheetView: ViewConfig = {
                                     linkedSheetWidget: "#CitySheetView",
                                     linkedSheetEntityProp: "city",
                                 },
+                            },
+                        },
+                    ],
+                },
+                {
+                    render: "#SheetGrid",
+                    props: {columns: 3},
+                    dependent: "serviceArea",
+                    children: [
+                        {
+                            render: "#DisplayCard",
+                            dependent: "serviceArea.radiusKm",
+                            dependentRuntimeOnly: true,
+                            permissions: {read: "serviceArea"},
+                            field: {
+                                name: "serviceArea.radiusKm",
+                                widget: "#DisplayCard",
+                                label: "serviceArea",
+                                widgetProps: {icon: "#MapPin", format: "locale", valueTemplateKey: "serviceAreaValue"},
                             },
                         },
                     ],
@@ -898,6 +917,50 @@ const listingCreateFormNodes: ViewConfig["nodes"] = [
         ],
     },
     {
+        render: "#TitleWithCollapse",
+        props: {title: "form.section.serviceArea"},
+        children: [
+            {render: "#FormAlert", props: {message: "form.serviceAreaHint"}},
+            {
+                render: "#FormGrid",
+                props: {columns: 3, className: "gap-6"},
+                children: [
+                    {
+                        render: "div",
+                        props: {className: "lg:col-span-1 space-y-6 min-w-0"},
+                        children: [
+                            {
+                                render: "#Field",
+                                field: {
+                                    name: "serviceArea.radiusKm",
+                                    widget: "#Input",
+                                    label: "form.serviceAreaRadiusLabel",
+                                    placeholder: "form.serviceAreaRadiusPlaceholder",
+                                    widgetProps: {type: "number", min: 1, max: 300, step: 1},
+                                },
+                            },
+                        ],
+                    },
+                    {
+                        render: "div",
+                        props: {className: "flex flex-col lg:col-span-2 w-full min-h-[220px] h-[260px]"},
+                        children: [
+                            {
+                                render: "#Field",
+                                field: {
+                                    name: "_serviceAreaMap",
+                                    widget: "#FormMapPinPicker",
+                                    skipWriteAccessGate: true,
+                                    widgetProps: {fieldPrefix: "serviceArea", latField: "latitude", lngField: "longitude"},
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    },
+    {
         render: "#Field",
         field: {
             name: "faqs",
@@ -1218,6 +1281,53 @@ const listingEditFormNodes: ViewConfig["nodes"] = [
                                 enableWhenFormFieldsNonEmpty: ["address.country"],
                             },
                         },
+                    },
+                ],
+            },
+        ],
+    },
+    {
+        render: "#TitleWithCollapse",
+        props: {title: "form.section.serviceArea"},
+        permissions: {readAny: ["serviceArea"], writeAny: ["serviceArea"]},
+        children: [
+            {render: "#FormAlert", props: {message: "form.serviceAreaHint"}},
+            {
+                render: "#FormGrid",
+                props: {columns: 3, className: "gap-6"},
+                children: [
+                    {
+                        render: "div",
+                        props: {className: "lg:col-span-1 space-y-6 min-w-0"},
+                        children: [
+                            {
+                                render: "#Field",
+                                permissions: {read: "serviceArea", write: "serviceArea"},
+                                field: {
+                                    name: "serviceArea.radiusKm",
+                                    widget: "#Input",
+                                    label: "form.serviceAreaRadiusLabel",
+                                    placeholder: "form.serviceAreaRadiusPlaceholder",
+                                    widgetProps: {type: "number", min: 1, max: 300, step: 1},
+                                },
+                            },
+                        ],
+                    },
+                    {
+                        render: "div",
+                        props: {className: "flex flex-col lg:col-span-2 w-full min-h-[220px] h-[260px]"},
+                        children: [
+                            {
+                                render: "#Field",
+                                permissions: {read: "serviceArea", write: "serviceArea"},
+                                field: {
+                                    name: "_serviceAreaMap",
+                                    widget: "#FormMapPinPicker",
+                                    skipWriteAccessGate: true,
+                                    widgetProps: {fieldPrefix: "serviceArea", latField: "latitude", lngField: "longitude"},
+                                },
+                            },
+                        ],
                     },
                 ],
             },

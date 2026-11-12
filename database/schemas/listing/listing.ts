@@ -57,6 +57,10 @@ export interface IListing extends Document, IOwnershipPluginFields, ISoftDeleteP
         state?: IState,
         city?: ICity
     };
+    /** On-site categories only (D143): the pin the provider works from and how far they travel. */
+    serviceArea?: {latitude: number; longitude: number; radiusKm: number};
+    /** GeoJSON point of `serviceArea`, kept by the listing router for the job matching's geo index. */
+    serviceAreaPoint?: {type: "Point"; coordinates: [number, number]};
     status?: ListingStatus;
     mainImage: IMedia;
     imageGallery?: IMedia[];
@@ -172,6 +176,21 @@ const ListingSchema = new Schema<IListing>(
                 cellType: COLUMN_TYPE.ADDRESS,
             },
             required: false,
+        },
+        serviceArea: {
+            type: {
+                latitude: {type: SchemaTypes.Number, min: -90, max: 90},
+                longitude: {type: SchemaTypes.Number, min: -180, max: 180},
+                radiusKm: {type: SchemaTypes.Number, min: 1, max: 300},
+            },
+            required: false,
+            dynamicTableConfiguration: {hideColumn: true, filterable: false, sortable: false},
+        },
+        // GeoJSON (nested paths, so `type` is a field). Not in the SchemaDef, so no client writes it; `coordinates`
+        // has no default, so a listing without a pin stores no point and the 2dsphere index skips it.
+        serviceAreaPoint: {
+            type: {type: SchemaTypes.String, enum: ["Point"], dynamicTableConfiguration: {hideColumn: true, filterable: false, sortable: false}},
+            coordinates: {type: [SchemaTypes.Number], default: undefined, dynamicTableConfiguration: {hideColumn: true, filterable: false, sortable: false}},
         },
         mainImage: {
             type: SchemaTypes.ObjectId,
@@ -339,4 +358,4 @@ export default Listing;
 
 normalizeSchemaPermissions(Listing);
 addModelData(Listing, listingViews);
-validateSchemaDefAgainstMongoose(ListingSchema, ListingSchemaDef, "Listing", ["name", "status", "promotions", "listingPackages", "listingAddOns", "avgRating", "reviewCount"]);
+validateSchemaDefAgainstMongoose(ListingSchema, ListingSchemaDef, "Listing", ["name", "status", "promotions", "listingPackages", "listingAddOns", "avgRating", "reviewCount", "serviceAreaPoint"]);

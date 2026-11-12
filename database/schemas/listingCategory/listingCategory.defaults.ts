@@ -1,18 +1,21 @@
 import ListingCategory, { type IListingCategory } from "./listingCategory";
 import { getLogger, serverLogger } from "@coreModule/loggers/serverLog";
 import { ICompany } from "@coreModule/database/schemas/company/company";
-import { demoName } from "@coreModule/utilities/helpers";
+import type {ListingCategoryDelivery} from "armonia/src/modules/marketplace/api/marketplace/private/listingCategory/listingCategory.schema-def";
 import type { HydratedDocument } from "mongoose";
 
 export type CategorySeed = {
     name: string;
     slug: string;
     order: number;
-    /** Parent category slug (same company). Roots omit this. */
+    /** Parent category slug. Roots omit this. */
     parentSlug?: string;
+    /** On-site work (matched by distance, D143); otherwise inherited from the parent, and remote at the root. */
+    delivery?: ListingCategoryDelivery;
 };
 
 /**
+ * The platform's service category tree (D144), seeded once into the marketplace operator.
  * Marketplace-style category tree (similar breadth to large gig / services platforms).
  * Root slugs `design-creative`, `development-it`, `writing-translation` are stable anchors for demo seeders.
  */
@@ -28,6 +31,7 @@ const defaultListingCategorySeeds: readonly CategorySeed[] = [
     { name: "Photography", slug: "photography", order: 8 },
     { name: "Data & AI", slug: "data-ai", order: 9 },
     { name: "Lifestyle", slug: "lifestyle", order: 10 },
+    { name: "Home Services", slug: "home-services", order: 11, delivery: "onsite" },
 
     // --- Graphics & Design ---
     { name: "Logo & Brand Identity", slug: "design-logo-branding", order: 1, parentSlug: "design-creative" },
@@ -72,7 +76,7 @@ const defaultListingCategorySeeds: readonly CategorySeed[] = [
     // --- Video & Animation ---
     { name: "Video Editing", slug: "video-editing", order: 1, parentSlug: "video-animation" },
     { name: "Animation & Motion Graphics", slug: "video-motion", order: 2, parentSlug: "video-animation" },
-    { name: "Filming & Video Production", slug: "video-production", order: 3, parentSlug: "video-animation" },
+    { name: "Filming & Video Production", slug: "video-production", order: 3, parentSlug: "video-animation", delivery: "onsite" },
     { name: "Intros & Outros", slug: "video-intros", order: 4, parentSlug: "video-animation" },
     { name: "Subtitles & Captions", slug: "video-captions", order: 5, parentSlug: "video-animation" },
 
@@ -94,8 +98,8 @@ const defaultListingCategorySeeds: readonly CategorySeed[] = [
 
     // --- Photography ---
     { name: "Product Photography", slug: "photo-product", order: 1, parentSlug: "photography" },
-    { name: "Portrait & Events", slug: "photo-portrait", order: 2, parentSlug: "photography" },
-    { name: "Real Estate & Spaces", slug: "photo-realestate", order: 3, parentSlug: "photography" },
+    { name: "Portrait & Events", slug: "photo-portrait", order: 2, parentSlug: "photography", delivery: "onsite" },
+    { name: "Real Estate & Spaces", slug: "photo-realestate", order: 3, parentSlug: "photography", delivery: "onsite" },
     { name: "Photo Editing & Retouching", slug: "photo-editing", order: 4, parentSlug: "photography" },
 
     // --- Data & AI ---
@@ -108,6 +112,17 @@ const defaultListingCategorySeeds: readonly CategorySeed[] = [
     { name: "Fitness & Wellness Coaching", slug: "life-fitness", order: 2, parentSlug: "lifestyle" },
     { name: "Gaming & Coaching", slug: "life-gaming", order: 3, parentSlug: "lifestyle" },
     { name: "Crafts & Handmade", slug: "life-crafts", order: 4, parentSlug: "lifestyle" },
+
+    // --- Home Services (on-site) ---
+    { name: "Plumbing", slug: "home-plumbing", order: 1, parentSlug: "home-services" },
+    { name: "Leaks & Taps", slug: "home-plumbing-leaks", order: 1, parentSlug: "home-plumbing" },
+    { name: "Drains & Blockages", slug: "home-plumbing-drains", order: 2, parentSlug: "home-plumbing" },
+    { name: "Boilers & Water Heaters", slug: "home-plumbing-boilers", order: 3, parentSlug: "home-plumbing" },
+    { name: "Electrical", slug: "home-electrical", order: 2, parentSlug: "home-services" },
+    { name: "Cleaning", slug: "home-cleaning", order: 3, parentSlug: "home-services" },
+    { name: "Handyman", slug: "home-handyman", order: 4, parentSlug: "home-services" },
+    { name: "Painting & Decorating", slug: "home-painting", order: 5, parentSlug: "home-services" },
+    { name: "Appliance Repair", slug: "home-appliances", order: 6, parentSlug: "home-services" },
 ];
 
 const ANCHOR_SLUGS = ["design-creative", "development-it", "writing-translation"] as const;
@@ -148,7 +163,7 @@ function assertAcyclicSortedSeeds(seeds: readonly CategorySeed[]): CategorySeed[
 }
 
 /**
- * Ensures default marketplace categories exist for the company (upsert by `company` + `slug`).
+ * Ensures the shared categories exist in the marketplace operator (upsert by `company` + `slug`, D144).
  * Inserts roots before children; sets `parentListingCategory` from resolved parent slug.
  * Returns the three legacy anchor categories for downstream demo seed data (listings, tasks, etc.).
  */
@@ -166,6 +181,11 @@ export async function createCategories(
     );
 
     const orderedSeeds = assertAcyclicSortedSeeds(defaultListingCategorySeeds);
+    // Parents come first, so a child inherits its parent's delivery unless it sets its own.
+    const deliveryBySlug = new Map<string, ListingCategoryDelivery>();
+    for (const seed of orderedSeeds) {
+        deliveryBySlug.set(seed.slug, seed.delivery ?? (seed.parentSlug ? deliveryBySlug.get(seed.parentSlug) : undefined) ?? "remote");
+    }
     const parentIdBySlug = new Map<string, HydratedDocument<IListingCategory>["_id"]>();
 
     for (const seed of orderedSeeds) {
@@ -190,10 +210,12 @@ export async function createCategories(
                 }
             }
 
+            // The tree is the platform's taxonomy, not demo data: no demo marker on the names.
             const baseSet = {
-                name: demoName(seed.name),
+                name: seed.name,
                 slug: seed.slug,
                 order: seed.order,
+                delivery: deliveryBySlug.get(seed.slug) ?? "remote",
             };
 
             const result = await ListingCategory.updateOne(

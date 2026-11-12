@@ -10,6 +10,7 @@ export function listingCategoryToDTO(cat: IListingCategory): ListingCategory {
         _id: cat._id.toString(),
         name: cat.name,
         slug: cat.slug,
+        delivery: cat.delivery ?? "remote",
         parentListingCategory: mapSnippet<ListingCategorySimple>()(cat.parentListingCategory, ListingCategorySimpleSnippet),
         order: cat.order,
         ...mapSoftDeleteToDTO(cat),

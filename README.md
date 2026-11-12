@@ -43,6 +43,10 @@ One document per company (`/api/marketplace/marketplaceConfig`, `ensure` creates
 
 The core company seed creates **Arpeggio Services** (VAT `MARKETPLACE_OPERATOR_VAT`, protected, modules core + finance + marketplace). This module's demo seed marks its settings `isOperator` and gives it no listings or orders. It owns the shared service categories and the jobs posted on the portal (roadmap P12.1, P12.2). Code finds it with `findMarketplaceOperatorId()` or `marketplaceOperatorCompanyId(lang)`, which fails closed with `marketplace_unavailable` (`utilities/services/marketplaceOperator.ts`).
 
+## Service categories and service areas (D143, D144)
+
+`ListingCategory` is one platform-wide tree, not scoped to a company (`tenantScoped: false`): the operator owns every row and is the only company that writes one (`assertMarketplaceOperatorSession`); every read names the operator's rows (`marketplaceCategoryClause`). Each category has a `delivery`: `onsite` work is matched by distance, `remote` work anywhere. An on-site listing must have a `serviceArea` (pin + `radiusKm`); the listing router keeps its GeoJSON `serviceAreaPoint` for the 2dsphere index (`utilities/services/serviceArea.ts`). The panel asks `POST /api/marketplace/listingCategory/access` whether the session company may manage the tree.
+
 ## Portal buyer routes
 
 Portal accounts belong to the platform company, which does not have this module. Each buyer route declares the company its record lives in, and core's module gate checks that company instead (`portalBuyer`, `utilities/services/portalBuyerTargets.ts`): the order's seller for order actions and `order/mySingle` (`orderSeller("_id")`), reviews, disputes and bookings (`orderSeller("order")`); the listing's seller for `createFromListing` (`listingSeller`); the milestone's for `releaseMilestone` (`milestoneSeller`); the operator for `order/my`. Job and bid routes get theirs when jobs move to the operator (P12.2, P12.5).

@@ -7,5 +7,6 @@ export const ListingCategorySimpleSnippet = defineSnippet<IListingCategory, List
         _id: {},
         name: {},
         slug: {},
+        delivery: {},
     },
 });

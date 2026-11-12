@@ -30,6 +30,7 @@ import type {ICompany} from "@coreModule/database/schemas/company/company";
 import {marketplaceConfigService} from "@marketplaceModule/database/schemas/marketplaceConfig/marketplaceConfig.service";
 import {listingHub} from "@marketplaceModule/utilities/services/recordHubs";
 import type {AuthenticatedMWType} from "@coreModule/utilities/middlewares/authMW";
+import {listingServiceAreaFields, type ServiceArea} from "@marketplaceModule/utilities/services/serviceArea";
 
 async function listingWithHub(doc: IListing, {company, actionUserCtx, languageCode}: Pick<AuthenticatedMWType, "company" | "actionUserCtx" | "logger" | "languageCode">) {
     return {...listingToDTO(doc), ...(await listingHub(doc._id, {companyId: company._id, actionUserCtx, languageCode}))};
@@ -128,7 +129,9 @@ export const {router} = createCrudRouter<IListing, CreateListingFormType, EditLi
         // A listing priced without a currency is priced in the shop currency (UX-06).
         if (!data.priceCurrency) data.priceCurrency = await marketplaceConfigService.currencyRefOf(company._id, {session, languageCode});
         await assertProviderInCompany(data.provider, actionUserCtx.userId, company, languageCode, {session, logger, languageCode});
-        return data;
+        const place = await listingServiceAreaFields(data.category, data.serviceArea, languageCode, {session, logger, languageCode});
+        delete data.serviceArea;
+        return place.serviceArea ? {...data, ...place} : data;
     },
     buildUpdateData: async (params, writeFields) => {
         const {actionUserCtx, company, session, logger, languageCode, existing} = params;
@@ -136,6 +139,12 @@ export const {router} = createCrudRouter<IListing, CreateListingFormType, EditLi
         const update = buildUpdate(params, writeFields);
         if (update.provider) {
             await assertProviderInCompany(update.provider, actionUserCtx.userId, company, languageCode, {session, logger, languageCode});
+        }
+        // A new category or service area re-applies the place rule (D143): on-site needs an area, remote drops it.
+        if (update.category !== undefined || update.serviceArea !== undefined) {
+            const categoryId = update.category ?? nestedEntityToRef(existing.category);
+            const area: ServiceArea | null | undefined = update.serviceArea !== undefined ? update.serviceArea : existing.serviceArea;
+            if (categoryId) Object.assign(update, await listingServiceAreaFields(categoryId, area, languageCode, {session, logger, languageCode}));
         }
         return update;
     },
