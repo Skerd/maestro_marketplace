@@ -15,7 +15,8 @@ marketplace/
 │                                   # shopMarketplaceReviews, servicesConfig
 ├── database/
 │   ├── moduleBootstrap.ts          # Models, default roles, ref selects, media backfill (Listing, TaskRequest)
-│   ├── companyDemoSeed.ts          # Settings (listed on the portal), marketplace demo, escrow ledger rows (order 35)
+│   ├── companyDemoSeed.ts          # Settings (listed on the portal), marketplace demo, escrow ledger rows (order 35);
+│   │                               # the demo company is Tirana Pros (site slug `pros`)
 │   └── schemas/<resource>/         # 16 marketplace models + MarketplaceConfig
 ├── domain/
 │   ├── ai/tools/                   # listings, demand (task requests, bids), service orders, overview

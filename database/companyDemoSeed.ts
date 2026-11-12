@@ -4,9 +4,9 @@ import {createEscrowTransactions} from "@marketplaceModule/database/demo/escrowT
 import {marketplaceConfigService} from "@marketplaceModule/database/schemas/marketplaceConfig/marketplaceConfig.service";
 
 /**
- * After eCommerce (30). Seeds the marketplace settings (listed on the portal), the listings, task requests and
- * service orders, then the escrow ledger rows that hang off those orders (the marketplace depends on finance, not the
- * other way round).
+ * Runs after the core and finance seeds. Seeds the marketplace settings (listed on the portal), the listings, task
+ * requests and service orders, then the escrow ledger rows that hang off those orders (the marketplace depends on
+ * finance, not the other way round).
  */
 export const companyDemoSeedOrder = 35;
 
