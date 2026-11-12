@@ -12,6 +12,11 @@ import {pendingBidderIds} from "@marketplaceModule/database/schemas/taskRequest/
 import {emitNotificationEvent} from "@coreModule/domain/notifications/notificationEventBus";
 import {NotificationEventCodes} from "@marketplaceModule/domain/notifications/notificationEventCodes";
 import type {ActionMessage, SingleForm} from "armonia/src/modules/core/types/shared.types";
+import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
+import {withTenant} from "@coreModule/utilities/endpoints/tenantScope";
+import {taskLeadService} from "@marketplaceModule/database/schemas/taskLead/taskLead.service";
+import {marketplaceOperator} from "@marketplaceModule/utilities/services/portalBuyerTargets";
+import {inJobCompany} from "@marketplaceModule/utilities/services/portalJobs";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -34,13 +39,16 @@ async function notifyBidders(
     receiverIds: string[],
     bid: IBid,
     taskRequest: ITaskRequest,
+    // A quote from a lead is told in the provider's own company, where the lead opens (D143, D145).
+    lead?: {company: ObjectId; _id: ObjectId},
 ): Promise<void> {
     if (receiverIds.length === 0) return;
     await runAfterCommit(params.session, async () => {
         emitNotificationEvent(code, {
             receiverIds,
             payload: {
-                companyId: params.company._id.toString(),
+                companyId: (lead?.company ?? params.company._id).toString(),
+                ...(lead ? {leadId: lead._id.toString()} : {}),
                 languageCode: params.languageCode,
                 bidId: bid._id.toString(),
                 taskRequestId: taskRequest._id.toString(),
@@ -48,6 +56,21 @@ async function notifyBidders(
             },
         });
     });
+}
+
+/**
+ * The lead a quote was placed from, in the provider's company (D143), set to `status`; undefined for a bid made in
+ * the job's own company. Its provider's panel then shows how the quote ended.
+ */
+async function closeQuoteLead(bid: IBid, status: "lost", p: TransactionRequiredParams): Promise<{company: ObjectId; _id: ObjectId} | undefined> {
+    const company = nestedEntityToRef(bid.bidderCompany);
+    if (!company) return undefined;
+    return withTenant(company, async () => {
+        const lead = await taskLeadService.findOne({bid: bid._id, company}, {session: p.session, logger: p.logger, languageCode: p.languageCode}, null, "_id");
+        if (!lead) return undefined;
+        await taskLeadService.updateByIdOrThrow(lead._id, {$set: {status}}, {session: p.session, logger: p.logger, languageCode: p.languageCode, auditUserId: p.actionUserCtx.userId});
+        return {company, _id: lead._id};
+    }, "marketplace");
 }
 
 export class BidActions {
@@ -118,9 +141,14 @@ export class BidActions {
         schema: validateSingleForm,
         // The caller's own record, or one they are a party to: the party check below decides (D14).
         selfService: true,
+        // A portal buyer's job and its bids live in the marketplace operator (D143).
+        portalBuyer: marketplaceOperator,
     })
     async reject(params: Record<string, any>): Promise<ActionMessage> {
-        const p = params as TransactionRequiredParams & SingleForm;
+        return inJobCompany(params as TransactionRequiredParams & SingleForm, (p) => this.rejectBid(p));
+    }
+
+    private async rejectBid(p: TransactionRequiredParams & SingleForm): Promise<ActionMessage> {
         const {logger, languageCode, session, actionUserCtx, _id} = p;
 
         logger.start(`Rejecting bid: ${_id}...`);
@@ -135,8 +163,9 @@ export class BidActions {
 
         await bidService.updateByIdOrThrow(bid._id, {$set: {status: "rejected"}}, {session, logger, languageCode, auditUserId: actionUserCtx.userId});
 
+        const lead = await closeQuoteLead(bid, "lost", p);
         if (!isBidder) {
-            await notifyBidders(p, NotificationEventCodes.BID_REJECTED, [bid.bidder._id.toString()], bid, taskRequest);
+            await notifyBidders(p, NotificationEventCodes.BID_REJECTED, [bid.bidder._id.toString()], bid, taskRequest, lead);
         }
 
         logger.finish(`Successfully rejected bid: ${_id}`);

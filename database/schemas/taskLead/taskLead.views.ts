@@ -74,17 +74,6 @@ export const taskLeadSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
-                            dependent: "taskRequest.budgetMin",
-                            permissions: {read: "taskRequest"},
-                            field: {
-                                name: "taskRequest.budgetMin",
-                                widget: "#DisplayCard",
-                                label: "budgetMin",
-                                widgetProps: {icon: "#DollarSign", format: "locale", valuePath: ["taskRequest.currency.symbol", "taskRequest.budgetMin"], joinSeparator: " ", type: "currency"},
-                            },
-                        },
-                        {
-                            render: "#DisplayCard",
                             dependent: "taskRequest.budgetMax",
                             permissions: {read: "taskRequest"},
                             field: {

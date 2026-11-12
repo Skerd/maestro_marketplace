@@ -14,6 +14,8 @@
   "whereOnsite": "{city}, {km} km von Ihnen entfernt",
   "whereOnline": "Online",
   "labelBudget": "Budget",
+  "budgetUpTo": "Bis {amount}",
+  "budgetOpen": "Offen: der Kunde hat keines angegeben",
   "cta": "Anfrage öffnen",
   "fallbackLabel": "Falls die Schaltfläche nicht funktioniert, kopieren Sie diesen Link in Ihren Browser:",
   "closing": "Strasse und Kontakt des Kunden erhalten Sie, sobald Ihre Offerte angenommen wird.",

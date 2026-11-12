@@ -6,6 +6,7 @@ import {runAfterCommit} from "@coreModule/utilities/middlewares/transactionUtils
 import {emitNotificationEvent} from "@coreModule/domain/notifications/notificationEventBus";
 import {mediaService} from "@coreModule/database/schemas/media/media.service";
 import type {serverLogger} from "@coreModule/loggers/serverLog";
+import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import type {ITaskRequest} from "@marketplaceModule/database/schemas/taskRequest/taskRequest";
 import {listingService} from "@marketplaceModule/database/schemas/listing/listing.service";
 import {listingCategoryService} from "@marketplaceModule/database/schemas/listingCategory/listingCategory.service";
@@ -30,6 +31,20 @@ const LEAD_REFERENCE = {reason: "a lead in the provider's company points at the 
 export type JobMatch = {company: ObjectId; provider: ObjectId; listing: ObjectId; rating: number; distanceKm?: number};
 
 type MatchContext = {logger: serverLogger; languageCode: string; session?: ClientSession | null};
+
+/**
+ * Refuses an on-site job without its address and pin: matching finds the pros whose area holds the pin (D143). A remote
+ * job needs none. `category` and `address` are the job's values after the write.
+ */
+export async function assertJobAddress(category: unknown, address: {latitude?: unknown; longitude?: unknown} | null | undefined, languageCode: string): Promise<void> {
+    const categoryId = nestedEntityToRef(category as never);
+    if (!categoryId) return;
+    const found = await listingCategoryService.findOne({...(await marketplaceCategoryClause()), _id: categoryId}, {languageCode}, undefined, "delivery");
+    if (found?.delivery !== "onsite") return;
+    if (address?.latitude == null || address?.longitude == null) {
+        throw apiValidationException("task_request_address_required", "address", null, languageCode);
+    }
+}
 
 /** The job's category with every category below it and above it in the shared tree, and its delivery. */
 async function categoryScope(categoryId: ObjectId): Promise<{ids: ObjectId[]; delivery: string} | null> {

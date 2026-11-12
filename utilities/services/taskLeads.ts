@@ -21,7 +21,7 @@ type Ctx = {logger: serverLogger; languageCode: string; session?: ClientSession 
 const JOB_REASON = "a lead shows the job it points at, which the marketplace operator keeps";
 /** What a provider may see of a job before the award (D143): no street, postcode, pin or buyer. */
 const JOB_POPULATE = ["category", "currency", "address.country", "address.state", "address.city", "mainImage", "imageGallery"];
-const JOB_SELECT = "name title description category budgetMin budgetMax currency address.country address.state address.city status expiresAt createdAt mainImage imageGallery company";
+const JOB_SELECT = "name title description category budgetMax currency address.country address.state address.city status expiresAt createdAt mainImage imageGallery company";
 
 /** Non-admins see only the leads of which they are the provider. */
 export function leadVisibilityFilter(companyId: ObjectId, caller: UserContext): Record<string, unknown> {

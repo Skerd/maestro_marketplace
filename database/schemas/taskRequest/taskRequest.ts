@@ -40,7 +40,6 @@ export interface ITaskRequest extends Document, IOwnershipPluginFields, ISoftDel
     title: string;
     description: string;
     category?: IListingCategory;
-    budgetMin?: number;
     budgetMax?: number;
     currency?: ICurrency;
     address?: {
@@ -124,17 +123,10 @@ const TaskRequestSchema = new Schema<ITaskRequest>(
                 sortable: true,
             },
         },
-        budgetMin: {
-            type: SchemaTypes.Number,
-            required: true,
-            dynamicTableConfiguration: {
-                filterable: true,
-                sortable: true,
-            },
-        },
         budgetMax: {
             type: SchemaTypes.Number,
-            required: true,
+            required: false,
+            min: 1,
             dynamicTableConfiguration: {
                 filterable: true,
                 sortable: true,
@@ -215,7 +207,8 @@ const TaskRequestSchema = new Schema<ITaskRequest>(
                 sortable: false,
                 cellType: COLUMN_TYPE.ADDRESS,
             },
-            required: true,
+            // An on-site category needs it (checked on save, `assertJobAddress`); a remote job has none (D143).
+            required: false,
         },
         expiresAt: {
             type: SchemaTypes.Date,

@@ -54,26 +54,7 @@ export const taskRequestSheetView: ViewConfig = {
                         },
                         {
                             render: "#DisplayCard",
-                            permissions: { read: "budgetMin" },
-                            field: {
-                                name: "budgetMin",
-                                widget: "#DisplayCard",
-                                label: "budgetMin",
-                                widgetProps: {
-                                    icon: "#DollarSign",
-                                    format: "locale",
-                                    valuePath: ["currency.symbol", "budgetMin"],
-                                    joinSeparator: " ",
-                                    type: "currency",
-                                    linkedRefPath: "currency",
-                                    linkedSheetModel: "currencies",
-                                    linkedSheetWidget: "#CurrencySheetView",
-                                    linkedSheetEntityProp: "currency",
-                                },
-                            },
-                        },
-                        {
-                            render: "#DisplayCard",
+                            dependent: "budgetMax",
                             permissions: { read: "budgetMax" },
                             field: {
                                 name: "budgetMax",
@@ -419,11 +400,7 @@ const taskRequestCreateFormNodes: ViewConfig["nodes"] = [
                     },
                     {
                         render: "#Field",
-                        field: {name: "budgetMin", widget: "#Input", label: "form.budgetMinLabel", placeholder: "form.budgetMinPlaceholder", required: true, widgetProps: {type: "number", min: 0, step: "any"}},
-                    },
-                    {
-                        render: "#Field",
-                        field: {name: "budgetMax", widget: "#Input", label: "form.budgetMaxLabel", placeholder: "form.budgetMaxPlaceholder", required: true, widgetProps: {type: "number", min: 0, step: "any"}},
+                        field: {name: "budgetMax", widget: "#Input", label: "form.budgetMaxLabel", placeholder: "form.budgetMaxPlaceholder", description: "form.budgetMaxDescription", required: false, widgetProps: {type: "number", min: 1, step: "any"}},
                     },
                 ],
             },
@@ -612,7 +589,7 @@ const taskRequestEditFormNodes: ViewConfig["nodes"] = [
     {
         render: "#TitleWithCollapse",
         props: {title: "form.section.budget"},
-        permissions: {readAny: ["currency", "budgetMin", "budgetMax"], writeAny: ["currency", "budgetMin", "budgetMax"]},
+        permissions: {readAny: ["currency", "budgetMax"], writeAny: ["currency", "budgetMax"]},
         children: [
             {
                 render: "#FormGrid",
@@ -625,13 +602,8 @@ const taskRequestEditFormNodes: ViewConfig["nodes"] = [
                     },
                     {
                         render: "#Field",
-                        permissions: {read: "budgetMin", write: "budgetMin"},
-                        field: {name: "budgetMin", widget: "#Input", label: "form.budgetMinLabel", placeholder: "form.budgetMinPlaceholder", required: true, widgetProps: {type: "number", min: 0, step: "any"}},
-                    },
-                    {
-                        render: "#Field",
                         permissions: {read: "budgetMax", write: "budgetMax"},
-                        field: {name: "budgetMax", widget: "#Input", label: "form.budgetMaxLabel", placeholder: "form.budgetMaxPlaceholder", required: true, widgetProps: {type: "number", min: 0, step: "any"}},
+                        field: {name: "budgetMax", widget: "#Input", label: "form.budgetMaxLabel", placeholder: "form.budgetMaxPlaceholder", description: "form.budgetMaxDescription", required: false, widgetProps: {type: "number", min: 1, step: "any"}},
                     },
                 ],
             },

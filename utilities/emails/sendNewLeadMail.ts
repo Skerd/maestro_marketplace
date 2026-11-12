@@ -30,7 +30,7 @@ export type NewLeadEmail = {
     cityName?: string;
     /** Absent for online work. */
     distanceKm?: number;
-    /** Already formatted, e.g. "20 – 60 EUR". */
+    /** The "up to" amount, already formatted, e.g. "60 EUR"; absent = open budget. */
     budget?: string;
     listingTitle?: string;
     /** The lead on the panel host. */
@@ -58,7 +58,7 @@ export async function sendNewLeadMail(data: NewLeadEmail): Promise<void> {
     pushRow(rows, loc.labelWhere, data.distanceKm != null
         ? applyPlaceholders(loc.whereOnsite ?? "", {city: data.cityName ?? "", km: String(data.distanceKm)})
         : loc.whereOnline);
-    pushRow(rows, loc.labelBudget, data.budget);
+    pushRow(rows, loc.labelBudget, data.budget ? applyPlaceholders(loc.budgetUpTo ?? "", {amount: data.budget}) : loc.budgetOpen);
 
     const bodyInner = applyPlaceholders(readTemplate("body.html"), {
         intro: escapeHtml(applyPlaceholders(loc[data.listingTitle ? "introListing" : "intro"] ?? "", {listing: data.listingTitle ?? ""})),

@@ -14,6 +14,8 @@
   "whereOnsite": "{city}, a {km} km da te",
   "whereOnline": "Online",
   "labelBudget": "Budget",
+  "budgetUpTo": "Fino a {amount}",
+  "budgetOpen": "Aperto: il cliente non l'ha indicato",
   "cta": "Apri la richiesta",
   "fallbackLabel": "Se il pulsante non funziona, copia questo link nel browser:",
   "closing": "La via e il contatto del cliente vengono condivisi quando il tuo preventivo viene accettato.",

@@ -1,4 +1,11 @@
 import type {ObjectId} from "mongodb";
+import {asCrossTenant} from "@coreModule/utilities/endpoints/tenantScope";
+import {companyService} from "@coreModule/database/schemas/company/company.service";
+import type {IBid} from "@marketplaceModule/database/schemas/bid/bid";
+import {taskLeadService} from "@marketplaceModule/database/schemas/taskLead/taskLead.service";
+import {listingService} from "@marketplaceModule/database/schemas/listing/listing.service";
+import {bidsToDTOArray} from "@marketplaceModule/utilities/mappers/bid/bidMapper.dto";
+import type {BuyerJobQuote} from "armonia/src/modules/marketplace/api/marketplace/private/taskRequest/taskRequest.dto";
 import type {ClientSession} from "mongoose";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
@@ -46,4 +53,38 @@ export async function jobBidData(
         proposal: input.proposal,
         deliveryDays: input.deliveryDays,
     };
+}
+
+const QUOTE_REASON = "a buyer compares quotes by the company and listing of each pro who answered their job";
+
+/**
+ * A job's bids as its buyer sees them (D143): each with the quoting company and, for a quote from a lead, the listing
+ * the job matched with its rating. Reads the providers' companies; only names, titles and ratings leave them.
+ */
+export async function quotesForBuyer(bids: IBid[], ctx: {logger: serverLogger; languageCode: string}): Promise<BuyerJobQuote[]> {
+    const opts = {logger: ctx.logger, languageCode: ctx.languageCode};
+    const companyIds = bids.map((bid) => nestedEntityToRef(bid.bidderCompany)).filter((id): id is ObjectId => !!id);
+    const bidIds = bids.map((bid) => bid._id);
+    const [companies, leads] = companyIds.length ? await asCrossTenant(QUOTE_REASON, () => Promise.all([
+        companyService.find({_id: {$in: companyIds}}, opts, undefined, "name"),
+        taskLeadService.find({bid: {$in: bidIds}, company: {$in: companyIds}}, opts, null, "bid listing"),
+    ])) : [[], []];
+    const listingIds = leads.map((lead) => nestedEntityToRef(lead.listing)).filter((id): id is ObjectId => !!id);
+    const listings = listingIds.length
+        ? await asCrossTenant(QUOTE_REASON, () => listingService.find({_id: {$in: listingIds}}, opts, null, "title avgRating reviewCount"))
+        : [];
+
+    const companyName = new Map(companies.map((company) => [company._id.toString(), company.name]));
+    const listingById = new Map(listings.map((listing) => [listing._id.toString(), listing]));
+    const listingOfBid = new Map(leads.map((lead) => [nestedEntityToRef(lead.bid)?.toString(), listingById.get(nestedEntityToRef(lead.listing)?.toString() ?? "")]));
+
+    return bidsToDTOArray(bids).map((quote, index) => {
+        const companyId = nestedEntityToRef(bids[index].bidderCompany)?.toString();
+        const listing = listingOfBid.get(quote._id);
+        return {
+            ...quote,
+            ...(companyId ? {bidderCompany: {_id: companyId, name: companyName.get(companyId) ?? ""}} : {}),
+            ...(listing ? {listing: {_id: listing._id.toString(), title: listing.title, avgRating: listing.avgRating, reviewCount: listing.reviewCount}} : {}),
+        };
+    });
 }

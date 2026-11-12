@@ -14,6 +14,8 @@
   "whereOnsite": "{city}, {km} km larg jush",
   "whereOnline": "Online",
   "labelBudget": "Buxheti",
+  "budgetUpTo": "Deri në {amount}",
+  "budgetOpen": "I hapur: klienti nuk e ka caktuar",
   "cta": "Hap kërkesën",
   "fallbackLabel": "Nëse butoni nuk funksionon, kopjoni këtë lidhje në shfletues:",
   "closing": "Rruga dhe kontakti i klientit ndahen sapo oferta juaj të pranohet.",

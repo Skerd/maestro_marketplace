@@ -109,6 +109,8 @@ function contentFor(code: MarketplaceCode, payload: Record<string, unknown>): Re
                 bidId: payload.bidId,
                 taskRequestId: payload.taskRequestId,
                 taskRequestTitle: payload.taskRequestTitle,
+                // A quote placed from a lead opens that lead (D145).
+                ...(payload.leadId ? {leadId: payload.leadId} : {}),
             };
         case NotificationEventCodes.TASK_REQUEST_CLOSED:
             return {taskRequestId: payload.taskRequestId, taskRequestTitle: payload.taskRequestTitle};

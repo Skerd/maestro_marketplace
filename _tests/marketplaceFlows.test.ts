@@ -219,7 +219,7 @@ describe("bids and reviews", () => {
     async function seedTaskRequest(): Promise<ObjectId> {
         const {insertedId} = await TaskRequest.collection.insertOne({
             name: "TASK-1", title: "Podcast edit", requester: customerId, category: new ObjectId(),
-            budgetMin: 50, budgetMax: 150, currency: currencyId, status: "open",
+            budgetMax: 150, currency: currencyId, status: "open",
             expiresAt: new Date(Date.now() + 60 * 60 * 1000), mainImage: new ObjectId(), company: companyId,
         });
         return insertedId;

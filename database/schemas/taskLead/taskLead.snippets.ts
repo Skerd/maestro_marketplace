@@ -19,7 +19,6 @@ export const TaskLeadJobSnippet = defineSnippet<ITaskRequest, TaskLeadJob>()({
         title: {},
         description: {},
         category: ListingCategorySimpleSnippet,
-        budgetMin: {},
         budgetMax: {},
         currency: CurrencySimpleSnippet,
         address: {keys: {country: CountrySimpleSnippet, state: StateSimpleSnippet, city: CitySimpleSnippet}},

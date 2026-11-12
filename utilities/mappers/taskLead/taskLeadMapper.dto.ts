@@ -29,7 +29,6 @@ export function taskLeadJobToDTO(job: ITaskRequest): TaskLeadJob {
         title: job.title,
         description: job.description,
         category: mapSnippet<ListingCategorySimple>()(job.category, ListingCategorySimpleSnippet),
-        budgetMin: job.budgetMin,
         budgetMax: job.budgetMax,
         currency: mapSnippet<CurrencySimple>()(job.currency, CurrencySimpleSnippet),
         address: {

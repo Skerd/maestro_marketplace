@@ -23,7 +23,6 @@ export function taskRequestToDTO(taskRequest: ITaskRequest, bidCount?: number): 
         title: taskRequest.title,
         description: taskRequest.description,
         category: mapSnippet<ListingCategorySimple>()(taskRequest.category, ListingCategorySimpleSnippet),
-        budgetMin: taskRequest.budgetMin,
         budgetMax: taskRequest.budgetMax,
         currency: mapSnippet<CurrencySimple>()(taskRequest.currency, CurrencySimpleSnippet),
         address: taskRequest.address ? {

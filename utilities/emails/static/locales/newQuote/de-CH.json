@@ -1,0 +1,21 @@
+{
+  "copyright": "© {year} {pageName}. Alle Rechte vorbehalten.",
+  "greeting": "Hallo {fullName},",
+  "htmlLang": "de",
+  "heading": "Sie haben ein neues Angebot",
+  "preheader": "Eine Fachperson hat Ihnen ein Angebot für Ihren Auftrag geschickt.",
+  "subject": "Neues Angebot für {title} — {providerCompany}",
+  "intro": "Eine Fachperson hat Ihnen ein Angebot für Ihren Auftrag geschickt. Vergleichen Sie es auf der Seite des Auftrags mit den anderen und nehmen Sie das passende an.",
+  "summaryTitle": "Das Angebot",
+  "labelJob": "Auftrag",
+  "labelProvider": "Von",
+  "labelPrice": "Preis",
+  "labelDays": "Erledigt in",
+  "daysOne": "{days} Tag",
+  "daysMany": "{days} Tagen",
+  "cta": "Angebote ansehen",
+  "fallbackLabel": "Falls die Schaltfläche nicht funktioniert, kopieren Sie diesen Link in Ihren Browser:",
+  "closing": "Ihre Adresse und Ihre Kontaktdaten erhält nur die Fachperson, deren Angebot Sie annehmen.",
+  "ignore": "Wenn Sie es nicht mehr brauchen, schliessen Sie den Auftrag auf seiner Seite; dann kommen keine Angebote mehr.",
+  "footerNote": "Sie erhalten diese E-Mail, weil Sie diesen Auftrag auf {pageName} veröffentlicht haben."
+}

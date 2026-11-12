@@ -1,0 +1,21 @@
+{
+  "copyright": "© {year} {pageName}. Tutti i diritti riservati.",
+  "greeting": "Ciao {fullName},",
+  "htmlLang": "it",
+  "heading": "Hai un nuovo preventivo",
+  "preheader": "Un professionista ti ha inviato un preventivo per la tua richiesta.",
+  "subject": "Nuovo preventivo per {title} — {providerCompany}",
+  "intro": "Un professionista ti ha inviato un preventivo per la tua richiesta. Confrontalo con gli altri nella pagina della richiesta e accetta quello che fa per te.",
+  "summaryTitle": "Il preventivo",
+  "labelJob": "Richiesta",
+  "labelProvider": "Da",
+  "labelPrice": "Prezzo",
+  "labelDays": "Fatto in",
+  "daysOne": "{days} giorno",
+  "daysMany": "{days} giorni",
+  "cta": "Vedi i preventivi",
+  "fallbackLabel": "Se il pulsante non funziona, copia questo link nel browser:",
+  "closing": "Il tuo indirizzo e i tuoi contatti vanno solo al professionista di cui accetti il preventivo.",
+  "ignore": "Se non ti serve più, chiudi la richiesta dalla sua pagina e non arriveranno altri preventivi.",
+  "footerNote": "Ricevi questa email perché hai pubblicato questa richiesta su {pageName}."
+}

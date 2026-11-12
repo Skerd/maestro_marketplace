@@ -1,0 +1,21 @@
+{
+  "copyright": "© {year} {pageName}. All rights reserved.",
+  "greeting": "Hello {fullName},",
+  "htmlLang": "en",
+  "heading": "You have a new quote",
+  "preheader": "A pro sent you a quote for your job.",
+  "subject": "New quote for {title} — {providerCompany}",
+  "intro": "A pro sent you a quote for your job. Compare it with the others on your job page and accept the one that suits you.",
+  "summaryTitle": "The quote",
+  "labelJob": "Job",
+  "labelProvider": "From",
+  "labelPrice": "Price",
+  "labelDays": "Done in",
+  "daysOne": "{days} day",
+  "daysMany": "{days} days",
+  "cta": "See the quotes",
+  "fallbackLabel": "If the button does not work, copy this link into your browser:",
+  "closing": "Your address and contact are shared only with the pro whose quote you accept.",
+  "ignore": "If you no longer need this, close the job on its page and no more quotes will come.",
+  "footerNote": "You received this email because you posted this job on {pageName}."
+}

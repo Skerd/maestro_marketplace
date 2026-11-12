@@ -4,7 +4,7 @@ import {validateSingleForm} from "armonia/src/modules/core/utilities/zod/shared.
 import type {ActionMessage, SingleForm} from "armonia/src/modules/core/types/shared.types";
 import {quoteTaskLeadFormSchema} from "armonia/src/modules/marketplace/api/marketplace/private/taskLead/quoteTaskLead.form.validator";
 import type {QuoteTaskLeadFormType} from "armonia/src/modules/marketplace/api/marketplace/private/taskLead/taskLead.schema-def";
-import type {TransactionRequiredParams} from "@coreModule/utilities/middlewares/transactionUtils";
+import {runAfterCommit, type TransactionRequiredParams} from "@coreModule/utilities/middlewares/transactionUtils";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {allowForeignReferences, withTenant} from "@coreModule/utilities/endpoints/tenantScope";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
@@ -12,6 +12,7 @@ import {taskLeadService} from "@marketplaceModule/database/schemas/taskLead/task
 import {bidService} from "@marketplaceModule/database/schemas/bid/bid.service";
 import {jobBidData} from "@marketplaceModule/utilities/services/jobBids";
 import {loadOwnLead, openLeadJob} from "@marketplaceModule/utilities/services/taskLeads";
+import {emailNewQuote} from "@marketplaceModule/utilities/services/quoteEmails";
 
 const LEAD_BID_REFERENCE = {reason: "a lead records the quote its provider placed next to the job in the marketplace operator", fields: ["TaskLead.bid"]} as const;
 
@@ -42,6 +43,9 @@ export class TaskLeadActions {
             {$set: {status: "quoted", bid: bid._id}},
             {session, logger, languageCode, auditUserId: actionUserCtx.userId},
         ));
+
+        // The portal has no notification list: the buyer hears of the quote by email (P12.4).
+        await runAfterCommit(session, () => emailNewQuote(job, {provider, providerCompany: company._id, amount, deliveryDays}));
 
         logger.finish(`Quoted ${amount} on lead ${_id}`);
         return {message: "Quote sent", _id: bid._id.toString()};

@@ -77,8 +77,8 @@ const taskParameters = {
             type: "string",
             description: "ISO date; only requests expiring on or before this date. Use for \"what closes soon\"."
         },
-        minBudget: {type: "number", description: "Only requests whose maximum budget is at least this."},
-        maxBudget: {type: "number", description: "Only requests whose minimum budget is at most this."},
+        minBudget: {type: "number", description: "Only requests whose 'up to' budget is at least this."},
+        maxBudget: {type: "number", description: "Only requests whose 'up to' budget is at most this."},
         mineOnly: {type: "boolean", description: "true when the user asks about requests THEY posted."},
         limit: limitParameter
     },
@@ -124,11 +124,13 @@ async function executeTaskRequests(rawArgs: unknown, ctx: AssistantToolContext):
     if (args.expiringBefore != null) query.expiresAt = {$lte: args.expiringBefore};
     if (args.mineOnly === true) query.requester = new ObjectId(ctx.userId);
 
-    // A request states a budget band, so "at least X" means its ceiling reaches
-    // X, and "at most Y" means its floor sits under Y — the bands overlap the
-    // asked-for range rather than sitting inside it.
-    if (args.minBudget != null) query.budgetMax = {$gte: args.minBudget};
-    if (args.maxBudget != null) query.budgetMin = {$lte: args.maxBudget};
+    // A request states only an "up to" budget, optional; a request without one matches neither bound.
+    if (args.minBudget != null || args.maxBudget != null) {
+        query.budgetMax = {
+            ...(args.minBudget != null ? {$gte: args.minBudget} : {}),
+            ...(args.maxBudget != null ? {$lte: args.maxBudget} : {}),
+        };
+    }
 
     const limit = args.limit ?? DEFAULT_RESULTS;
 
@@ -142,7 +144,7 @@ async function executeTaskRequests(rawArgs: unknown, ctx: AssistantToolContext):
             {path: "address.city", select: "name"},
             {path: "address.country", select: "name"}
         ],
-        "name title description requester category budgetMin budgetMax currency status expiresAt address createdAt",
+        "name title description requester category budgetMax currency status expiresAt address createdAt",
         {expiresAt: 1},
         limit
     );
@@ -172,7 +174,6 @@ async function executeTaskRequests(rawArgs: unknown, ctx: AssistantToolContext):
             description: shortText(r.description, 200),
             requester: userDisplayName(r.requester),
             category: r.category?.name ?? null,
-            budgetMin: toNumber(r.budgetMin),
             budgetMax: toNumber(r.budgetMax),
             currency: r.currency?.abbreviation || r.currency?.symbol || null,
             status: r.status ?? null,

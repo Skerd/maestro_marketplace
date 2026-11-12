@@ -1,0 +1,21 @@
+{
+  "copyright": "© {year} {pageName}. Të gjitha të drejtat e rezervuara.",
+  "greeting": "Përshëndetje {fullName},",
+  "htmlLang": "sq",
+  "heading": "Keni një ofertë të re",
+  "preheader": "Një profesionist ju dërgoi një ofertë për punën tuaj.",
+  "subject": "Ofertë e re për {title} — {providerCompany}",
+  "intro": "Një profesionist ju dërgoi një ofertë për punën tuaj. Krahasojeni me të tjerat në faqen e punës dhe pranoni atë që ju përshtatet.",
+  "summaryTitle": "Oferta",
+  "labelJob": "Puna",
+  "labelProvider": "Nga",
+  "labelPrice": "Çmimi",
+  "labelDays": "Gati për",
+  "daysOne": "{days} ditë",
+  "daysMany": "{days} ditë",
+  "cta": "Shihni ofertat",
+  "fallbackLabel": "Nëse butoni nuk funksionon, kopjojeni këtë lidhje në shfletues:",
+  "closing": "Adresa dhe kontakti juaj i jepen vetëm profesionistit, ofertën e të cilit pranoni.",
+  "ignore": "Nëse nuk ju duhet më, mbylleni punën në faqen e saj dhe nuk do të vijnë oferta të tjera.",
+  "footerNote": "E morët këtë email sepse e publikuat këtë punë në {pageName}."
+}

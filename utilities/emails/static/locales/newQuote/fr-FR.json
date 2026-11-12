@@ -1,0 +1,21 @@
+{
+  "copyright": "© {year} {pageName}. Tous droits réservés.",
+  "greeting": "Bonjour {fullName},",
+  "htmlLang": "fr",
+  "heading": "Vous avez un nouveau devis",
+  "preheader": "Un pro vous a envoyé un devis pour votre demande.",
+  "subject": "Nouveau devis pour {title} — {providerCompany}",
+  "intro": "Un pro vous a envoyé un devis pour votre demande. Comparez-le avec les autres sur la page de la demande et acceptez celui qui vous convient.",
+  "summaryTitle": "Le devis",
+  "labelJob": "Demande",
+  "labelProvider": "De",
+  "labelPrice": "Prix",
+  "labelDays": "Réalisé en",
+  "daysOne": "{days} jour",
+  "daysMany": "{days} jours",
+  "cta": "Voir les devis",
+  "fallbackLabel": "Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :",
+  "closing": "Votre adresse et vos coordonnées ne sont transmises qu'au pro dont vous acceptez le devis.",
+  "ignore": "Si vous n'en avez plus besoin, fermez la demande sur sa page et vous ne recevrez plus de devis.",
+  "footerNote": "Vous recevez cet e-mail parce que vous avez publié cette demande sur {pageName}."
+}

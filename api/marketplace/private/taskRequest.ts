@@ -3,7 +3,8 @@ import {mediaUploadMW} from "@coreModule/utilities/middlewares/mediaUploadMW";
 import {createCrudRouter, type CrudCreateParams} from "@coreModule/api/crudRouterFactory";
 import {marketplaceOperator} from "@marketplaceModule/utilities/services/portalBuyerTargets";
 import {asJobBuyer, assertJobOpenLimit, intoOperator, jobSiteCompany} from "@marketplaceModule/utilities/services/portalJobs";
-import {createJobLeads} from "@marketplaceModule/utilities/services/jobMatching";
+import {assertJobAddress, createJobLeads} from "@marketplaceModule/utilities/services/jobMatching";
+import {quotesForBuyer} from "@marketplaceModule/utilities/services/jobBids";
 import type {CreateMyTaskRequestResponse} from "armonia/src/modules/marketplace/api/marketplace/private/taskRequest/taskRequest.dto";
 import authMW, {type AuthenticatedMWType} from "@coreModule/utilities/middlewares/authMW";
 import {asyncHandler} from "@coreModule/utilities/middlewares/asyncHandler";
@@ -13,7 +14,6 @@ import {validateFormZod} from "@coreModule/utilities/middlewares/validateFormZod
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import {validatePagedForm, validateSingleForm} from "armonia/src/modules/core/utilities/zod/shared.validator";
 import type {PagedForm} from "armonia/src/modules/core/types/shared.types";
-import {bidsToDTOArray} from "@marketplaceModule/utilities/mappers/bid/bidMapper.dto";
 import {buildCreateDataFromSchemaDef, buildUpdateDataFromSchemaDef} from "@coreModule/api/buildUpdateDataFromSchemaDef";
 import {assertCanDelete} from "@coreModule/database/relationsRegistry";
 import {
@@ -76,8 +76,9 @@ async function taskRequestWithHub(
     return {...taskRequestToDTO(doc, bidCount), ...hub};
 }
 
-/** The caller posts the request; it opens now and expires on the standard window. */
-function buildTaskRequestCreate(params: CrudCreateParams<CreateTaskRequestFormType>) {
+/** The caller posts the request; it opens now and expires on the standard window. An on-site job needs its address. */
+async function buildTaskRequestCreate(params: CrudCreateParams<CreateTaskRequestFormType>) {
+    await assertJobAddress(params.category, params.address, params.languageCode);
     return {
         ...buildCreate(params),
         requester: new ObjectId(params.actionUserCtx.userId),
@@ -142,9 +143,16 @@ export const {router} = createCrudRouter<ITaskRequest, CreateTaskRequestFormType
     enrichSingle: (doc, params) => taskRequestWithHub(doc, params),
     enrichUpdate: (doc, params) => taskRequestWithHub(doc, params),
     buildCreateData: buildTaskRequestCreate,
-    buildUpdateData: (params, writeFields) => {
+    buildUpdateData: async (params, writeFields) => {
         assertOwnerOrAdmin(params.existing.requester, params.actionUserCtx, params.languageCode);
-        return buildUpdate(params, writeFields);
+        const update = buildUpdate(params, writeFields);
+        // The edit sends only the changed address fields; a null address clears it.
+        const pin = update.address === null ? null : {
+            latitude: update.address?.latitude ?? params.existing.address?.latitude,
+            longitude: update.address?.longitude ?? params.existing.address?.longitude,
+        };
+        await assertJobAddress(update.category ?? params.existing.category, pin, params.languageCode);
+        return update;
     },
     beforeDelete: async (params, doc) => {
         assertOwnerOrAdmin(doc.requester, params.actionUserCtx, params.languageCode);
@@ -206,7 +214,7 @@ router.post(
             {createdAt: -1},
         );
 
-        return {data: {...taskRequestToDTO(taskRequest, bids.length), bids: bidsToDTOArray(bids)}};
+        return {data: {...taskRequestToDTO(taskRequest, bids.length), bids: await quotesForBuyer(bids, opts)}};
     })),
 );
 
@@ -228,7 +236,7 @@ router.put(
             const {company, actionUserCtx, session, logger, languageCode} = params;
             const requester = new ObjectId(actionUserCtx.userId);
             await assertJobOpenLimit(company._id, requester, languageCode, session);
-            const data = await intoOperator(buildTaskRequestCreate(params), company._id, requester, languageCode, session);
+            const data = await intoOperator(await buildTaskRequestCreate(params), company._id, requester, languageCode, session);
             const created = await taskRequestService.create(
                 {...data, company: company._id, ...(restrictedToCompany ? {restrictedToCompany} : {})},
                 {session, logger, languageCode, auditUserId: actionUserCtx.userId},

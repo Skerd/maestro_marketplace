@@ -14,6 +14,8 @@
   "whereOnsite": "{city}, à {km} km de vous",
   "whereOnline": "En ligne",
   "labelBudget": "Budget prévu",
+  "budgetUpTo": "Jusqu'à {amount}",
+  "budgetOpen": "Ouvert : le client n'en a pas indiqué",
   "cta": "Ouvrir la demande",
   "fallbackLabel": "Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :",
   "closing": "La rue et le contact du client vous sont communiqués dès que votre devis est accepté.",

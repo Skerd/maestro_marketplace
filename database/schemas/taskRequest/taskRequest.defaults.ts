@@ -28,8 +28,8 @@ export type TaskRequestSeed = {
     title: string;
     description: string;
     categorySlug: string;
-    budgetMin: number;
-    budgetMax: number;
+    /** "Up to"; left out = open budget. */
+    budgetMax?: number;
     status: TaskRequestStatus;
     /** Days from now when the task expires. */
     expiresInDays: number;
@@ -41,7 +41,6 @@ export const defaultTaskRequestSeeds: readonly TaskRequestSeed[] = [
         title: "Need a mobile app developer",
         description: "Looking for an experienced React Native developer for a fitness tracking app with wearables integration.",
         categorySlug: "dev-mobile",
-        budgetMin: 2000,
         budgetMax: 5000,
         status: "open",
         expiresInDays: 30,
@@ -51,7 +50,6 @@ export const defaultTaskRequestSeeds: readonly TaskRequestSeed[] = [
         title: "Social media graphics for coffee shop",
         description: "Need 10 Instagram post templates and 5 story templates for a new specialty coffee brand launch.",
         categorySlug: "design-logo-branding",
-        budgetMin: 100,
         budgetMax: 200,
         status: "awarded",
         expiresInDays: 14,
@@ -61,8 +59,6 @@ export const defaultTaskRequestSeeds: readonly TaskRequestSeed[] = [
         title: "Shopify store setup and theme customization",
         description: "Set up a Shopify store with 50 products, payment gateways, and a custom theme aligned to our brand guide.",
         categorySlug: "dev-ecommerce",
-        budgetMin: 800,
-        budgetMax: 1500,
         status: "open",
         expiresInDays: 21,
     },
@@ -71,7 +67,6 @@ export const defaultTaskRequestSeeds: readonly TaskRequestSeed[] = [
         title: "SEO audit for SaaS landing pages",
         description: "Technical and on-page SEO audit for 8 marketing landing pages with prioritized fix list.",
         categorySlug: "marketing-seo",
-        budgetMin: 150,
         budgetMax: 350,
         status: "open",
         expiresInDays: 10,
@@ -81,7 +76,6 @@ export const defaultTaskRequestSeeds: readonly TaskRequestSeed[] = [
         title: "Product launch video (60 seconds)",
         description: "Script, shoot, and edit a 60-second product video for a smart home device crowdfunding campaign.",
         categorySlug: "video-production",
-        budgetMin: 600,
         budgetMax: 1200,
         status: "closed",
         expiresInDays: -5,
@@ -91,7 +85,6 @@ export const defaultTaskRequestSeeds: readonly TaskRequestSeed[] = [
         title: "Weekly podcast editing (4 episodes)",
         description: "Edit four 45-minute podcast episodes per month: noise reduction, intro/outro, and show notes summary.",
         categorySlug: "audio-podcast",
-        budgetMin: 200,
         budgetMax: 400,
         status: "open",
         expiresInDays: 45,
@@ -101,7 +94,6 @@ export const defaultTaskRequestSeeds: readonly TaskRequestSeed[] = [
         title: "Investor-ready business plan",
         description: "Write a 25-page business plan with financial projections for a B2B marketplace startup.",
         categorySlug: "biz-plans",
-        budgetMin: 400,
         budgetMax: 900,
         status: "awarded",
         expiresInDays: 20,
@@ -111,7 +103,6 @@ export const defaultTaskRequestSeeds: readonly TaskRequestSeed[] = [
         title: "WordPress to headless CMS migration",
         description: "Migrate 120 blog posts and media library from WordPress to a headless stack with redirects.",
         categorySlug: "dev-website",
-        budgetMin: 500,
         budgetMax: 1100,
         status: "open",
         expiresInDays: 28,
@@ -121,7 +112,6 @@ export const defaultTaskRequestSeeds: readonly TaskRequestSeed[] = [
         title: "Full brand identity package",
         description: "Logo, color palette, typography, and brand guidelines for a sustainable fashion label.",
         categorySlug: "design-logo-branding",
-        budgetMin: 300,
         budgetMax: 700,
         status: "open",
         expiresInDays: 18,
@@ -131,7 +121,6 @@ export const defaultTaskRequestSeeds: readonly TaskRequestSeed[] = [
         title: "Sales analytics dashboard in Looker Studio",
         description: "Connect Shopify and Google Analytics data into an executive dashboard with weekly KPI views.",
         categorySlug: "data-analysis",
-        budgetMin: 250,
         budgetMax: 600,
         status: "closed",
         expiresInDays: -2,
@@ -192,8 +181,7 @@ export async function createTaskRequests(
                 description: seed.description,
                 category: category._id,
                 requester: requester._id,
-                budgetMin: seed.budgetMin,
-                budgetMax: seed.budgetMax,
+                ...(seed.budgetMax != null ? {budgetMax: seed.budgetMax} : {}),
                 currency: currency._id,
                 status: seed.status,
                 address,

@@ -14,6 +14,8 @@
   "whereOnsite": "{city}, {km} km from you",
   "whereOnline": "Online",
   "labelBudget": "Budget",
+  "budgetUpTo": "Up to {amount}",
+  "budgetOpen": "Open: the client did not set one",
   "cta": "Open the lead",
   "fallbackLabel": "If the button does not work, copy this link into your browser:",
   "closing": "The street address and the client's contact are shared once your quote is accepted.",

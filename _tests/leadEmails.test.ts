@@ -32,11 +32,13 @@ import ListingCategory from "@marketplaceModule/database/schemas/listingCategory
 import Listing from "@marketplaceModule/database/schemas/listing/listing";
 import type {ITaskRequest} from "@marketplaceModule/database/schemas/taskRequest/taskRequest";
 import {emailNewLeads} from "@marketplaceModule/utilities/services/leadEmails";
+import {emailNewQuote} from "@marketplaceModule/utilities/services/quoteEmails";
 
 const operator = new ObjectId();
 const provider = new ObjectId();
 const plumber = new ObjectId();
 const quietPlumber = new ObjectId();
+const buyer = new ObjectId();
 const fixtures = <T>(fn: () => PromiseLike<T>): Promise<T> => asCrossTenant("test fixtures span companies", fn);
 let job: ITaskRequest;
 let listing: ObjectId;
@@ -56,14 +58,15 @@ beforeEach(() => fixtures(async () => {
     await User.collection.insertMany([
         {_id: plumber, username: "pat@fix.test", name: "Pat", surname: "Plumber", fullName: "Pat Plumber", preferredLanguage: "de-CH", companies: [provider], roles: [{company: provider, mutedNotifications: []}]},
         {_id: quietPlumber, username: "quiet@fix.test", name: "Quinn", companies: [provider], roles: [{company: provider, mutedNotifications: ["TASK_REQUEST_CREATED"]}]},
+        {_id: buyer, username: "ana@client.test", name: "Ana", surname: "Client", fullName: "Ana Client", preferredLanguage: "sq-AL"},
     ]);
     const category = (await ListingCategory.collection.insertOne({name: "Leaks & Taps", slug: "leaks", delivery: "onsite", order: 0, company: operator, deletedAt: null})).insertedId;
     const city = (await City.collection.insertOne({name: "Durrës", company: operator})).insertedId;
     const currency = (await Currency.collection.insertOne({name: "Euro", symbol: "€", abbreviation: "EUR", decimalPlaces: 2, company: operator})).insertedId;
     listing = (await Listing.collection.insertOne({title: "Leaking Tap Repairs", company: provider, provider: plumber, category, status: "active", deletedAt: null})).insertedId;
     job = {
-        _id: new ObjectId(), title: "Kitchen tap drips", category, currency, budgetMin: 20, budgetMax: 60,
-        address: {street: "Rruga Tregtare 5", postalCode: "2001", city, latitude: 41.32, longitude: 19.45}, company: operator,
+        _id: new ObjectId(), title: "Kitchen tap drips", category, currency, budgetMax: 60,
+        address: {street: "Rruga Tregtare 5", postalCode: "2001", city, latitude: 41.32, longitude: 19.45}, company: operator, requester: buyer,
     } as unknown as ITaskRequest;
 }));
 
@@ -77,7 +80,7 @@ describe("new-lead emails (D145)", () => {
         expect([mail.companyId, mail.to]).toEqual([provider.toString(), "pat@fix.test"]);
         expect(mail.subject).toBe("Neuer Auftrag: Kitchen tap drips — Adria Home Fix");
         expect(mail.html).toContain(`https://panel.example.test/marketplace/leads?open=${lead.toString()}`);
-        for (const shown of ["Kitchen tap drips", "Leaks &amp; Taps", "Durrës, 0.7 km", "20 – 60 EUR", "Leaking Tap Repairs"]) expect(mail.html).toContain(shown);
+        for (const shown of ["Kitchen tap drips", "Leaks &amp; Taps", "Durrës, 0.7 km", "Bis 60 EUR", "Leaking Tap Repairs"]) expect(mail.html).toContain(shown);
         for (const hidden of ["Rruga Tregtare", "2001", "41.32"]) expect(mail.html).not.toContain(hidden);
     });
 
@@ -87,5 +90,18 @@ describe("new-lead emails (D145)", () => {
             {company: provider, provider: plumber, lead: new ObjectId(), listing},
         ]);
         expect(sent.map((mail) => mail.to)).toEqual(["pat@fix.test"]);
+    });
+});
+
+describe("new-quote emails (P12.4)", () => {
+    it("tell the buyer who quoted, how much and how soon, in their language, with a button to the job", async () => {
+        await emailNewQuote(job, {provider: plumber, providerCompany: provider, amount: 45, deliveryDays: 2});
+
+        expect(sent).toHaveLength(1);
+        const [mail] = sent;
+        expect([mail.companyId, mail.to]).toEqual([operator.toString(), "ana@client.test"]);
+        expect(mail.subject).toBe("Ofertë e re për Kitchen tap drips — Adria Home Fix");
+        expect(mail.html).toContain(`https://panel.example.test/services/account/jobs/${job._id.toString()}`);
+        for (const shown of ["Pat Plumber, Adria Home Fix", "45 EUR", "2 ditë"]) expect(mail.html).toContain(shown);
     });
 });

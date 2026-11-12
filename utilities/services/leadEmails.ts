@@ -38,7 +38,7 @@ export async function emailNewLeads(job: ITaskRequest, leads: NewLead[]): Promis
                 currencyId ? currencyService.findById(currencyId, {}, undefined, "abbreviation symbol") : null,
             ]);
             const unit = currency?.abbreviation ?? currency?.symbol ?? "";
-            const budget = job.budgetMin != null && job.budgetMax != null ? `${job.budgetMin} – ${job.budgetMax} ${unit}`.trim() : undefined;
+            const budget = job.budgetMax != null ? `${job.budgetMax} ${unit}`.trim() : undefined;
 
             for (const lead of leads) {
                 const [receiver] = await filterUnmutedReceivers([lead.provider.toString()], lead.company, code);

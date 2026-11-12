@@ -55,6 +55,10 @@ A job a portal buyer posts (`taskRequest/createMine`) is saved in the operator (
 
 `/api/marketplace/taskLead` is read-only: a provider company's leads, each with the job read across companies and redacted (no street, postcode, pin or buyer) and the quote placed from it (`utilities/services/taskLeads.ts`). `quote` places a bid next to the job in the operator through the shared `jobBidData` (`utilities/services/jobBids.ts`), with `bidderCompany`; `decline` passes. The operator's `MarketplaceConfig.leadCap` and `openJobLimit` (unset = 10 and 5) tune the matching and the buyer limit.
 
+## Buyer side (D146)
+
+A job's budget is one optional "up to" amount (`budgetMax`). An on-site job needs its address and pin (`assertJobAddress`); a remote one has none. The buyer's `mySingle` lists each quote with its company and matched listing (`quotesForBuyer`); each new quote emails the buyer (`emailNewQuote`, template `utilities/emails/templates/newQuote`), since the portal has no notification list. A portal buyer's `bid/reject` runs in the operator and marks the quote's lead `lost`; the provider's `BID_REJECTED` notice opens that lead.
+
 ## Portal buyer routes
 
 Portal accounts belong to the platform company, which does not have this module. Each buyer route declares the company its record lives in, and core's module gate checks that company instead (`portalBuyer`, `utilities/services/portalBuyerTargets.ts`): the order's seller for order actions and `order/mySingle` (`orderSeller("_id")`), reviews, disputes and bookings (`orderSeller("order")`); the listing's seller for `createFromListing` (`listingSeller`); the milestone's for `releaseMilestone` (`milestoneSeller`); the operator for `order/my`. The job routes (`createMine`, `my`, `mySingle`, `close`, `reopen`) name the operator (`marketplaceOperator`); bid routes follow in P12.3.

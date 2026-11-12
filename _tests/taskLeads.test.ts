@@ -68,7 +68,7 @@ beforeEach(() => fixtures(async () => {
     const city = (await City.collection.insertOne({name: "Durrës", company: operator})).insertedId;
     const category = (await ListingCategory.collection.insertOne({name: "Leaks", slug: "leaks", delivery: "onsite", order: 0, company: operator, deletedAt: null})).insertedId;
     job = (await TaskRequest.collection.insertOne({
-        name: "TASK-1", title: "Leaking faucet", description: "Drips", category, budgetMin: 20, budgetMax: 60, currency: euro,
+        name: "TASK-1", title: "Leaking faucet", description: "Drips", category, budgetMax: 60, currency: euro,
         address: {street: "Rruga Tregtare 5", postalCode: "2001", city, latitude: 41.32, longitude: 19.45},
         requester: buyer, status: "open", expiresAt: new Date(Date.now() + 86400000), company: operator, deletedAt: null,
     })).insertedId;
@@ -125,7 +125,7 @@ describe("a lead's view (D143)", () => {
     it("lets the panel read the job's shareable fields and the quote, and nothing private", () => {
         const read = COLLECTED_DATA.taskleads.readFields as Record<string, {keys?: Record<string, {keys?: Record<string, unknown>}>}>;
         const job = read.taskRequest?.keys ?? {};
-        for (const key of ["title", "description", "category", "budgetMin", "budgetMax", "currency", "mainImage", "imageGallery", "expiresAt"]) {
+        for (const key of ["title", "description", "category", "budgetMax", "currency", "mainImage", "imageGallery", "expiresAt"]) {
             expect(job).toHaveProperty(key);
         }
         expect(Object.keys(job.address?.keys ?? {}).sort()).toEqual(["city", "country", "state"]);

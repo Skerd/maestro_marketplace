@@ -306,7 +306,7 @@ describe("buyer self-service routes", {timeout: 30000}, () => {
     it("lists the caller's task requests and shows the bids on their own only", () => asCompany(async () => {
         await Company.collection.insertOne({_id: operatorId, name: "Operator", vat: "VAT-Operator", isActive: true, modules: ["marketplace"], deletedAt: null});
         const base = {
-            title: "Paint my flat", description: "", category: new ObjectId(), budgetMin: 100, budgetMax: 300, currency: currencyId,
+            title: "Paint my flat", description: "", category: new ObjectId(), budgetMax: 300, currency: currencyId,
             address: {street: "S", postalCode: "1000", country: new ObjectId(), city: new ObjectId(), latitude: 41, longitude: 19},
             mainImage: new ObjectId(), status: "open", expiresAt: new Date(Date.now() + 86400000), company: operatorId,
         };
