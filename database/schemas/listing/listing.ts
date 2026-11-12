@@ -112,6 +112,7 @@ const ListingSchema = new Schema<IListing>(
         },
         price: {
             type: SchemaTypes.Number,
+            dynamicTableConfiguration: {currencyPath: "priceCurrency"},
         },
         priceCurrency: {
             type: SchemaTypes.ObjectId,

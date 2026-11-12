@@ -65,6 +65,7 @@ const ListingAddOnSchema = new Schema<IListingAddOn>(
                     type: SchemaTypes.Number,
                     required: true,
                     default: 0,
+                    dynamicTableConfiguration: {currencyPath: "price.currency"},
                 },
                 currency: {
                     type: SchemaTypes.ObjectId,

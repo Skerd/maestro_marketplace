@@ -45,6 +45,7 @@ const OrderMilestoneSchema = new Schema<IOrderMilestone>(
             type: SchemaTypes.Number,
             required: true,
             default: 0,
+            dynamicTableConfiguration: {currencyPath: "currency"},
         },
         currency: {
             type: SchemaTypes.ObjectId,

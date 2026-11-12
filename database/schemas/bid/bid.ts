@@ -69,6 +69,7 @@ const BidSchema = new Schema<IBid>(
             type: SchemaTypes.Number,
             required: true,
             default: 0,
+            dynamicTableConfiguration: {currencyPath: "currency"},
         },
         currency: {
             type: SchemaTypes.ObjectId,

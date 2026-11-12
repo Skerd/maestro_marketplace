@@ -130,6 +130,7 @@ const TaskRequestSchema = new Schema<ITaskRequest>(
             required: false,
             min: 1,
             dynamicTableConfiguration: {
+                currencyPath: "currency",
                 filterable: true,
                 sortable: true,
             },
