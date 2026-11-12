@@ -35,6 +35,7 @@ import {
     refundRemainingEscrow,
 } from "@marketplaceModule/database/schemas/order/orderEscrow";
 import {asPortalBuyer, isOrderParty} from "@marketplaceModule/utilities/services/marketplaceAccess";
+import {listingSeller, milestoneSeller, orderSeller} from "@marketplaceModule/utilities/services/portalBuyerTargets";
 import {isPortalZoneOrigin} from "@coreModule/utilities/marketing/portalOrigin";
 import {inPortalPurchase} from "@coreModule/utilities/marketing/portalStorefront";
 import {orderMilestoneService} from "@marketplaceModule/database/schemas/orderMilestone/orderMilestone.service";
@@ -81,6 +82,8 @@ export class OrderActions {
         schema: createOrderFromListingFormSchema,
         // The caller's own record, or one they are a party to: the party check below decides (D14).
         selfService: true,
+        // A portal buyer: the module is checked on the seller (D143).
+        portalBuyer: listingSeller,
     })
     async createFromListing(params: Record<string, any>): Promise<ActionMessage & {_id: string}> {
         const p = params as TransactionRequiredParams & CreateOrderFromListingFormType;
@@ -251,6 +254,8 @@ export class OrderActions {
         schema: validateSingleForm,
         // The caller's own record, or one they are a party to: the party check below decides (D14).
         selfService: true,
+        // A portal buyer: the module is checked on the seller (D143).
+        portalBuyer: orderSeller("_id"),
     })
     async cancel(params: Record<string, any>): Promise<ActionMessage> {
         const p = params as TransactionRequiredParams & SingleForm;
@@ -410,6 +415,8 @@ export class OrderActions {
         schema: validateSingleForm,
         // The caller's own record, or one they are a party to: the party check below decides (D14).
         selfService: true,
+        // A portal buyer: the module is checked on the seller (D143).
+        portalBuyer: orderSeller("_id"),
     })
     async acceptDelivery(params: Record<string, any>): Promise<ActionMessage> {
         const p = params as TransactionRequiredParams & SingleForm;
@@ -461,6 +468,8 @@ export class OrderActions {
         schema: requestRevisionFormSchema,
         // The caller's own record, or one they are a party to: the party check below decides (D14).
         selfService: true,
+        // A portal buyer: the module is checked on the seller (D143).
+        portalBuyer: orderSeller("_id"),
     })
     async requestRevision(params: Record<string, any>): Promise<ActionMessage> {
         const p = params as TransactionRequiredParams & RequestRevisionFormType;
@@ -587,6 +596,8 @@ export class OrderActions {
         schema: releaseOrderMilestoneFormSchema,
         // The caller's own record, or one they are a party to: the party check below decides (D14).
         selfService: true,
+        // A portal buyer: the module is checked on the seller (D143).
+        portalBuyer: milestoneSeller,
     })
     async releaseMilestone(params: Record<string, any>): Promise<ActionMessage> {
         const p = params as TransactionRequiredParams & ReleaseOrderMilestoneFormType;

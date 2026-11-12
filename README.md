@@ -37,6 +37,15 @@ One document per company (`/api/marketplace/marketplaceConfig`, `ensure` creates
 
 - `listedOnPortal`: the company's services are listed on the portal apex. A company's own site shows them without it.
 - `currency`: the currency a listing, package or add-on priced without one is in, and the default of a task request posted on the services site. Before the settings exist it is the company's first currency.
+- `isOperator` (seed-only, one per database): this company operates the marketplace (D143).
+
+## The marketplace operator (D143)
+
+The core company seed creates **Arpeggio Services** (VAT `MARKETPLACE_OPERATOR_VAT`, protected, modules core + finance + marketplace). This module's demo seed marks its settings `isOperator` and gives it no listings or orders. It owns the shared service categories and the jobs posted on the portal (roadmap P12.1, P12.2). Code finds it with `findMarketplaceOperatorId()` or `marketplaceOperatorCompanyId(lang)`, which fails closed with `marketplace_unavailable` (`utilities/services/marketplaceOperator.ts`).
+
+## Portal buyer routes
+
+Portal accounts belong to the platform company, which does not have this module. Each buyer route declares the company its record lives in, and core's module gate checks that company instead (`portalBuyer`, `utilities/services/portalBuyerTargets.ts`): the order's seller for order actions and `order/mySingle` (`orderSeller("_id")`), reviews, disputes and bookings (`orderSeller("order")`); the listing's seller for `createFromListing` (`listingSeller`); the milestone's for `releaseMilestone` (`milestoneSeller`); the operator for `order/my`. Job and bid routes get theirs when jobs move to the operator (P12.2, P12.5).
 
 ## Environment
 

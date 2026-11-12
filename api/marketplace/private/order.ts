@@ -18,6 +18,7 @@ import {orderSelectFormSchema} from "armonia/src/modules/marketplace/api/marketp
 import type {SelectResponse} from "armonia/src/modules/core/types/shared.types";
 import type {BaseCrudService, CrudOptions} from "@coreModule/database/services/baseCrudService";
 import {getModelCollectedData} from "@coreModule/database/collections";
+import {marketplaceOperator, orderSeller} from "@marketplaceModule/utilities/services/portalBuyerTargets";
 import authMW, {type AuthenticatedMWType} from "@coreModule/utilities/middlewares/authMW";
 import {asyncHandler} from "@coreModule/utilities/middlewares/asyncHandler";
 import {rateLimiter} from "@coreModule/utilities/middlewares/rateLimiter";
@@ -215,7 +216,7 @@ async function buyerOrderFlags(orderIds: ObjectId[], companyId: ObjectId | undef
  */
 router.post(
     "/my",
-    authMW("private"),
+    authMW("private", {portalBuyer: marketplaceOperator}),
     rateLimiter({windowMs: 60000, max: 60}),
     validateFormZod(myServiceOrdersFormSchema),
     asyncHandler(portalPurchaseRoute(async (params: AuthenticatedMWType & MyServiceOrdersFormType) => {
@@ -242,7 +243,7 @@ router.post(
 
 router.post(
     "/mySingle",
-    authMW("private"),
+    authMW("private", {portalBuyer: orderSeller("_id")}),
     rateLimiter({windowMs: 60000, max: 60}),
     validateFormZod(validateSingleForm),
     asyncHandler(portalPurchaseRoute(async (params: AuthenticatedMWType & {_id: string}) => {

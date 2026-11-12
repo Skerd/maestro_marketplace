@@ -2,6 +2,7 @@ import {ObjectId, type ClientSession} from "mongodb";
 import {createCrudRouter, type CrudCreateParams} from "@coreModule/api/crudRouterFactory";
 import {assertCanDelete} from "@coreModule/database/relationsRegistry";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
+import {orderSeller} from "@marketplaceModule/utilities/services/portalBuyerTargets";
 import authMW from "@coreModule/utilities/middlewares/authMW";
 import {asyncHandler} from "@coreModule/utilities/middlewares/asyncHandler";
 import {rateLimiter} from "@coreModule/utilities/middlewares/rateLimiter";
@@ -108,7 +109,7 @@ export const {router} = createCrudRouter<IReview, CreateReviewFormType>({
 /** Buyer self-service create (storefront account): the same rules as PUT, without the model permission. */
 router.put(
     "/createMine",
-    authMW("private"),
+    authMW("private", {portalBuyer: orderSeller("order")}),
     rateLimiter({windowMs: 60000, max: 30}),
     transactionHandler(),
     validateFormZod(createReviewFormSchema),

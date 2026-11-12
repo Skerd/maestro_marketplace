@@ -18,6 +18,11 @@ export interface IMarketplaceConfig extends Document, IOwnershipPluginFields, IS
     listedOnPortal: boolean;
     /** The currency a listing, package or add-on priced without one is in. */
     currency: ICurrency;
+    /**
+     * This company operates the marketplace (D143): it owns the shared service categories and the jobs posted on the
+     * portal. Exactly one per database, set only by the seed.
+     */
+    isOperator: boolean;
 }
 
 const MarketplaceConfigSchema = new Schema<IMarketplaceConfig>(
@@ -29,6 +34,12 @@ const MarketplaceConfigSchema = new Schema<IMarketplaceConfig>(
             required: true,
             refAllowlist: CurrencySimpleSnippet,
             dynamicTableConfiguration: {refDisplayKey: ["abbreviation"]},
+        },
+        isOperator: {
+            type: SchemaTypes.Boolean,
+            default: false,
+            permissions: {self: {write: "no-permission"}, others: {write: "no-permission"}},
+            dynamicTableConfiguration: {hideColumn: true},
         },
     },
     {accessMode: "loose"},
@@ -42,4 +53,4 @@ const MarketplaceConfig = model<IMarketplaceConfig>("MarketplaceConfig", Marketp
 normalizeSchemaPermissions(MarketplaceConfig);
 export default MarketplaceConfig;
 addModelData(MarketplaceConfig, marketplaceConfigViews);
-validateSchemaDefAgainstMongoose(MarketplaceConfigSchema, MarketplaceConfigSchemaDef, "MarketplaceConfig");
+validateSchemaDefAgainstMongoose(MarketplaceConfigSchema, MarketplaceConfigSchemaDef, "MarketplaceConfig", ["isOperator"]);

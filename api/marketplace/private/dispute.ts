@@ -1,5 +1,6 @@
 import {ObjectId} from "mongodb";
 import {createCrudRouter, type CrudCreateParams} from "@coreModule/api/crudRouterFactory";
+import {orderSeller} from "@marketplaceModule/utilities/services/portalBuyerTargets";
 import authMW from "@coreModule/utilities/middlewares/authMW";
 import {asyncHandler} from "@coreModule/utilities/middlewares/asyncHandler";
 import {rateLimiter} from "@coreModule/utilities/middlewares/rateLimiter";
@@ -108,7 +109,7 @@ export const {router} = createCrudRouter<IDispute, CreateDisputeFormType>({
 /** Buyer self-service create (storefront account): the same rules as PUT, without the model permission. */
 router.put(
     "/createMine",
-    authMW("private"),
+    authMW("private", {portalBuyer: orderSeller("order")}),
     rateLimiter({windowMs: 60000, max: 30}),
     transactionHandler(),
     validateFormZod(createDisputeFormSchema),
