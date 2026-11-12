@@ -42,7 +42,7 @@ One document per company (`/api/marketplace/marketplaceConfig`, `ensure` creates
 
 ## The marketplace operator (D143)
 
-The core company seed creates **Arpeggio Services** (VAT `MARKETPLACE_OPERATOR_VAT`, protected, modules core + finance + marketplace). This module's demo seed marks its settings `isOperator` and gives it no listings or orders. It owns the shared service categories and the jobs posted on the portal (roadmap P12.1, P12.2). Code finds it with `findMarketplaceOperatorId()` or `marketplaceOperatorCompanyId(lang)`, which fails closed with `marketplace_unavailable` (`utilities/services/marketplaceOperator.ts`).
+The core company seed creates **Kudoo Services** (VAT `MARKETPLACE_OPERATOR_VAT`, protected, modules core + finance + marketplace). This module's demo seed marks its settings `isOperator` and gives it no listings or orders. It owns the shared service categories and the jobs posted on the portal (roadmap P12.1, P12.2). Code finds it with `findMarketplaceOperatorId()` or `marketplaceOperatorCompanyId(lang)`, which fails closed with `marketplace_unavailable` (`utilities/services/marketplaceOperator.ts`).
 
 ## Service categories and service areas (D143, D144)
 

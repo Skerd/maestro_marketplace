@@ -7,7 +7,7 @@ import {isModuleEnabledForCompany} from "@coreModule/utilities/modules/companyMo
 import {marketplaceConfigService} from "@marketplaceModule/database/schemas/marketplaceConfig/marketplaceConfig.service";
 
 /**
- * The seeded marketplace operator, "Arpeggio Services" in the core company seed (D143). Only the seed uses it, to mark
+ * The seeded marketplace operator, "Kudoo Services" in the core company seed (D143). Only the seed uses it, to mark
  * that company's settings as the operator's; everything else finds the operator through `MarketplaceConfig.isOperator`.
  */
 export const MARKETPLACE_OPERATOR_VAT = "Z000000001Z";
