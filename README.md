@@ -10,7 +10,8 @@ Enable via `ENABLED_MODULES=marketplace` (with `core` and `finance`). The module
 
 ```
 marketplace/
-├── api/marketplace/private/        # Panel and buyer routes, /api/marketplace/*
+├── api/marketplace/private/        # Panel and buyer routes, /api/marketplace/*; `order.ts` registers the order as
+│                                   # finance's `marketplaceOrder` escrow source (escrow viewers, provider earnings)
 ├── api/marketplace/public/         # Public services pages: shopListings, shopListing, shopProvider, shopListingTaxonomy,
 │                                   # shopMarketplaceReviews, servicesConfig
 ├── database/

@@ -7,9 +7,7 @@
  */
 
 import {ObjectId} from "mongodb";
-import type {Model} from "mongoose";
-import {getModelCollectedData} from "@coreModule/database/collections";
-import SchemaGuard from "@coreModule/database/security/schemaGuard";
+import {readableListFetch} from "@coreModule/database/security/readableListFetch";
 import type {UserContext} from "@coreModule/utilities/types/types";
 import type {Listing as ListingDTO} from "armonia/src/modules/marketplace/api/marketplace/private/listing/listing.dto";
 import type {ProviderProfile} from "armonia/src/modules/marketplace/api/marketplace/private/providerProfile/providerProfile.dto";
@@ -42,19 +40,6 @@ export type ListingHub = Pick<ListingDTO, "orders" | "bookings" | "reviews" | "f
 export type ProviderProfileHub = Pick<ProviderProfile, "listings" | "orders" | "bids" | "reviews">;
 export type TaskRequestHub = Pick<TaskRequest, "bids" | "orders">;
 
-/** The populate and projection the caller's role allows on a model, or null when it allows nothing (no access to that list). */
-function readableFetch(model: Model<any>, collectionName: string, ctx: HubCtx): ReturnType<typeof SchemaGuard.generatePopulate> | null {
-    const collected = getModelCollectedData(collectionName).readFields;
-    if (!collected) return null;
-    try {
-        const readFields = SchemaGuard.sanitizeFields(model, collected, "read", ctx.actionUserCtx, ctx.languageCode);
-        return Object.keys(readFields).length ? SchemaGuard.generatePopulate(readFields, model.schema) : null;
-    } catch {
-        // sanitizeFields refuses a role with no readable field: that list is simply not shown.
-        return null;
-    }
-}
-
 /** Ids of the orders matching `filter`, for the lists that hang off orders (bookings, reviews). */
 async function orderIdsOf(filter: Record<string, unknown>): Promise<ObjectId[]> {
     return (await orderService.find(filter, {}, null, "_id")).map((order) => order._id);
@@ -62,10 +47,10 @@ async function orderIdsOf(filter: Record<string, unknown>): Promise<ObjectId[]> 
 
 export async function listingHub(listingId: ObjectId, ctx: HubCtx): Promise<ListingHub> {
     const base = {company: ctx.companyId, deletedAt: null};
-    const ordersFetch = readableFetch(Order, "orders", ctx);
-    const bookingsFetch = readableFetch(Booking, "bookings", ctx);
-    const reviewsFetch = readableFetch(Review, "reviews", ctx);
-    const flagsFetch = readableFetch(ListingFlag, "listingflags", ctx);
+    const ordersFetch = readableListFetch(Order, ctx);
+    const bookingsFetch = readableListFetch(Booking, ctx);
+    const reviewsFetch = readableListFetch(Review, ctx);
+    const flagsFetch = readableListFetch(ListingFlag, ctx);
     // The orders route shows a non-admin only the orders they are a party to, and the bookings route only those orders' bookings.
     const visibleOrders = {...base, listing: listingId, ...orderPartyFilter(ctx.actionUserCtx)};
     // Reports are private: a non-admin sees only their own, as on the reports list.
@@ -92,10 +77,10 @@ export async function listingHub(listingId: ObjectId, ctx: HubCtx): Promise<List
 /** `providerId` is the profile's user: the provider of its listings and orders, the bidder of its bids. */
 export async function providerProfileHub(providerId: ObjectId, ctx: HubCtx): Promise<ProviderProfileHub> {
     const base = {company: ctx.companyId, deletedAt: null};
-    const listingsFetch = readableFetch(Listing, "listings", ctx);
-    const ordersFetch = readableFetch(Order, "orders", ctx);
-    const bidsFetch = readableFetch(Bid, "marketplacebids", ctx);
-    const reviewsFetch = readableFetch(Review, "reviews", ctx);
+    const listingsFetch = readableListFetch(Listing, ctx);
+    const ordersFetch = readableListFetch(Order, ctx);
+    const bidsFetch = readableListFetch(Bid, ctx);
+    const reviewsFetch = readableListFetch(Review, ctx);
 
     const [listings, orders, bids, reviews] = await Promise.all([
         listingsFetch ? listingService.find({...base, provider: providerId}, {}, listingsFetch.populate, listingsFetch.select, {createdAt: -1}, HUB_LIMIT) : null,
@@ -123,8 +108,8 @@ export async function providerProfileHub(providerId: ObjectId, ctx: HubCtx): Pro
 
 export async function taskRequestHub(taskRequestId: ObjectId, ctx: HubCtx): Promise<TaskRequestHub> {
     const base = {company: ctx.companyId, deletedAt: null};
-    const bidsFetch = readableFetch(Bid, "marketplacebids", ctx);
-    const ordersFetch = readableFetch(Order, "orders", ctx);
+    const bidsFetch = readableListFetch(Bid, ctx);
+    const ordersFetch = readableListFetch(Order, ctx);
 
     const [bids, orders] = await Promise.all([
         bidsFetch

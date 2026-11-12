@@ -43,11 +43,15 @@ import {portalPurchaseRoute} from "@coreModule/utilities/marketing/portalStorefr
 import {loadProviderAvailability} from "@marketplaceModule/utilities/services/providerAvailability";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {escrowTransactionService} from "@financeModule/database/schemas/escrowTransaction/escrowTransaction.service";
+import {registerEscrowSource} from "@financeModule/utilities/services/escrowSources";
 import Dispute from "@marketplaceModule/database/schemas/dispute/dispute";
 import Booking from "@marketplaceModule/database/schemas/booking/booking";
 import Review from "@marketplaceModule/database/schemas/review/review";
 import {disputesToDTO} from "@marketplaceModule/utilities/mappers/dispute/disputeMapper.dto";
 import {reviewsToDTO} from "@marketplaceModule/utilities/mappers/review/reviewMapper.dto";
+
+/** Escrow rows of an order: finance checks their viewers and the provider's earnings through the order (TD-M08). */
+registerEscrowSource("marketplaceOrder", {model: Order, providerField: "provider", customerField: "customer"});
 
 const ACTIVE_DISPUTE_STATUSES = ["open", "under_review"];
 
