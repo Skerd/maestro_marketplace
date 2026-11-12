@@ -24,6 +24,7 @@ export const TaskLeadJobSnippet = defineSnippet<ITaskRequest, TaskLeadJob>()({
         currency: CurrencySimpleSnippet,
         address: {keys: {country: CountrySimpleSnippet, state: StateSimpleSnippet, city: CitySimpleSnippet, street: {}, postalCode: {}, latitude: {}, longitude: {}}},
         requester: {keys: {_id: {}, name: {}, surname: {}, username: {}, phoneNumber: {}}},
+        approxPoint: {keys: {latitude: {}, longitude: {}}},
         status: {},
         expiresAt: {},
         createdAt: {},

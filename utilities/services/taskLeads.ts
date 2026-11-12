@@ -19,9 +19,9 @@ import {assertOwnerOrAdmin} from "@marketplaceModule/utilities/services/marketpl
 type Ctx = {logger: serverLogger; languageCode: string; session?: ClientSession | null};
 
 const JOB_REASON = "a lead shows the job it points at, which the marketplace operator keeps";
-/** What a provider may see of a job before the award (D143): no street, postcode, pin or buyer. */
+/** What a provider may see of a job before the award (D143): no street, postcode, pin or buyer; the approximate place (D148). */
 const JOB_POPULATE = ["category", "currency", "address.country", "address.state", "address.city", "mainImage", "imageGallery"];
-const JOB_SELECT = "name title description category budgetMax currency address.country address.state address.city status expiresAt createdAt mainImage imageGallery company";
+const JOB_SELECT = "name title description category budgetMax currency address.country address.state address.city approxPoint status expiresAt createdAt mainImage imageGallery company";
 /** Only for a lead whose quote won the job: where the work is and whom to call (D143). */
 const AWARDED_SELECT = "address.street address.postalCode address.latitude address.longitude requester";
 const AWARDED_POPULATE = [{path: "requester", select: "name surname username phoneNumber"}];

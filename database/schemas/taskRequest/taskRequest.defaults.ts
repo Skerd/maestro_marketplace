@@ -11,6 +11,7 @@ import {ICurrency} from "@coreModule/database/schemas/currency/currency";
 import {demoName} from "@coreModule/utilities/helpers";
 import {demoSeedName, demoSeedNameCandidates} from "@coreModule/database/demo/demoSeed";
 import {resolveTaskRequestPhotoIds} from "@marketplaceModule/database/demo/marketplace.demo.media";
+import {jobApproxPoint} from "@marketplaceModule/utilities/services/jobLocation";
 import {resolveDemoImagesFromUnsplash} from "@coreModule/database/demo/demoMedia";
 
 export type DemoTaskAddress = {
@@ -175,6 +176,8 @@ export async function createTaskRequests(
             const mainImageId = resolved.mainImageId;
             const galleryIds = resolved.galleryIds;
 
+            // Drawn once per job, like a posted one (D148).
+            const approxPoint = jobApproxPoint(address);
             const payload = {
                 name: demoSeedName(seed.seedKey),
                 title: demoName(seed.title),
@@ -185,6 +188,7 @@ export async function createTaskRequests(
                 currency: currency._id,
                 status: seed.status,
                 address,
+                ...(approxPoint ? {approxPoint} : {}),
                 expiresAt: dayjs().add(seed.expiresInDays, "day").toDate(),
                 mainImage: mainImageId,
                 imageGallery: galleryIds,

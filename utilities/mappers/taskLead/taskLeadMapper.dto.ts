@@ -39,6 +39,10 @@ export function taskLeadJobToDTO(job: ITaskRequest, awarded?: Pick<ITaskRequest,
             city: mapSnippet<CitySimple>()(job.address?.city, CitySimpleSnippet),
             ...(place ? {street: place.street, postalCode: place.postalCode, latitude: place.latitude, longitude: place.longitude} : {}),
         },
+        // The approximate place until the exact one is shown (D148).
+        ...(!place && job.approxPoint?.latitude != null && job.approxPoint?.longitude != null
+            ? {approxPoint: {latitude: job.approxPoint.latitude, longitude: job.approxPoint.longitude}}
+            : {}),
         ...(client?._id ? {
             requester: {_id: client._id.toString(), name: client.name, surname: client.surname, username: client.username, phoneNumber: client.phoneNumber || undefined},
         } : {}),

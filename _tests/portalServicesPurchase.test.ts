@@ -325,6 +325,13 @@ describe("portal services purchase (D16, D142)", () => {
 
     it("awards a quote into an order in the winner's company, and only the winner's lead shows the address and buyer", async () => {
         const ids = await quotedJob();
+        const ctx = {logger: getLogger("test"), languageCode: "en-US"};
+        // D148: before the award the lead shows an approximate point, never the pin.
+        const [before] = await withTenant(ids.seller, async () => taskLeadsToViews([TaskLead.hydrate(await leadOf(ids.job, ids.seller))], ctx));
+        expect(before.taskRequest?.approxPoint).toEqual({latitude: expect.any(Number), longitude: expect.any(Number)});
+        expect(before.taskRequest?.approxPoint).not.toEqual({latitude: 41.3, longitude: 19.81});
+        expect(before.taskRequest?.address?.latitude).toBeUndefined();
+
         const accepted = await call("post", "/api/marketplace/bid/accept", {_id: ids.bidA.toString()});
         expect([accepted.status, accepted.body.error_code]).toEqual([200, undefined]);
 
@@ -342,9 +349,9 @@ describe("portal services purchase (D16, D142)", () => {
         ]);
         expect([job?.status, losing?.status, won?.status, lost?.status]).toEqual(["awarded", "rejected", "won", "lost"]);
 
-        const ctx = {logger: getLogger("test"), languageCode: "en-US"};
         const [wonView] = await withTenant(ids.seller, async () => taskLeadsToViews([TaskLead.hydrate(won)], ctx));
-        expect(wonView.taskRequest).toMatchObject({address: {street: "Rruga 1", postalCode: "1001"}, requester: {username: "ben@buyer.test", phoneNumber: "+355 69 000 0000"}});
+        expect(wonView.taskRequest).toMatchObject({address: {street: "Rruga 1", postalCode: "1001", latitude: 41.3, longitude: 19.81}, requester: {username: "ben@buyer.test", phoneNumber: "+355 69 000 0000"}});
+        expect(wonView.taskRequest?.approxPoint).toBeUndefined();
         const [lostView] = await withTenant(ids.sellerB, async () => taskLeadsToViews([TaskLead.hydrate(lost)], ctx));
         expect(JSON.stringify(lostView)).not.toMatch(/Rruga 1|ben@buyer\.test|\+355/);
     });

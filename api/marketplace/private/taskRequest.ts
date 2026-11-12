@@ -5,6 +5,7 @@ import {marketplaceOperator} from "@marketplaceModule/utilities/services/portalB
 import {asJobBuyer, assertJobOpenLimit, intoOperator, jobSiteCompany} from "@marketplaceModule/utilities/services/portalJobs";
 import {assertJobAddress, createJobLeads} from "@marketplaceModule/utilities/services/jobMatching";
 import {quotesForBuyer} from "@marketplaceModule/utilities/services/jobBids";
+import {jobApproxPoint} from "@marketplaceModule/utilities/services/jobLocation";
 import type {CreateMyTaskRequestResponse} from "armonia/src/modules/marketplace/api/marketplace/private/taskRequest/taskRequest.dto";
 import authMW, {type AuthenticatedMWType} from "@coreModule/utilities/middlewares/authMW";
 import {asyncHandler} from "@coreModule/utilities/middlewares/asyncHandler";
@@ -79,8 +80,10 @@ async function taskRequestWithHub(
 /** The caller posts the request; it opens now and expires on the standard window. An on-site job needs its address. */
 async function buildTaskRequestCreate(params: CrudCreateParams<CreateTaskRequestFormType>) {
     await assertJobAddress(params.category, params.address, params.languageCode);
+    const approxPoint = jobApproxPoint(params.address);
     return {
         ...buildCreate(params),
+        ...(approxPoint ? {approxPoint} : {}),
         requester: new ObjectId(params.actionUserCtx.userId),
         status: "open" as const,
         expiresAt: taskRequestExpiry(),
@@ -152,6 +155,9 @@ export const {router} = createCrudRouter<ITaskRequest, CreateTaskRequestFormType
             longitude: update.address?.longitude ?? params.existing.address?.longitude,
         };
         await assertJobAddress(update.category ?? params.existing.category, pin, params.languageCode);
+        // A moved pin gets a new approximate place; a cleared address takes it away (D148).
+        if (update.address === null) update.approxPoint = null;
+        else if (update.address?.latitude != null || update.address?.longitude != null) update.approxPoint = jobApproxPoint(pin) ?? null;
         return update;
     },
     beforeDelete: async (params, doc) => {

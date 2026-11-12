@@ -52,6 +52,8 @@ export interface ITaskRequest extends Document, IOwnershipPluginFields, ISoftDel
         longitude: number;
     };
     expiresAt?: Date;
+    /** Where providers see the job before the award: a point moved from the pin (D148); server-set. */
+    approxPoint?: {latitude: number; longitude: number};
     status: TaskRequestStatus;
     mainImage?: IMedia;
     imageGallery?: IMedia[];
@@ -210,6 +212,15 @@ const TaskRequestSchema = new Schema<ITaskRequest>(
             // An on-site category needs it (checked on save, `assertJobAddress`); a remote job has none (D143).
             required: false,
         },
+        approxPoint: {
+            type: {
+                latitude: {type: SchemaTypes.Number},
+                longitude: {type: SchemaTypes.Number},
+            },
+            required: false,
+            permissions: {self: {write: "no-permission"}, others: {write: "no-permission"}},
+            dynamicTableConfiguration: {filterable: false, sortable: false, hideColumn: true},
+        },
         expiresAt: {
             type: SchemaTypes.Date,
             required: true,
@@ -305,4 +316,4 @@ normalizeSchemaPermissions(TaskRequest);
 export default TaskRequest;
 
 addModelData(TaskRequest, taskRequestViews);
-validateSchemaDefAgainstMongoose(TaskRequestSchema, TaskRequestSchemaDef, "TaskRequest", ["requester", "status", "expiresAt", "restrictedToCompany"]);
+validateSchemaDefAgainstMongoose(TaskRequestSchema, TaskRequestSchemaDef, "TaskRequest", ["requester", "status", "expiresAt", "restrictedToCompany", "approxPoint"]);

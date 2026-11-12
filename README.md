@@ -93,3 +93,5 @@ import Listing from "@marketplaceModule/database/schemas/listing/listing";
 ## Award and after (D147)
 
 `bid/accept` on a quote from a lead opens the order in the winning provider's company (`utilities/services/jobOutcome.ts`, `openAwardOrder`) and ends the job's leads `won`/`lost` (`endJobLeads`); a won lead shows the address and buyer contact. `closeTaskRequest` (the buyer's close and the hourly expiry) expires the open leads, and a reopen brings them back (`reviveJobLeads`). `matchListingToOpenJobs` (a listing goes live or changes category or area) and the daily `marketplace.taskRematch` cron top open jobs up to their lead cap. A portal buyer splits their order into milestones (`order/createMilestone`).
+
+Before the award a lead shows the job's approximate area: `TaskRequest.approxPoint`, drawn once 100–500 m from the pin (`utilities/services/jobLocation.ts`, D148), shown as a 600 m area on the lead sheet; the won lead shows the exact pin.
