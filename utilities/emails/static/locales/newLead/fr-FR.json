@@ -1,0 +1,22 @@
+{
+  "copyright": "© {year} {pageName}. Tous droits réservés.",
+  "greeting": "Bonjour {fullName},",
+  "htmlLang": "fr",
+  "heading": "Une nouvelle demande correspond à vos services",
+  "preheader": "Un client a publié une demande qui correspond à vos services.",
+  "subject": "Nouvelle demande : {title} — {companyName}",
+  "intro": "Un client a publié sur le portail une demande qui correspond à vos services. Les clients comparent les premiers devis reçus : un devis rapide a les meilleures chances.",
+  "introListing": "Un client a publié sur le portail une demande qui correspond à votre offre \"{listing}\". Les clients comparent les premiers devis reçus : un devis rapide a les meilleures chances.",
+  "summaryTitle": "La demande",
+  "labelJob": "Travail",
+  "labelCategory": "Catégorie",
+  "labelWhere": "Lieu",
+  "whereOnsite": "{city}, à {km} km de vous",
+  "whereOnline": "En ligne",
+  "labelBudget": "Budget prévu",
+  "cta": "Ouvrir la demande",
+  "fallbackLabel": "Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :",
+  "closing": "La rue et le contact du client vous sont communiqués dès que votre devis est accepté.",
+  "ignore": "Si vous ne proposez plus ce service, désactivez l'offre dans le panel.",
+  "footerNote": "Vous recevez cet e-mail parce que {companyName} propose ce service sur la place de marché. Vous pouvez désactiver ces e-mails sous \"Nouvelle demande de mission correspondante\" dans vos paramètres de notification."
+}

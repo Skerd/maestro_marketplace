@@ -14,6 +14,7 @@ import type {SelectResponse} from "armonia/src/modules/core/types/shared.types";
 import {bidsToSelect} from "@marketplaceModule/utilities/mappers/bid/bidMapper.select";
 import {assertOwnerOrAdmin, bidVisibilityFilter} from "@marketplaceModule/utilities/services/marketplaceAccess";
 import {escapeRegex} from "@coreModule/utilities/helpers";
+import {jobBidData} from "@marketplaceModule/utilities/services/jobBids";
 import SchemaGuard from "@coreModule/database/security/schemaGuard";
 
 export const basePath = "/api/marketplace/bid";
@@ -61,28 +62,8 @@ export const {router} = createCrudRouter<IBid, CreateBidFormType>({
     },
     /** Open, unexpired task of someone else; one live bid per bidder. Currency and bidder are derived server-side. */
     buildCreateData: async ({taskRequest: taskRequestId, amount, proposal, deliveryDays, actionUserCtx, company, logger, languageCode, session}) => {
-        const opts = {session, logger, languageCode};
-        const taskRequest = await taskRequestService.findOneOrThrow({_id: new ObjectId(taskRequestId), company: company._id}, opts);
-        if (taskRequest.status !== "open" || taskRequest.expiresAt <= new Date()) {
-            throw apiValidationException("task_request_not_open", null, null, languageCode);
-        }
-        const bidder = new ObjectId(actionUserCtx.userId);
-        if (taskRequest.requester._id.equals(bidder)) {
-            throw apiValidationException("cannot_bid_on_own_task_request", null, null, languageCode);
-        }
-        const existing = await bidService.findOne({taskRequest: taskRequest._id, bidder, status: "pending", company: company._id}, opts, null, "_id");
-        if (existing) {
-            throw apiValidationException("bid_already_submitted", null, null, languageCode);
-        }
-
-        return {
-            taskRequest: taskRequest._id,
-            bidder,
-            amount,
-            currency: taskRequest.currency._id,
-            proposal,
-            deliveryDays,
-        };
+        const taskRequest = await taskRequestService.findOneOrThrow({_id: new ObjectId(taskRequestId), company: company._id}, {session, logger, languageCode});
+        return jobBidData(taskRequest, {bidder: new ObjectId(actionUserCtx.userId), amount, proposal, deliveryDays}, {session, logger, languageCode});
     },
     /** Accept / reject (withdraw) via BidActions. */
     buildUpdateData: () => ({}),

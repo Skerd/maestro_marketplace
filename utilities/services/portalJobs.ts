@@ -11,7 +11,7 @@ import {sameCurrencyIn, samePlacesIn} from "@coreModule/utilities/helpers/refere
 import type {ICompany} from "@coreModule/database/schemas/company/company";
 import {taskRequestService} from "@marketplaceModule/database/schemas/taskRequest/taskRequest.service";
 import {marketplaceConfigService} from "@marketplaceModule/database/schemas/marketplaceConfig/marketplaceConfig.service";
-import {marketplaceOperatorCompanyId} from "@marketplaceModule/utilities/services/marketplaceOperator";
+import {marketplaceOperatorCompanyId, marketplaceOperatorLimits} from "@marketplaceModule/utilities/services/marketplaceOperator";
 
 /** Open jobs one buyer may have at a time (D143): enough for real needs, little room for spam. */
 export const JOB_OPEN_LIMIT = 5;
@@ -36,10 +36,11 @@ export async function jobSiteCompany(origin: string | undefined, languageCode: s
     return (await findPortalSiteCompany(slug, "marketplace", languageCode))._id;
 }
 
-/** Refuses a new job while the buyer already has `JOB_OPEN_LIMIT` open ones in the operator. */
+/** Refuses a new job while the buyer already has the operator's limit of open ones (default `JOB_OPEN_LIMIT`). */
 export async function assertJobOpenLimit(operatorId: ObjectId, requester: ObjectId, languageCode: string, session?: ClientSession | null): Promise<void> {
+    const limit = (await marketplaceOperatorLimits()).openJobLimit ?? JOB_OPEN_LIMIT;
     const open = await taskRequestService.count({company: operatorId, requester, status: "open"}, {session: session ?? undefined, languageCode});
-    if (open >= JOB_OPEN_LIMIT) throw apiValidationException("task_request_open_limit", "", null, languageCode, [String(JOB_OPEN_LIMIT)]);
+    if (open >= limit) throw apiValidationException("task_request_open_limit", "", null, languageCode, [String(limit)]);
 }
 
 

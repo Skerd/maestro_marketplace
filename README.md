@@ -49,7 +49,11 @@ The core company seed creates **Arpeggio Services** (VAT `MARKETPLACE_OPERATOR_V
 
 ## Portal jobs, matching and leads (D143)
 
-A job a portal buyer posts (`taskRequest/createMine`) is saved in the operator (`asJobBuyer`, `intoOperator`: the operator's own currency and places, the buyer's photos shared with it), limited to the site's company when posted on a company's own site (`restrictedToCompany`), at most `JOB_OPEN_LIMIT` open per buyer. `createJobLeads` (`utilities/services/jobMatching.ts`) finds the providers who do the work (category with its sub- and parent categories; on-site: the pin inside a listing's `serviceArea`, `$geoNear`; online: anywhere), one per provider, best rated then closest, at most `JOB_LEAD_CAP`, and gives each a `TaskLead` in the provider's company, shares the photos with it and sends `TASK_REQUEST_CREATED` there with the `leadId`. Re-matching (`notifyAll`) reaches only providers without a lead.
+A job a portal buyer posts (`taskRequest/createMine`) is saved in the operator (`asJobBuyer`, `intoOperator`: the operator's own currency and places, the buyer's photos shared with it), limited to the site's company when posted on a company's own site (`restrictedToCompany`), at most `JOB_OPEN_LIMIT` open per buyer. `createJobLeads` (`utilities/services/jobMatching.ts`) finds the providers who do the work (category with its sub- and parent categories; on-site: the pin inside a listing's `serviceArea`, `$geoNear`; online: anywhere), one per provider, best rated then closest, at most `JOB_LEAD_CAP`, and gives each a `TaskLead` in the provider's company, shares the photos with it and sends `TASK_REQUEST_CREATED` there with the `leadId`; the notice opens the lead (its `link`, D145) and `emailNewLeads` (`utilities/services/leadEmails.ts`, template `utilities/emails/templates/newLead`) emails the provider the same, under the same mute switch. Re-matching (`notifyAll`) reaches only providers without a lead.
+
+## Leads (D143)
+
+`/api/marketplace/taskLead` is read-only: a provider company's leads, each with the job read across companies and redacted (no street, postcode, pin or buyer) and the quote placed from it (`utilities/services/taskLeads.ts`). `quote` places a bid next to the job in the operator through the shared `jobBidData` (`utilities/services/jobBids.ts`), with `bidderCompany`; `decline` passes. The operator's `MarketplaceConfig.leadCap` and `openJobLimit` (unset = 10 and 5) tune the matching and the buyer limit.
 
 ## Portal buyer routes
 

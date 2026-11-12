@@ -1,0 +1,22 @@
+{
+  "copyright": "© {year} {pageName}. All rights reserved.",
+  "greeting": "Hello {fullName},",
+  "htmlLang": "en",
+  "heading": "A new job matches your services",
+  "preheader": "A client posted a job that matches your services.",
+  "subject": "New job: {title} — {companyName}",
+  "intro": "A client posted a job on the portal that matches your services. Clients compare the first quotes they get, so a quick quote has the best chance.",
+  "introListing": "A client posted a job on the portal that matches your listing \"{listing}\". Clients compare the first quotes they get, so a quick quote has the best chance.",
+  "summaryTitle": "The job",
+  "labelJob": "Job",
+  "labelCategory": "Category",
+  "labelWhere": "Where",
+  "whereOnsite": "{city}, {km} km from you",
+  "whereOnline": "Online",
+  "labelBudget": "Budget",
+  "cta": "Open the lead",
+  "fallbackLabel": "If the button does not work, copy this link into your browser:",
+  "closing": "The street address and the client's contact are shared once your quote is accepted.",
+  "ignore": "If you no longer offer this service, deactivate the listing in the panel.",
+  "footerNote": "You received this email because {companyName} offers this service on the marketplace. You can turn these emails off under \"New matching task request\" in your notification settings."
+}

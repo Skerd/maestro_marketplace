@@ -23,6 +23,10 @@ export interface IMarketplaceConfig extends Document, IOwnershipPluginFields, IS
      * portal. Exactly one per database, set only by the seed.
      */
     isOperator: boolean;
+    /** Operator only (D143): providers one job reaches; unset means `JOB_LEAD_CAP`. */
+    leadCap?: number;
+    /** Operator only (D143): open jobs one buyer may have; unset means `JOB_OPEN_LIMIT`. */
+    openJobLimit?: number;
 }
 
 const MarketplaceConfigSchema = new Schema<IMarketplaceConfig>(
@@ -35,6 +39,8 @@ const MarketplaceConfigSchema = new Schema<IMarketplaceConfig>(
             refAllowlist: CurrencySimpleSnippet,
             dynamicTableConfiguration: {refDisplayKey: ["abbreviation"]},
         },
+        leadCap: {type: SchemaTypes.Number, min: 1, max: 50, dynamicTableConfiguration: {hideColumn: true}},
+        openJobLimit: {type: SchemaTypes.Number, min: 1, max: 50, dynamicTableConfiguration: {hideColumn: true}},
         isOperator: {
             type: SchemaTypes.Boolean,
             default: false,

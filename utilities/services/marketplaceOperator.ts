@@ -49,3 +49,14 @@ export async function assertMarketplaceOperatorSession(companyId: ObjectId, lang
         throw apiValidationException("listing_category_operator_only", "", null, languageCode);
     }
 }
+
+/** The operator's job settings (D143), or nothing set: callers fall back to their defaults. */
+export async function marketplaceOperatorLimits(): Promise<{leadCap?: number; openJobLimit?: number}> {
+    const config = await asCrossTenant("one marketplace operator serves every portal buyer", () =>
+        marketplaceConfigService.findOne({isOperator: true}, {withDeleted: false}, null, "leadCap openJobLimit"),
+    );
+    return {
+        ...(config?.leadCap != null ? {leadCap: config.leadCap} : {}),
+        ...(config?.openJobLimit != null ? {openJobLimit: config.openJobLimit} : {}),
+    };
+}

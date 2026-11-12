@@ -12,8 +12,10 @@ import {addModelData} from "@coreModule/database/collections";
 import {SimpleUserSnippet} from "@coreModule/database/schemas/user/user.snippets";
 import type {ITaskRequest} from "@marketplaceModule/database/schemas/taskRequest/taskRequest";
 import type {IListing} from "@marketplaceModule/database/schemas/listing/listing";
-import {TaskRequestSimpleSnippet} from "@marketplaceModule/database/schemas/taskRequest/taskRequest.snippets";
+import type {IBid} from "@marketplaceModule/database/schemas/bid/bid";
 import {applyTaskLeadIndexes} from "./taskLead.indexes";
+import {TaskLeadJobSnippet, TaskLeadQuoteSnippet} from "./taskLead.snippets";
+import {taskLeadViews} from "./taskLead.views";
 
 export const taskLeadStatuses = ["new", "viewed", "quoted", "declined", "won", "lost", "expired"] as const;
 export type TaskLeadStatus = (typeof taskLeadStatuses)[number];
@@ -31,6 +33,8 @@ export interface ITaskLead extends Document, IOwnershipPluginFields, ISoftDelete
     /** Distance from the job's pin to that listing's pin; absent for online work. */
     distanceKm?: number;
     status: TaskLeadStatus;
+    /** The quote the provider placed from this lead: a bid next to the job, in the operator. */
+    bid?: IBid;
 }
 
 const serverOnly = {self: {write: "no-permission"}, others: {write: "no-permission"}} as const;
@@ -38,11 +42,13 @@ const serverOnly = {self: {write: "no-permission"}, others: {write: "no-permissi
 const TaskLeadSchema = new Schema<ITaskLead>(
     {
         name: {type: SchemaTypes.String, permissions: serverOnly},
+        // The allowlist is the redacted job (D143) and the panel's field access for `taskRequest.*`. A populate in the
+        // provider's tenant reads the operator's job as empty; the lead routes read it themselves (`taskLeadsToViews`).
         taskRequest: {
             type: SchemaTypes.ObjectId,
             ref: "TaskRequest",
             required: true,
-            refAllowlist: TaskRequestSimpleSnippet,
+            refAllowlist: TaskLeadJobSnippet,
             permissions: serverOnly,
         },
         provider: {
@@ -54,6 +60,7 @@ const TaskLeadSchema = new Schema<ITaskLead>(
         },
         listing: {type: SchemaTypes.ObjectId, ref: "Listing", required: true, permissions: serverOnly},
         distanceKm: {type: SchemaTypes.Number, min: 0, permissions: serverOnly},
+        bid: {type: SchemaTypes.ObjectId, ref: "MarketplaceBid", refAllowlist: TaskLeadQuoteSnippet, permissions: serverOnly},
         status: {
             type: SchemaTypes.String,
             enum: taskLeadStatuses,
@@ -65,7 +72,14 @@ const TaskLeadSchema = new Schema<ITaskLead>(
             },
         },
     },
-    {accessMode: "loose"},
+    {
+        accessMode: "loose",
+        // Created by the job matching, changed only by the lead's actions: the CRUD router is read-only.
+        permissions: {
+            self: {create: "no-permission", delete: "no-permission", restore: "no-permission"},
+            others: {create: "no-permission", delete: "no-permission", restore: "no-permission"},
+        },
+    },
 );
 
 TaskLeadSchema.pre("save", function (next) {
@@ -85,5 +99,5 @@ const TaskLead = model<ITaskLead>("TaskLead", TaskLeadSchema, "taskleads");
 normalizeSchemaPermissions(TaskLead);
 export default TaskLead;
 
-// No form: leads are created by the job matching only, so there is no SchemaDef (DB-05); the panel page is P12.3.
-addModelData(TaskLead);
+// No form: leads are created by the job matching only, so there is no SchemaDef (DB-05).
+addModelData(TaskLead, taskLeadViews);

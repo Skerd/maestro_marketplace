@@ -1,0 +1,22 @@
+{
+  "copyright": "© {year} {pageName}. Të gjitha të drejtat e rezervuara.",
+  "greeting": "Përshëndetje {fullName},",
+  "htmlLang": "sq",
+  "heading": "Një punë e re përputhet me shërbimet tuaja",
+  "preheader": "Një klient publikoi një punë që përputhet me shërbimet tuaja.",
+  "subject": "Punë e re: {title} — {companyName}",
+  "intro": "Një klient publikoi në portal një punë që përputhet me shërbimet tuaja. Klientët krahasojnë ofertat e para që marrin, ndaj një ofertë e shpejtë ka shanset më të mira.",
+  "introListing": "Një klient publikoi në portal një punë që përputhet me ofertën tuaj \"{listing}\". Klientët krahasojnë ofertat e para që marrin, ndaj një ofertë e shpejtë ka shanset më të mira.",
+  "summaryTitle": "Puna",
+  "labelJob": "Puna",
+  "labelCategory": "Kategoria",
+  "labelWhere": "Ku",
+  "whereOnsite": "{city}, {km} km larg jush",
+  "whereOnline": "Online",
+  "labelBudget": "Buxheti",
+  "cta": "Hap kërkesën",
+  "fallbackLabel": "Nëse butoni nuk funksionon, kopjoni këtë lidhje në shfletues:",
+  "closing": "Rruga dhe kontakti i klientit ndahen sapo oferta juaj të pranohet.",
+  "ignore": "Nëse nuk e ofroni më këtë shërbim, çaktivizoni ofertën në panel.",
+  "footerNote": "E morët këtë email sepse {companyName} e ofron këtë shërbim në treg. Mund t'i çaktivizoni këto email-e te \"Kërkesë e re pune që përputhet\" në cilësimet e njoftimeve."
+}

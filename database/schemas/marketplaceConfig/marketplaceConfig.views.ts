@@ -49,6 +49,43 @@ export const marketplaceConfigEditFormView: ViewConfig = {
                 },
             ],
         },
+        {
+            // The marketplace operator's own settings (D143); the settings page passes `isOperator` as a form extra.
+            render: "#TitleWithCollapse",
+            props: {title: "form.operatorSectionTitle", skipRenderWhenFormExtraNotTruthy: "isOperator"},
+            permissions: {readAny: ["leadCap", "openJobLimit"], writeAny: ["leadCap", "openJobLimit"]},
+            children: [
+                {render: "#FormAlert", props: {message: "form.operatorSectionHint"}},
+                {
+                    render: "#FormGrid",
+                    props: {columns: 3},
+                    children: [
+                        {
+                            render: "#Field",
+                            permissions: {read: "leadCap", write: "leadCap"},
+                            field: {
+                                name: "leadCap",
+                                widget: "#Input",
+                                label: "form.leadCapLabel",
+                                placeholder: "form.leadCapPlaceholder",
+                                widgetProps: {type: "number", min: 1, max: 50, step: 1},
+                            },
+                        },
+                        {
+                            render: "#Field",
+                            permissions: {read: "openJobLimit", write: "openJobLimit"},
+                            field: {
+                                name: "openJobLimit",
+                                widget: "#Input",
+                                label: "form.openJobLimitLabel",
+                                placeholder: "form.openJobLimitPlaceholder",
+                                widgetProps: {type: "number", min: 1, max: 50, step: 1},
+                            },
+                        },
+                    ],
+                },
+            ],
+        },
     ],
 };
 

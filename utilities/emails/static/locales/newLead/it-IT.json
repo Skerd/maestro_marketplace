@@ -1,0 +1,22 @@
+{
+  "copyright": "© {year} {pageName}. Tutti i diritti riservati.",
+  "greeting": "Ciao {fullName},",
+  "htmlLang": "it",
+  "heading": "Un nuovo lavoro corrisponde ai tuoi servizi",
+  "preheader": "Un cliente ha pubblicato un lavoro che corrisponde ai tuoi servizi.",
+  "subject": "Nuovo lavoro: {title} — {companyName}",
+  "intro": "Un cliente ha pubblicato sul portale un lavoro che corrisponde ai tuoi servizi. I clienti confrontano i primi preventivi che ricevono: un preventivo rapido ha le migliori possibilità.",
+  "introListing": "Un cliente ha pubblicato sul portale un lavoro che corrisponde alla tua offerta \"{listing}\". I clienti confrontano i primi preventivi che ricevono: un preventivo rapido ha le migliori possibilità.",
+  "summaryTitle": "Il lavoro",
+  "labelJob": "Lavoro",
+  "labelCategory": "Categoria",
+  "labelWhere": "Dove",
+  "whereOnsite": "{city}, a {km} km da te",
+  "whereOnline": "Online",
+  "labelBudget": "Budget",
+  "cta": "Apri la richiesta",
+  "fallbackLabel": "Se il pulsante non funziona, copia questo link nel browser:",
+  "closing": "La via e il contatto del cliente vengono condivisi quando il tuo preventivo viene accettato.",
+  "ignore": "Se non offri più questo servizio, disattiva l'offerta nel pannello.",
+  "footerNote": "Ricevi questa e-mail perché {companyName} offre questo servizio sul marketplace. Puoi disattivare queste e-mail alla voce \"Nuova richiesta di lavoro corrispondente\" nelle impostazioni delle notifiche."
+}

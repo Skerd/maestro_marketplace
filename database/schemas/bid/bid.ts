@@ -1,5 +1,6 @@
 import {Document, model, Schema, SchemaTypes} from "mongoose";
 import {IUser} from "@coreModule/database/schemas/user/user";
+import type {ICompany} from "@coreModule/database/schemas/company/company";
 import {ICurrency} from "@coreModule/database/schemas/currency/currency";
 import {ITaskRequest} from "@marketplaceModule/database/schemas/taskRequest/taskRequest";
 import {normalizeSchemaPermissions} from "@coreModule/database/utilities";
@@ -25,6 +26,8 @@ export interface IBid extends Document, IOwnershipPluginFields, ISoftDeletePlugi
     name: string;
     taskRequest: ITaskRequest;
     bidder: IUser;
+    /** The bidder's company when it is not the job's: a quote from a lead on a portal job (D143). */
+    bidderCompany?: ICompany;
     amount: number;
     currency: ICurrency;
     proposal: string;
@@ -49,6 +52,12 @@ const BidSchema = new Schema<IBid>(
             ref: "TaskRequest",
             required: true,
             refAllowlist: TaskRequestSimpleSnippet,
+        },
+        bidderCompany: {
+            type: SchemaTypes.ObjectId,
+            ref: "Company",
+            permissions: {self: {write: "no-permission"}, others: {write: "no-permission"}},
+            dynamicTableConfiguration: {hideColumn: true},
         },
         bidder: {
             type: SchemaTypes.ObjectId,
@@ -118,4 +127,4 @@ normalizeSchemaPermissions(Bid);
 export default Bid;
 
 addModelData(Bid, bidViews);
-validateSchemaDefAgainstMongoose(BidSchema, BidSchemaDef, "MarketplaceBid", ["status", "currency", "bidder"]);
+validateSchemaDefAgainstMongoose(BidSchema, BidSchemaDef, "MarketplaceBid", ["status", "currency", "bidder", "bidderCompany"]);

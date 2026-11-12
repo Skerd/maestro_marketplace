@@ -1,0 +1,22 @@
+{
+  "copyright": "© {year} {pageName}. Alle Rechte vorbehalten.",
+  "greeting": "Hallo {fullName},",
+  "htmlLang": "de",
+  "heading": "Ein neuer Auftrag passt zu Ihren Dienstleistungen",
+  "preheader": "Ein Kunde hat einen Auftrag ausgeschrieben, der zu Ihren Dienstleistungen passt.",
+  "subject": "Neuer Auftrag: {title} — {companyName}",
+  "intro": "Ein Kunde hat auf dem Portal einen Auftrag ausgeschrieben, der zu Ihren Dienstleistungen passt. Kunden vergleichen die ersten Offerten, die sie erhalten: Eine schnelle Offerte hat die besten Chancen.",
+  "introListing": "Ein Kunde hat auf dem Portal einen Auftrag ausgeschrieben, der zu Ihrem Angebot \"{listing}\" passt. Kunden vergleichen die ersten Offerten, die sie erhalten: Eine schnelle Offerte hat die besten Chancen.",
+  "summaryTitle": "Der Auftrag",
+  "labelJob": "Auftrag",
+  "labelCategory": "Kategorie",
+  "labelWhere": "Wo",
+  "whereOnsite": "{city}, {km} km von Ihnen entfernt",
+  "whereOnline": "Online",
+  "labelBudget": "Budget",
+  "cta": "Anfrage öffnen",
+  "fallbackLabel": "Falls die Schaltfläche nicht funktioniert, kopieren Sie diesen Link in Ihren Browser:",
+  "closing": "Strasse und Kontakt des Kunden erhalten Sie, sobald Ihre Offerte angenommen wird.",
+  "ignore": "Wenn Sie diese Dienstleistung nicht mehr anbieten, deaktivieren Sie das Angebot im Panel.",
+  "footerNote": "Sie erhalten diese E-Mail, weil {companyName} diese Dienstleistung auf dem Marktplatz anbietet. Sie können diese E-Mails in Ihren Benachrichtigungseinstellungen unter \"Neue passende Auftragsanfrage\" abschalten."
+}

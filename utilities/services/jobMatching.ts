@@ -11,8 +11,9 @@ import {listingService} from "@marketplaceModule/database/schemas/listing/listin
 import {listingCategoryService} from "@marketplaceModule/database/schemas/listingCategory/listingCategory.service";
 import {taskLeadService} from "@marketplaceModule/database/schemas/taskLead/taskLead.service";
 import {NotificationEventCodes} from "@marketplaceModule/domain/notifications/notificationEventCodes";
-import {findMarketplaceOperatorId, marketplaceCategoryClause} from "@marketplaceModule/utilities/services/marketplaceOperator";
+import {findMarketplaceOperatorId, marketplaceCategoryClause, marketplaceOperatorLimits} from "@marketplaceModule/utilities/services/marketplaceOperator";
 import {marketplacePortalCompanyIds} from "@marketplaceModule/utilities/shop/marketplaceSellers";
+import {emailNewLeads, type NewLead} from "@marketplaceModule/utilities/services/leadEmails";
 
 /**
  * Job matching (D143). A job reaches the providers who do that work: an active listing in the job's category, a
@@ -133,14 +134,14 @@ export async function findJobMatches(job: ITaskRequest, cap: number = JOB_LEAD_C
  */
 export async function createJobLeads(job: ITaskRequest, ctx: MatchContext): Promise<number> {
     const {logger, languageCode, session} = ctx;
-    const matches = await findJobMatches(job);
+    const matches = await findJobMatches(job, (await marketplaceOperatorLimits()).leadCap ?? JOB_LEAD_CAP);
     if (!matches.length) return 0;
 
     const media = [job.mainImage, ...(job.imageGallery ?? []), ...(job.videoGallery ?? [])]
         .map((ref) => nestedEntityToRef(ref))
         .filter((id): id is ObjectId => !!id);
 
-    const created: {company: ObjectId; provider: ObjectId; lead: ObjectId; distanceKm?: number}[] = [];
+    const created: NewLead[] = [];
     for (const match of matches) {
         const lead = await withTenant(match.company, () => allowForeignReferences(LEAD_REFERENCE, async () => {
             const existing = await taskLeadService.findOne({company: match.company, taskRequest: job._id, provider: match.provider}, {session}, null, "_id");
@@ -158,7 +159,7 @@ export async function createJobLeads(job: ITaskRequest, ctx: MatchContext): Prom
                 {session, logger, languageCode},
             );
         }), "marketplace");
-        if (lead) created.push({company: match.company, provider: match.provider, lead: lead._id, distanceKm: match.distanceKm});
+        if (lead) created.push({company: match.company, provider: match.provider, lead: lead._id, listing: match.listing, distanceKm: match.distanceKm});
     }
     if (!created.length) return 0;
 
@@ -184,6 +185,8 @@ export async function createJobLeads(job: ITaskRequest, ctx: MatchContext): Prom
                 },
             });
         }
+        // The same news by email, under the same switch (D145).
+        await emailNewLeads(job, created);
     });
     logger.debug(`Job ${job._id.toString()} reached ${created.length} new provider(s)`);
     return created.length;
