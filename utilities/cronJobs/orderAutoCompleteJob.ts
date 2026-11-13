@@ -7,9 +7,8 @@
 
 import type {ObjectId} from "mongodb";
 import {CONSTANTS} from "@coreModule/environment";
-import {mongooseInstance} from "@coreModule/connections/connectToMongoDb";
 import {getLogger, serverLogger} from "@coreModule/loggers/serverLog";
-import {flushAfterCommitTasks} from "@coreModule/utilities/middlewares/transactionUtils";
+import {runInTransaction} from "@coreModule/utilities/middlewares/runInTransaction";
 import {orderService} from "@marketplaceModule/database/schemas/order/order.service";
 import {orderDeliveryService} from "@marketplaceModule/database/schemas/orderDelivery/orderDelivery.service";
 import {disputeService} from "@marketplaceModule/database/schemas/dispute/dispute.service";
@@ -20,43 +19,28 @@ const BATCH_SIZE = 200;
 
 /** Re-reads the delivery and its order inside one transaction; returns whether the order was completed. */
 async function autoAcceptDelivery(deliveryId: ObjectId, ctx: {logger: serverLogger; languageCode: string}): Promise<boolean> {
-    const session = await mongooseInstance.startSession();
-    let completed = false;
-    try {
-        await session.withTransaction(async () => {
-            // A retried attempt must not keep notifications queued by the failed one
-            await flushAfterCommitTasks(session, false, () => {});
-            completed = false;
-            const opts = {...ctx, session};
+    // Notifications queued by a retried or failed attempt are dropped; the committed one's run after the commit.
+    return runInTransaction(ctx.logger, async (session) => {
+        const opts = {...ctx, session};
 
-            const delivery = await orderDeliveryService.findOne({_id: deliveryId, status: "submitted"}, opts);
-            if (!delivery) return;
+        const delivery = await orderDeliveryService.findOne({_id: deliveryId, status: "submitted"}, opts);
+        if (!delivery) return false;
 
-            const companyId = delivery.company._id;
-            const order = await orderService.findOne({_id: delivery.order._id, company: companyId, status: "in_progress"}, opts);
-            if (!order) return;
+        const companyId = delivery.company._id;
+        const order = await orderService.findOne({_id: delivery.order._id, company: companyId, status: "in_progress"}, opts);
+        if (!order) return false;
 
-            const openDispute = await disputeService.findOne(
-                {order: order._id, status: {$in: ["open", "under_review"]}, company: companyId},
-                opts,
-                null,
-                "_id",
-            );
-            if (openDispute) return;
+        const openDispute = await disputeService.findOne(
+            {order: order._id, status: {$in: ["open", "under_review"]}, company: companyId},
+            opts,
+            null,
+            "_id",
+        );
+        if (openDispute) return false;
 
-            await completeSubmittedDeliveryAndRelease(order, delivery._id, {...opts, companyId});
-            completed = true;
-        });
-        await flushAfterCommitTasks(session, completed, (e) => {
-            ctx.logger.err(`Auto-complete notification failed for delivery ${deliveryId.toString()}: ${e instanceof Error ? e.message : String(e)}`);
-        });
-    } catch (e) {
-        await flushAfterCommitTasks(session, false, () => {});
-        throw e;
-    } finally {
-        await session.endSession();
-    }
-    return completed;
+        await completeSubmittedDeliveryAndRelease(order, delivery._id, {...opts, companyId});
+        return true;
+    });
 }
 
 export async function runOrderAutoComplete(company: ObjectId, parentLogger?: serverLogger): Promise<void> {
