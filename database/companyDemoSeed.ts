@@ -1,6 +1,5 @@
 import {getLogger, serverLogger} from "@coreModule/loggers/serverLog";
 import {seedMarketplaceCompanyDemoData} from "@marketplaceModule/database/demo/marketplaceCompanyDemoSeed";
-import {createEscrowTransactions} from "@marketplaceModule/database/demo/escrowTransactions.demo";
 import {marketplaceConfigService} from "@marketplaceModule/database/schemas/marketplaceConfig/marketplaceConfig.service";
 import {MARKETPLACE_OPERATOR_VAT} from "@marketplaceModule/utilities/services/marketplaceOperator";
 import {createCategories} from "@marketplaceModule/database/schemas/listingCategory/listingCategory.defaults";
@@ -25,5 +24,4 @@ export async function seedCompanyDemoData(parentLogger: serverLogger | undefined
     }
     if (!config.listedOnPortal) await marketplaceConfigService.updateById(config._id, {listedOnPortal: true}, {logger});
     await seedMarketplaceCompanyDemoData(parentLogger, company);
-    await createEscrowTransactions(logger, company);
 }

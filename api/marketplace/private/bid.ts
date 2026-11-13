@@ -1,5 +1,5 @@
 import {ObjectId} from "mongodb";
-import {createCrudRouter} from "@coreModule/api/crudRouterFactory";
+import {createCrudRouter, selectIdsOf} from "@coreModule/api/crudRouterFactory";
 import {assertCanDelete} from "@coreModule/database/relationsRegistry";
 import {BidActions} from "@marketplaceModule/database/schemas/bid/bid.actions";
 import Bid, {type IBid} from "@marketplaceModule/database/schemas/bid/bid";
@@ -46,7 +46,10 @@ export const {router} = createCrudRouter<IBid, CreateBidFormType>({
             {company: company._id},
             await bidVisibilityFilter(company._id, actionUserCtx, {logger, languageCode}),
         ];
-        if (name?.trim()) {
+        const ids = selectIdsOf(params);
+        if (ids.length > 0) {
+            conditions.push({_id: {$in: ids}});
+        } else if (name?.trim()) {
             conditions.push({name: {$regex: escapeRegex(name.trim()), $options: "i"}});
         }
         const filter = {$and: conditions};

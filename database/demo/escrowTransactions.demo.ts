@@ -2,16 +2,16 @@ import EscrowTransaction, {type IEscrowTransaction} from "@financeModule/databas
 import {getLogger, serverLogger} from "@coreModule/loggers/serverLog";
 import {ICompany} from "@coreModule/database/schemas/company/company";
 import Currency from "@coreModule/database/schemas/currency/currency";
-import Order from "@marketplaceModule/database/schemas/order/order";
 import OrderMilestone from "@marketplaceModule/database/schemas/orderMilestone/orderMilestone";
-import {demoSeedNameCandidates} from "@coreModule/database/demo/demoSeed";
+import type {CreateOrdersResult} from "@marketplaceModule/database/schemas/order/order.defaults";
 import {escrowTransactionsSeed} from "@marketplaceModule/database/seeds/finance/escrowTransactions.seed";
 import type {HydratedDocument} from "mongoose";
 import {toMinor} from "armonia/src/modules/core/helpers/money";
 import {decimal128FromMinor} from "@coreModule/utilities/helpers/money";
 
 /**
- * Seeds marketplace escrow holds / releases / refunds.
+ * Seeds marketplace escrow holds / releases / refunds on the orders the order step just seeded (`orders.bySeedKey`), so a
+ * company that gets no orders (the home-repair provider) gets no escrows either (TD-B219).
  *
  * Gateway fields stay empty (`ledger_only`) so no PaymentIntent or client
  * secret is ever committed. Idempotency is `{company, order, type, orderMilestone?}`.
@@ -19,6 +19,7 @@ import {decimal128FromMinor} from "@coreModule/utilities/helpers/money";
 export async function createEscrowTransactions(
     parentLogger: serverLogger,
     company: ICompany,
+    orders: CreateOrdersResult,
 ): Promise<HydratedDocument<IEscrowTransaction>[]> {
     const logger = getLogger("mongoDbInitialization-createEscrowTransactions", parentLogger);
     logger.start(`Creating escrow transactions (${escrowTransactionsSeed.length})...`);
@@ -28,10 +29,7 @@ export async function createEscrowTransactions(
 
     for (const row of escrowTransactionsSeed) {
         try {
-            const order = await Order.findOne({
-                company: company._id,
-                name: {$in: demoSeedNameCandidates(row.orderSeedKey)},
-            }).select("_id amount currency");
+            const order = orders.bySeedKey[row.orderSeedKey];
             if (!order) {
                 logger.warn(
                     `Skipping escrow "${row.seedKey}": marketplace order "${row.orderSeedKey}" was not seeded.`,

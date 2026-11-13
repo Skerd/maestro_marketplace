@@ -1,6 +1,6 @@
 import {ObjectId} from "mongodb";
 import {mediaUploadMW} from "@coreModule/utilities/middlewares/mediaUploadMW";
-import {createCrudRouter, type CrudCreateParams} from "@coreModule/api/crudRouterFactory";
+import {createCrudRouter, selectIdsOf, type CrudCreateParams} from "@coreModule/api/crudRouterFactory";
 import {marketplaceOperator} from "@marketplaceModule/utilities/services/portalBuyerTargets";
 import {asJobBuyer, assertJobOpenLimit, intoOperator, jobSiteCompany} from "@marketplaceModule/utilities/services/portalJobs";
 import {assertJobAddress, createJobLeads} from "@marketplaceModule/utilities/services/jobMatching";
@@ -114,14 +114,17 @@ export const {router} = createCrudRouter<ITaskRequest, CreateTaskRequestFormType
         const populate = SchemaGuard.generatePopulate(sanitizedFields, TaskRequest.schema);
 
         const filter: Record<string, unknown> = {company: company._id};
-        if (name?.trim()) {
+        const ids = selectIdsOf(params);
+        if (ids.length > 0) {
+            filter._id = {$in: ids};
+        } else if (name?.trim()) {
             const term = escapeRegex(name.trim());
             filter.$or = [
                 {name: {$regex: term, $options: "i"}},
                 {title: {$regex: term, $options: "i"}},
             ];
         }
-        if (activeOnly) {
+        if (activeOnly && ids.length === 0) {
             filter.status = "open";
         }
 

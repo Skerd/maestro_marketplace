@@ -433,7 +433,6 @@ const providerProfileCreateFormNodes: ViewConfig["nodes"] = [
                     required: true,
                     widgetProps: {
                         apiUrl: "/api/company/users/select",
-                        method: "POST",
                         normalizeEmptyToUndefined: true,
                     },
                 },

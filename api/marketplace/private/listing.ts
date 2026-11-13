@@ -2,7 +2,7 @@ import {ObjectId} from "mongodb";
 import {runAfterCommit} from "@coreModule/utilities/middlewares/transactionUtils";
 import {matchListingToOpenJobs} from "@marketplaceModule/utilities/services/jobMatching";
 import {mediaUploadMW} from "@coreModule/utilities/middlewares/mediaUploadMW";
-import {createCrudRouter} from "@coreModule/api/crudRouterFactory";
+import {createCrudRouter, selectIdsOf} from "@coreModule/api/crudRouterFactory";
 import {buildCreateDataFromSchemaDef, buildUpdateDataFromSchemaDef} from "@coreModule/api/buildUpdateDataFromSchemaDef";
 import {assertCanDelete} from "@coreModule/database/relationsRegistry";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
@@ -105,14 +105,17 @@ export const {router} = createCrudRouter<IListing, CreateListingFormType, EditLi
         const populate = SchemaGuard.generatePopulate(sanitizedFields, Listing.schema);
 
         const filter: Record<string, unknown> = {company: company._id};
-        if (name?.trim()) {
+        const ids = selectIdsOf(params);
+        if (ids.length > 0) {
+            filter._id = {$in: ids};
+        } else if (name?.trim()) {
             const term = escapeRegex(name.trim());
             filter.$or = [
                 {name: {$regex: term, $options: "i"}},
                 {title: {$regex: term, $options: "i"}},
             ];
         }
-        if (activeOnly) {
+        if (activeOnly && ids.length === 0) {
             filter.status = "active";
         }
 

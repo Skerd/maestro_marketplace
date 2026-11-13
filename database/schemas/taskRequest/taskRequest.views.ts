@@ -432,7 +432,6 @@ const taskRequestCreateFormNodes: ViewConfig["nodes"] = [
                                             required: true,
                                             widgetProps: {
                                                 apiUrl: "/api/auxiliary/country/select",
-                                                method: "POST",
                                                 pageSize: 50,
                                                 cascadeClearFormFields: ["address.state", "address.city"],
                                             },
@@ -447,7 +446,6 @@ const taskRequestCreateFormNodes: ViewConfig["nodes"] = [
                                             placeholder: "form.statePlaceholder",
                                             widgetProps: {
                                                 apiUrl: "/api/auxiliary/state/select",
-                                                method: "POST",
                                                 pageSize: 50,
                                                 postBodyFromFormFields: [{field: "address.country", paramName: "country"}],
                                                 enableWhenFormFieldsNonEmpty: ["address.country"],
@@ -465,7 +463,6 @@ const taskRequestCreateFormNodes: ViewConfig["nodes"] = [
                                             required: true,
                                             widgetProps: {
                                                 apiUrl: "/api/auxiliary/city/select",
-                                                method: "POST",
                                                 pageSize: 50,
                                                 postBodyFromFormFields: [
                                                     {field: "address.country", paramName: "country"},
@@ -637,7 +634,6 @@ const taskRequestEditFormNodes: ViewConfig["nodes"] = [
                                             required: true,
                                             widgetProps: {
                                                 apiUrl: "/api/auxiliary/country/select",
-                                                method: "POST",
                                                 pageSize: 50,
                                                 cascadeClearFormFields: ["address.state", "address.city"],
                                             },
@@ -653,7 +649,6 @@ const taskRequestEditFormNodes: ViewConfig["nodes"] = [
                                             placeholder: "form.statePlaceholder",
                                             widgetProps: {
                                                 apiUrl: "/api/auxiliary/state/select",
-                                                method: "POST",
                                                 pageSize: 50,
                                                 postBodyFromFormFields: [{field: "address.country", paramName: "country"}],
                                                 enableWhenFormFieldsNonEmpty: ["address.country"],
@@ -672,7 +667,6 @@ const taskRequestEditFormNodes: ViewConfig["nodes"] = [
                                             required: true,
                                             widgetProps: {
                                                 apiUrl: "/api/auxiliary/city/select",
-                                                method: "POST",
                                                 pageSize: 50,
                                                 postBodyFromFormFields: [
                                                     {field: "address.country", paramName: "country"},

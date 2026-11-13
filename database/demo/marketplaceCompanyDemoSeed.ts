@@ -22,6 +22,7 @@ import {createReviews} from "@marketplaceModule/database/schemas/review/review.d
 import {createDisputes} from "@marketplaceModule/database/schemas/dispute/dispute.defaults";
 import {createBookings} from "@marketplaceModule/database/schemas/booking/booking.defaults";
 import {createPromotions} from "@marketplaceModule/database/schemas/promotion/promotion.defaults";
+import {createEscrowTransactions} from "@marketplaceModule/database/demo/escrowTransactions.demo";
 
 /**
  * The main user (echo@echo.com) is both the provider and the buyer, so every
@@ -142,6 +143,8 @@ export async function seedMarketplaceCompanyDemoData(parentLogger: serverLogger 
     await createBookings(logger, company, provider, orders);
     await createPromotions(logger, company, listings);
     await createListingFlags(logger, company, customer, listings);
+    // The escrow ledger hangs off these orders (the marketplace depends on finance, not the other way round).
+    await createEscrowTransactions(logger, company, orders);
 
     logger.finish("Finished seeding marketplace demo data!");
 }

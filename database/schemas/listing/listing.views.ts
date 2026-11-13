@@ -703,7 +703,6 @@ const listingCreateFormNodes: ViewConfig["nodes"] = [
                             required: true,
                             widgetProps: {
                                 apiUrl: "/api/company/users/select",
-                                method: "POST",
                                 normalizeEmptyToUndefined: true,
                             },
                         },
@@ -868,7 +867,6 @@ const listingCreateFormNodes: ViewConfig["nodes"] = [
                             placeholder: "form.addressCountryPlaceholder",
                             widgetProps: {
                                 apiUrl: "/api/auxiliary/country/select",
-                                method: "POST",
                                 pageSize: 50,
                                 cascadeClearFormFields: ["address.state", "address.city"],
                             },
@@ -883,7 +881,6 @@ const listingCreateFormNodes: ViewConfig["nodes"] = [
                             placeholder: "form.addressStatePlaceholder",
                             widgetProps: {
                                 apiUrl: "/api/auxiliary/state/select",
-                                method: "POST",
                                 pageSize: 50,
                                 postBodyFromFormFields: [
                                     {field: "address.country", paramName: "country"},
@@ -902,7 +899,6 @@ const listingCreateFormNodes: ViewConfig["nodes"] = [
                             placeholder: "form.addressCityPlaceholder",
                             widgetProps: {
                                 apiUrl: "/api/auxiliary/city/select",
-                                method: "POST",
                                 pageSize: 50,
                                 postBodyFromFormFields: [
                                     {field: "address.country", paramName: "country"},
@@ -1052,7 +1048,6 @@ const listingEditFormNodes: ViewConfig["nodes"] = [
                             required: true,
                             widgetProps: {
                                 apiUrl: "/api/company/users/select",
-                                method: "POST",
                                 normalizeEmptyToUndefined: true,
                             },
                         },
@@ -1236,7 +1231,6 @@ const listingEditFormNodes: ViewConfig["nodes"] = [
                             placeholder: "form.addressCountryPlaceholder",
                             widgetProps: {
                                 apiUrl: "/api/auxiliary/country/select",
-                                method: "POST",
                                 pageSize: 50,
                                 cascadeClearFormFields: ["address.state", "address.city"],
                             },
@@ -1252,7 +1246,6 @@ const listingEditFormNodes: ViewConfig["nodes"] = [
                             placeholder: "form.addressStatePlaceholder",
                             widgetProps: {
                                 apiUrl: "/api/auxiliary/state/select",
-                                method: "POST",
                                 pageSize: 50,
                                 postBodyFromFormFields: [
                                     {field: "address.country", paramName: "country"},
@@ -1272,7 +1265,6 @@ const listingEditFormNodes: ViewConfig["nodes"] = [
                             placeholder: "form.addressCityPlaceholder",
                             widgetProps: {
                                 apiUrl: "/api/auxiliary/city/select",
-                                method: "POST",
                                 pageSize: 50,
                                 postBodyFromFormFields: [
                                     {field: "address.country", paramName: "country"},

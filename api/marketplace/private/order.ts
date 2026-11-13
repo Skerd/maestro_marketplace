@@ -1,5 +1,5 @@
 import {ObjectId} from "mongodb";
-import {createCrudRouter} from "@coreModule/api/crudRouterFactory";
+import {createCrudRouter, selectIdsOf} from "@coreModule/api/crudRouterFactory";
 import {assertCanDelete} from "@coreModule/database/relationsRegistry";
 import SchemaGuard from "@coreModule/database/security/schemaGuard";
 import {escapeRegex} from "@coreModule/utilities/helpers";
@@ -121,17 +121,21 @@ export const {router} = createCrudRouter<IOrder>({
         const populate = SchemaGuard.generatePopulate(sanitizedFields, Order.schema);
 
         const conditions: Record<string, unknown>[] = [{company: company._id}, orderPartyFilter(actionUserCtx)];
-        if (name?.trim()) {
+        const ids = selectIdsOf(params);
+        if (ids.length > 0) {
+            conditions.push({_id: {$in: ids}});
+        } else if (name?.trim()) {
             conditions.push({name: {$regex: escapeRegex(name.trim()), $options: "i"}});
         }
 
-        if (forReview) {
+        // A reviewed order is no longer offered for a review, but its review still shows it: `ids` skips the narrowing.
+        if (ids.length === 0 && forReview) {
             // The caller's completed orders that have no live review yet
             const customerId = new ObjectId(actionUserCtx.userId);
             const myCompleted = await orderService.find({company: company._id, customer: customerId, status: "completed"}, opts, null, "_id");
             const reviews = await reviewService.find({company: company._id, order: {$in: myCompleted.map((order) => order._id)}}, opts, null, "order");
             conditions.push({customer: customerId, status: "completed", _id: {$nin: reviews.map((review) => review.order._id)}});
-        } else if (status) {
+        } else if (ids.length === 0 && status) {
             conditions.push({status});
         }
 
