@@ -8,9 +8,9 @@ import {CurrencySimpleSnippet} from "@coreModule/database/schemas/currency/curre
 import {mapSnippet, nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import MarketplaceConfig, {IMarketplaceConfig} from "./marketplaceConfig";
 
-/** The company's own first currency: another company's would price this company's services in it. */
-async function firstCurrencyOf(companyId: ObjectId, options: CrudOptions): Promise<ObjectId | undefined> {
-    const currency = await Currency.findOne({company: companyId}).sort({createdAt: 1}).select("_id").session(options.session ?? null);
+/** The first row of the platform's currency list (D160), every company's default until it picks its own. */
+async function firstPlatformCurrency(options: CrudOptions): Promise<ObjectId | undefined> {
+    const currency = await Currency.findOne({}).sort({createdAt: 1}).select("_id").session(options.session ?? null);
     return currency?._id;
 }
 
@@ -33,13 +33,13 @@ export class MarketplaceConfigService extends BaseCrudService<IMarketplaceConfig
 
     /**
      * The company's marketplace settings, created with defaults (not listed on the portal, the
-     * company's first currency) the first time they are needed.
+     * platform's first currency, D160) the first time they are needed.
      */
     async getOrCreateForCompany(companyId: ObjectId, options: CrudOptions = {}): Promise<IMarketplaceConfig> {
         const existing = await this.findForCompany(companyId, options);
         if (existing) return existing;
 
-        const currency = await firstCurrencyOf(companyId, options);
+        const currency = await firstPlatformCurrency(options);
         if (!currency) {
             throw apiValidationException("marketplace_currency_not_configured", "", null, options.languageCode ?? "en-US");
         }
@@ -60,7 +60,7 @@ export class MarketplaceConfigService extends BaseCrudService<IMarketplaceConfig
      */
     async currencyRefOf(companyId: ObjectId, options: CrudOptions = {}): Promise<ObjectId | undefined> {
         const config = await this.findForCompany(companyId, options);
-        return (config ? nestedEntityToRef(config.currency) : undefined) ?? firstCurrencyOf(companyId, options);
+        return (config ? nestedEntityToRef(config.currency) : undefined) ?? firstPlatformCurrency(options);
     }
 }
 

@@ -70,8 +70,8 @@ describe("the marketplace operator (D143)", () => {
     it("is one per database", async () => {
         await seedOperator();
         await acrossCompanies(async () => {
-            const currency = await Currency.create({name: "Euro", symbol: "€", abbreviation: "EUR", decimalPlaces: 2, company: seller});
-            await expect(MarketplaceConfig.create({company: seller, currency: currency._id, isOperator: true})).rejects.toMatchObject({code: 11000});
+            const currency = await Currency.findOne({abbreviation: "EUR"});
+            await expect(MarketplaceConfig.create({company: seller, currency: currency?._id, isOperator: true})).rejects.toMatchObject({code: 11000});
         });
     });
 

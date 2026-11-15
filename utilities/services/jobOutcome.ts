@@ -4,7 +4,6 @@ import {apiValidationException} from "armonia/src/modules/core/helpers/exception
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {allowForeignReferences, asCrossTenant, withTenant} from "@coreModule/utilities/endpoints/tenantScope";
 import {runAfterCommit} from "@coreModule/utilities/middlewares/transactionUtils";
-import {sameCurrencyIn} from "@coreModule/utilities/helpers/referenceData";
 import {emitNotificationEvent} from "@coreModule/domain/notifications/notificationEventBus";
 import type {serverLogger} from "@coreModule/loggers/serverLog";
 import type {ITaskRequest} from "@marketplaceModule/database/schemas/taskRequest/taskRequest";
@@ -85,7 +84,7 @@ export async function notifyEndedLeads(code: string, leads: EndedLead[], job: Pi
 
 /**
  * Opens the order for an accepted quote from a lead in the winning provider's company (D143), as a purchase from that
- * seller: the buyer is the customer, the price is the quote's, in the provider's own copy of the currency (by ISO code).
+ * seller: the buyer is the customer, the price is the quote's, in the quote's currency (a platform list, D160).
  * The order keeps its job and quote, which stay in the operator.
  */
 export async function openAwardOrder(job: ITaskRequest, bid: IBid, ctx: Ctx): Promise<IOrder> {
@@ -93,8 +92,6 @@ export async function openAwardOrder(job: ITaskRequest, bid: IBid, ctx: Ctx): Pr
     const currencyRef = nestedEntityToRef(bid.currency);
     if (!providerCompany || !currencyRef) throw apiValidationException("bid_not_found_or_already_processed", null, null, ctx.languageCode);
     const opts = {session: ctx.session ?? undefined, logger: ctx.logger, languageCode: ctx.languageCode};
-    const currency = await sameCurrencyIn(providerCompany, currencyRef, opts);
-    if (!currency) throw apiValidationException("marketplace_currency_not_configured", "", null, ctx.languageCode);
     return withTenant(providerCompany, () => allowForeignReferences(AWARD_REFERENCE, () => orderService.create(
         {
             taskRequest: job._id,
@@ -102,7 +99,7 @@ export async function openAwardOrder(job: ITaskRequest, bid: IBid, ctx: Ctx): Pr
             customer: nestedEntityToRef(job.requester),
             provider: nestedEntityToRef(bid.bidder),
             amount: bid.amount,
-            currency,
+            currency: currencyRef,
             status: "pending",
             company: providerCompany,
             ...(bid.deliveryDays > 0 && {deliveryDueDate: new Date(Date.now() + bid.deliveryDays * 24 * 60 * 60 * 1000)}),

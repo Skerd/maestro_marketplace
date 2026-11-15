@@ -49,12 +49,13 @@ describe("the marketplace currency (D142)", () => {
         expect(String(await marketplaceConfigService.currencyRefOf(listed))).toBe(euro._id.toString());
     }));
 
-    it("is missing for a company with no currency of its own, and its settings cannot start", () => acrossCompanies(async () => {
-        await Currency.create({name: "Euro", symbol: "€", abbreviation: "EUR", decimalPlaces: 2, company: listed});
-
+    it("is the platform's first currency, and the settings cannot start while the platform list has none (D160)", () => acrossCompanies(async () => {
         expect(await marketplaceConfigService.currencyRefOf(withoutCurrency)).toBeUndefined();
         await expect(marketplaceConfigService.getOrCreateForCompany(withoutCurrency, {languageCode: "en-US"}))
             .rejects.toMatchObject({error_code: "marketplace_currency_not_configured"});
+
+        const euro = await Currency.create({name: "Euro", symbol: "€", abbreviation: "EUR", decimalPlaces: 2, company: listed});
+        expect(String(await marketplaceConfigService.currencyRefOf(withoutCurrency))).toBe(euro._id.toString());
     }));
 });
 

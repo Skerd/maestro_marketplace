@@ -385,12 +385,10 @@ export type CreateListingsResult = {
     bySeedKey: Record<string, HydratedDocument<IListing>>;
 };
 
-/** The address and service area of an on-site demo listing, from the company's own country and city rows. */
-async function onsitePlace(company: ICompany, categoryId: ObjectId, place: NonNullable<ListingSeed["place"]>) {
-    const [country, city] = await Promise.all([
-        Country.findOne({company: company._id, code: "AL"}).select("_id"),
-        City.findOne({company: company._id, name: place.cityName}).select("_id"),
-    ]);
+/** The address and service area of an on-site demo listing, from the platform's country and city lists (D160). */
+async function onsitePlace(categoryId: ObjectId, place: NonNullable<ListingSeed["place"]>) {
+    const country = await Country.findOne({code: "AL"}).select("_id");
+    const city = country ? await City.findOne({country: country._id, name: place.cityName}).select("_id") : null;
     const area = await listingServiceAreaFields(categoryId, place, "en-US", {});
     return {
         address: country && city ? {country: country._id as ObjectId, city: city._id as ObjectId} : undefined,
@@ -449,7 +447,7 @@ export async function createListings(
             const galleryIds = resolved.galleryIds;
 
             // An on-site seed advertises its own city and gets its service area through the listing rule (D143).
-            const place = seed.place ? await onsitePlace(company, category._id, seed.place) : undefined;
+            const place = seed.place ? await onsitePlace(category._id, seed.place) : undefined;
 
             const payload = {
                 title: demoName(seed.title),

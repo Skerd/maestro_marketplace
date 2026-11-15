@@ -7,7 +7,9 @@ import {companyService} from "@coreModule/database/schemas/company/company.servi
 import {mediaService} from "@coreModule/database/schemas/media/media.service";
 import {isPortalZoneOrigin, portalSiteSlug} from "@coreModule/utilities/marketing/portalOrigin";
 import {findPortalSiteCompany} from "@coreModule/utilities/marketing/portalCompanies";
-import {sameCurrencyIn, samePlacesIn} from "@coreModule/utilities/helpers/referenceData";
+import {countryService} from "@coreModule/database/schemas/country/country.service";
+import {stateService} from "@coreModule/database/schemas/state/state.service";
+import {cityService} from "@coreModule/database/schemas/city/city.service";
 import type {ICompany} from "@coreModule/database/schemas/company/company";
 import {taskRequestService} from "@marketplaceModule/database/schemas/taskRequest/taskRequest.service";
 import {marketplaceConfigService} from "@marketplaceModule/database/schemas/marketplaceConfig/marketplaceConfig.service";
@@ -45,9 +47,9 @@ export async function assertJobOpenLimit(operatorId: ObjectId, requester: Object
 
 
 /**
- * Moves a job the buyer filled in on any site into the operator: its currency and places become the operator's own
- * copies (each company holds its own), and the photos the buyer uploaded are shared with the operator so the job may
- * name them (D104). A place the operator does not have is refused.
+ * Moves a job the buyer filled in on any site into the operator. Its currency and places are platform lists (D160),
+ * so they stay as the buyer chose them; the photos the buyer uploaded are shared with the operator so the job may name
+ * them (D104). A place that does not exist is refused.
  */
 export async function intoOperator(
     // The SchemaDef create builder's own shape (`buildCreateDataFromSchemaDef`).
@@ -59,20 +61,22 @@ export async function intoOperator(
 ): Promise<Record<string, any>> {
     const opts = {session: session ?? undefined, languageCode};
     const currencyRef = nestedEntityToRef(data.currency as never);
-    const currency = (currencyRef ? await sameCurrencyIn(operatorId, currencyRef, opts) : undefined)
-        ?? await marketplaceConfigService.currencyRefOf(operatorId, opts);
+    const currency = currencyRef ?? await marketplaceConfigService.currencyRefOf(operatorId, opts);
     if (!currency) throw apiValidationException("marketplace_currency_not_configured", "", null, languageCode);
 
     let address: Record<string, unknown> | undefined = data.address;
     if (address) {
-        const places = await samePlacesIn(operatorId, {
-            country: nestedEntityToRef(address.country as never),
-            state: nestedEntityToRef(address.state as never),
-            city: nestedEntityToRef(address.city as never),
-        }, opts);
-        if (!places.country || !places.city) throw apiValidationException("not_found", "address", null, languageCode);
-        address = {...address, country: places.country, city: places.city, ...(places.state ? {state: places.state} : {})};
-        if (!places.state) delete address.state;
+        const countryId = nestedEntityToRef(address.country as never);
+        const stateId = nestedEntityToRef(address.state as never);
+        const cityId = nestedEntityToRef(address.city as never);
+        const [country, state, city] = await Promise.all([
+            countryId ? countryService.findOne({_id: countryId}, opts, null, "_id") : null,
+            stateId && countryId ? stateService.findOne({_id: stateId, country: countryId}, opts, null, "_id") : null,
+            cityId && countryId ? cityService.findOne({_id: cityId, country: countryId}, opts, null, "_id") : null,
+        ]);
+        if (!country || !city) throw apiValidationException("not_found", "address", null, languageCode);
+        address = {...address, country: country._id, city: city._id, ...(state ? {state: state._id} : {})};
+        if (!state) delete address.state;
     }
 
     const media = [data.mainImage, ...(data.imageGallery ?? []), ...(data.videoGallery ?? [])]

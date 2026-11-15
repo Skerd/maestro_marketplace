@@ -46,9 +46,9 @@ async function resolveDemoUser(company: any, logger: serverLogger) {
 
 async function resolveDemoAddress(company: any, logger: serverLogger) {
     const addr = defaultCompaniesValues.address;
-    const country = await Country.findOne({code: addr.countryCode, company: company._id}).select("_id");
-    const state = await State.findOne({code: addr.stateCode, company: company._id}).select("_id");
-    const city = await City.findOne({name: addr.cityName, company: company._id}).select("_id");
+    const country = await Country.findOne({code: addr.countryCode}).select("_id");
+    const state = country ? await State.findOne({country: country._id, code: addr.stateCode}).select("_id") : null;
+    const city = country ? await City.findOne({country: country._id, name: addr.cityName}).select("_id") : null;
 
     if (!country || !city) {
         logger.warn(
@@ -73,8 +73,8 @@ export async function seedMarketplaceCompanyDemoData(parentLogger: serverLogger 
     logger.start("Seeding marketplace demo data...");
 
     const currency =
-        (await Currency.findOne({abbreviation: "EUR", company: company._id})) ||
-        (await Currency.findOne({company: company._id}));
+        (await Currency.findOne({abbreviation: "EUR"})) ||
+        (await Currency.findOne({}));
     if (!currency) {
         logger.err("No currency found; skipping marketplace demo.");
         logger.fail("Marketplace demo seed failed.");

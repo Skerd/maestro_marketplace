@@ -25,7 +25,7 @@ export async function createEscrowTransactions(
     logger.start(`Creating escrow transactions (${escrowTransactionsSeed.length})...`);
 
     const created: HydratedDocument<IEscrowTransaction>[] = [];
-    const fallbackCurrency = await Currency.findOne({abbreviation: "EUR", company: company._id}).select("_id");
+    const fallbackCurrency = await Currency.findOne({abbreviation: "EUR"}).select("_id");
 
     for (const row of escrowTransactionsSeed) {
         try {
