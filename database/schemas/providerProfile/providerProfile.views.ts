@@ -15,6 +15,7 @@ const weekdayOptions = [
 export const providerProfileSheetView: ViewConfig = {
     model: "providerprofiles",
     viewType: "sheet",
+    sheetWidget: "#ProviderProfileSheetView",
     accessModel: "providerprofiles",
     apiUrl: "/api/marketplace/providerProfile",
     header: {

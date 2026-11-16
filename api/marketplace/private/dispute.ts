@@ -73,6 +73,8 @@ export const {router} = createCrudRouter<IDispute, CreateDisputeFormType>({
     entityName: "Dispute",
     defaultSort: {createdAt: -1},
     selectSearchField: "reason",
+    // The label reads the status and the reason (TD-B234).
+    selectProjection: "_id reason status order",
     rateLimits: {read: 60, write: 30, delete: 20},
     createSchema: createDisputeFormSchema,
     // Not edited via PATCH; lifecycle uses /startReview, /resolve, /close

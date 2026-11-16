@@ -4,6 +4,7 @@ import {lifecycleSheetGroup} from "@coreModule/database/schemas/shared/lifecycle
 export const reviewSheetView: ViewConfig = {
     model: "reviews",
     viewType: "sheet",
+    sheetWidget: "#ReviewSheetView",
     accessModel: "reviews",
     apiUrl: "/api/marketplace/review",
     header: {

@@ -53,6 +53,7 @@ const jobCards: ViewConfig["nodes"] = [
 export const taskLeadSheetView: ViewConfig = {
     model: "taskleads",
     viewType: "sheet",
+    sheetWidget: "#TaskLeadSheetView",
     accessModel: "taskleads",
     apiUrl: "/api/marketplace/taskLead",
     header: {

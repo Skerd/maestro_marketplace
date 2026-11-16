@@ -4,6 +4,7 @@ import {lifecycleSheetGroup} from "@coreModule/database/schemas/shared/lifecycle
 export const disputeSheetView: ViewConfig = {
     model: "disputes",
     viewType: "sheet",
+    sheetWidget: "#DisputeSheetView",
     accessModel: "disputes",
     apiUrl: "/api/marketplace/dispute",
     header: {

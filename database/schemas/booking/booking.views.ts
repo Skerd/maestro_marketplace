@@ -4,6 +4,7 @@ import {lifecycleSheetGroup} from "@coreModule/database/schemas/shared/lifecycle
 export const bookingSheetView: ViewConfig = {
     model: "bookings",
     viewType: "sheet",
+    sheetWidget: "#BookingSheetView",
     accessModel: "bookings",
     apiUrl: "/api/marketplace/booking",
     header: {

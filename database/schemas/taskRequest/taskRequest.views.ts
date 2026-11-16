@@ -4,6 +4,7 @@ import {lifecycleSheetGroup} from "@coreModule/database/schemas/shared/lifecycle
 export const taskRequestSheetView: ViewConfig = {
     model: "taskrequests",
     viewType: "sheet",
+    sheetWidget: "#TaskRequestSheetView",
     accessModel: "taskRequests",
     apiUrl: "/api/marketplace/taskRequest",
     header: {

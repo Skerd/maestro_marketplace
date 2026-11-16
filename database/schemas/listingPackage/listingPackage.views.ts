@@ -4,6 +4,7 @@ import {lifecycleSheetGroup} from "@coreModule/database/schemas/shared/lifecycle
 export const listingPackageSheetView: ViewConfig = {
     model: "listingpackages",
     viewType: "sheet",
+    sheetWidget: "#ListingPackageSheetView",
     accessModel: "listingpackages",
     apiUrl: "/api/marketplace/listingPackage",
     header: {

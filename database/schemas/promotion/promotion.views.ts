@@ -4,6 +4,7 @@ import {lifecycleSheetGroup} from "@coreModule/database/schemas/shared/lifecycle
 export const promotionSheetView: ViewConfig = {
     model: "promotions",
     viewType: "sheet",
+    sheetWidget: "#PromotionSheetView",
     accessModel: "promotions",
     apiUrl: "/api/marketplace/promotion",
     header: {

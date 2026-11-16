@@ -4,6 +4,7 @@ import {lifecycleSheetGroup} from "@coreModule/database/schemas/shared/lifecycle
 export const bidSheetView: ViewConfig = {
     model: "marketplacebids",
     viewType: "sheet",
+    sheetWidget: "#BidSheetView",
     accessModel: "marketplacebids",
     apiUrl: "/api/marketplace/bid",
     header: {

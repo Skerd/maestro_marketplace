@@ -4,6 +4,7 @@ import {lifecycleSheetGroup} from "@coreModule/database/schemas/shared/lifecycle
 export const orderDeliverySheetView: ViewConfig = {
     model: "orderdeliveries",
     viewType: "sheet",
+    sheetWidget: "#OrderDeliverySheetView",
     accessModel: "orderdeliveries",
     apiUrl: "/api/marketplace/orderDelivery",
     header: {

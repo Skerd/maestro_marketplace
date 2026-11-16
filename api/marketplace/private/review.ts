@@ -1,5 +1,7 @@
 import {ObjectId, type ClientSession} from "mongodb";
-import {createCrudRouter, type CrudCreateParams} from "@coreModule/api/crudRouterFactory";
+import {createCrudRouter, selectIdsOf, type CrudCreateParams} from "@coreModule/api/crudRouterFactory";
+import SchemaGuard from "@coreModule/database/security/schemaGuard";
+import {escapeRegex} from "@coreModule/utilities/helpers";
 import {assertCanDelete} from "@coreModule/database/relationsRegistry";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import {orderSeller} from "@marketplaceModule/utilities/services/portalBuyerTargets";
@@ -74,7 +76,39 @@ export const {router} = createCrudRouter<IReview, CreateReviewFormType>({
     service: reviewService,
     entityName: "Review",
     defaultSort: {createdAt: -1},
-    selectSearchField: "comment",
+    // A review reads as the rating, who wrote it and the listing (D162: the chat's "Share a record" list), so the
+    // select populates both; the search matches the comment.
+    overrideSelectHandler: async (params) => {
+        const {logger, languageCode, actionUserCtx, company, name, page, limit, dslFilterQuery} = params;
+        logger.start("Fetching reviews for select...");
+
+        const sanitizedFields = SchemaGuard.sanitizeFields(
+            Review,
+            {rating: {}, comment: {}, listing: {keys: {title: {}, name: {}}}, reviewer: {keys: {name: {}, surname: {}}}},
+            "read", actionUserCtx, languageCode,
+        );
+        const populate = SchemaGuard.generatePopulate(sanitizedFields, Review.schema);
+
+        const filter: Record<string, unknown> = {company: company._id};
+        const ids = selectIdsOf(params);
+        if (ids.length > 0) {
+            filter._id = {$in: ids};
+        } else {
+            const search = String(name ?? "").trim();
+            if (search) {
+                if (!sanitizedFields.comment) return {data: [], total: 0};
+                filter.comment = {$regex: escapeRegex(search), $options: "i"};
+            }
+            if (dslFilterQuery && Object.keys(dslFilterQuery as object).length > 0) filter.$and = [dslFilterQuery];
+        }
+
+        const [reviews, total] = await Promise.all([
+            reviewService.find(filter, {logger, languageCode}, populate.populate, populate.select || "", {createdAt: -1}, limit, (page - 1) * limit),
+            reviewService.count(filter, {logger, languageCode}),
+        ]);
+        logger.finish("Finished fetching reviews for select!");
+        return {data: reviewsToSelect(reviews), total};
+    },
     rateLimits: {read: 60, write: 30, delete: 20},
     createSchema: createReviewFormSchema,
     // Not edited via PATCH; create-only with admin delete/restore
