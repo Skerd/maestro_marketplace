@@ -291,6 +291,8 @@ export class OrderActions {
                 orderId: order._id.toString(),
                 orderName: order.name,
                 cancelledBy: isProvider ? "provider" : "customer",
+                // Only the provider's copy opens the order in the panel (TD-F133).
+                providerId: order.provider._id.toString(),
             });
 
             logger.finish(`Successfully cancelled order: ${_id}`);

@@ -48,3 +48,21 @@ describe("marketplace notices carry their message values (D117)", () => {
         }
     });
 });
+
+// TD-F133: a cancelled order or a dispute reaches the customer too, who has no panel page for it; only the provider's
+// copy carries the key its link opens.
+describe("order and dispute links", () => {
+    it("give only the provider's copy the panel record", async () => {
+        const [provider, customer] = [new ObjectId().toString(), new ObjectId().toString()];
+        mocks.createAndPush.mockReset().mockResolvedValue({});
+        notificationEventBus.emit(NotificationEventCodes.DISPUTE_RESOLVED, {
+            code: NotificationEventCodes.DISPUTE_RESOLVED,
+            receiverIds: [customer, provider],
+            payload: {companyId, disputeId: "d1", orderId: "o1", orderName: "Kitchen", providerId: provider},
+        });
+        await vi.waitFor(() => expect(mocks.createAndPush).toHaveBeenCalledTimes(2));
+        const byReceiver = Object.fromEntries(mocks.createAndPush.mock.calls.map(([input]) => [String(input.receiver), input.content]));
+        expect(byReceiver[provider]).toMatchObject({disputeId: "d1", providerDisputeId: "d1"});
+        expect(byReceiver[customer]).not.toHaveProperty("providerDisputeId");
+    });
+});

@@ -101,7 +101,15 @@ function paramsFor(code: MarketplaceCode, p: Record<string, unknown>): Record<st
     }
 }
 
-function contentFor(code: MarketplaceCode, payload: Record<string, unknown>): Record<string, unknown> {
+/**
+ * The record id under a key only the provider's copy carries: the provider works the order in the panel, the
+ * customer (a storefront buyer) has no panel page for it, so only the provider's notice links to it (TD-F133).
+ */
+function providerKey(payload: Record<string, unknown>, receiverId: string, key: string, id: unknown): Record<string, unknown> {
+    return payload.providerId != null && String(payload.providerId) === receiverId ? {[key]: id} : {};
+}
+
+function contentFor(code: MarketplaceCode, payload: Record<string, unknown>, receiverId: string): Record<string, unknown> {
     switch (code) {
         case NotificationEventCodes.BID_ACCEPTED:
         case NotificationEventCodes.BID_REJECTED:
@@ -122,7 +130,7 @@ function contentFor(code: MarketplaceCode, payload: Record<string, unknown>): Re
         case NotificationEventCodes.ORDER_DELIVERY_ACCEPTED:
             return {orderId: payload.orderId, orderName: payload.orderName};
         case NotificationEventCodes.ORDER_CANCELLED:
-            return {orderId: payload.orderId, orderName: payload.orderName, cancelledBy: payload.cancelledBy};
+            return {orderId: payload.orderId, orderName: payload.orderName, cancelledBy: payload.cancelledBy, ...providerKey(payload, receiverId, "providerOrderId", payload.orderId)};
         case NotificationEventCodes.ORDER_EXTENDED:
             return {orderId: payload.orderId, orderName: payload.orderName, additionalDays: payload.additionalDays};
         case NotificationEventCodes.ORDER_REVISION_REQUESTED:
@@ -132,7 +140,7 @@ function contentFor(code: MarketplaceCode, payload: Record<string, unknown>): Re
         case NotificationEventCodes.DISPUTE_OPENED:
         case NotificationEventCodes.DISPUTE_RESOLVED:
         case NotificationEventCodes.DISPUTE_CLOSED:
-            return {disputeId: payload.disputeId, orderId: payload.orderId, orderName: payload.orderName};
+            return {disputeId: payload.disputeId, orderId: payload.orderId, orderName: payload.orderName, ...providerKey(payload, receiverId, "providerDisputeId", payload.disputeId)};
         case NotificationEventCodes.TASK_REQUEST_CREATED:
             // The lead in the provider's own company is what the notification opens (D143).
             return {
@@ -159,7 +167,7 @@ function bindHandler(code: MarketplaceCode): void {
                         code,
                         description: DESCRIPTIONS[code](payload),
                         params: paramsFor(code, payload),
-                        content: contentFor(code, payload),
+                        content: contentFor(code, payload, receiverId),
                         importance: IMPORTANCE[code],
                         category: NotificationCategory.SYSTEM,
                     },

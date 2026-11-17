@@ -60,6 +60,8 @@ async function notifyDisputeOpened(created: IDispute, params: CrudCreateParams<C
                 disputeId: created._id.toString(),
                 orderId: order._id.toString(),
                 orderName: order.name,
+                // Only the provider's copy opens the dispute in the panel (TD-F133).
+                providerId: order.provider._id.toString(),
             },
         });
     });

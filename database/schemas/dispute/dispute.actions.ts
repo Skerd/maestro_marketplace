@@ -54,6 +54,8 @@ async function notifyParties(params: TransactionRequiredParams, code: string, di
                 disputeId: dispute._id.toString(),
                 orderId: order._id.toString(),
                 orderName: order.name,
+                // Only the provider's copy opens the dispute in the panel (TD-F133).
+                providerId: order.provider._id.toString(),
             },
         });
     });
