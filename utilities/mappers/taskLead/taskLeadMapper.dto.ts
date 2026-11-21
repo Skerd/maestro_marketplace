@@ -73,6 +73,7 @@ export function taskLeadToDTO(lead: ITaskLead, job?: ITaskRequest | null, bid?: 
         _id: lead._id.toString(),
         name: lead.name,
         status: lead.status,
+        origin: lead.origin ?? "matched",
         provider: mapSnippet<SimpleUser>()(lead.provider, SimpleUserSnippet),
         ...(listingId && listingTitle ? {listing: {_id: listingId.toString(), title: listingTitle}} : {}),
         ...(lead.distanceKm != null ? {distanceKm: lead.distanceKm} : {}),

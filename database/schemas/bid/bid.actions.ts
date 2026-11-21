@@ -3,6 +3,7 @@ import {action} from "@coreModule/api/actionDecorator";
 import {validateSingleForm} from "armonia/src/modules/core/utilities/zod/shared.validator";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import {runAfterCommit, type TransactionRequiredParams} from "@coreModule/utilities/middlewares/transactionUtils";
+import {publishTaskChange} from "@marketplaceModule/utilities/services/taskBoardEvents";
 import {bidService} from "@marketplaceModule/database/schemas/bid/bid.service";
 import type {IBid} from "@marketplaceModule/database/schemas/bid/bid";
 import {orderService} from "@marketplaceModule/database/schemas/order/order.service";
@@ -147,6 +148,8 @@ export class BidActions {
 
         logger.finish(`Successfully accepted bid: ${_id}`);
 
+        // Live (D172): the board and the task page see it awarded.
+        await runAfterCommit(session, () => publishTaskChange(taskRequest._id, logger));
         return {message: "Bid accepted successfully", _id: order._id.toString()};
     }
 
@@ -185,6 +188,8 @@ export class BidActions {
             await notifyBidders(p, NotificationEventCodes.BID_REJECTED, [bid.bidder._id.toString()], bid, taskRequest, lead);
         }
 
+        // Live (D172): one quote fewer on the board and the task page.
+        await runAfterCommit(session, () => publishTaskChange(taskRequest._id, logger));
         logger.finish(`Successfully rejected bid: ${_id}`);
 
         return {message: "Bid rejected successfully"};

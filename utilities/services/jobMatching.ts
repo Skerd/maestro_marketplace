@@ -152,8 +152,9 @@ export async function findJobMatches(job: ITaskRequest, cap: number = JOB_LEAD_C
 export async function createJobLeads(job: ITaskRequest, ctx: MatchContext): Promise<number> {
     const {logger, languageCode, session} = ctx;
     const cap = (await marketplaceOperatorLimits()).leadCap ?? JOB_LEAD_CAP;
-    // A re-match tops the job up to its cap: the leads it already gave count (D143).
-    const given = await asCrossTenant(READ_REASON, () => taskLeadService.count({taskRequest: job._id}, {session: session ?? undefined}));
+    // A re-match tops the job up to its cap: the leads it already gave count (D143). A provider who quoted from the task
+    // board was never notified, so their lead does not use up a notification (D172).
+    const given = await asCrossTenant(READ_REASON, () => taskLeadService.count({taskRequest: job._id, origin: {$ne: "board"}}, {session: session ?? undefined}));
     if (given >= cap) return 0;
     const matches = await findJobMatches(job, cap);
     if (!matches.length) return 0;
@@ -176,6 +177,7 @@ export async function createJobLeads(job: ITaskRequest, ctx: MatchContext): Prom
                     provider: match.provider,
                     listing: match.listing,
                     ...(match.distanceKm != null ? {distanceKm: match.distanceKm} : {}),
+                    origin: "matched",
                     status: "new",
                     createdBy: match.provider,
                 },

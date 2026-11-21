@@ -6,6 +6,7 @@ import {IUser} from "@coreModule/database/schemas/user/user";
 import {demoSeedMarkerRegex, withDemoSeedMarker} from "@coreModule/database/demo/demoSeed";
 import type {CreateOrdersResult} from "@marketplaceModule/database/schemas/order/order.defaults";
 import type {CreateListingsResult} from "@marketplaceModule/database/schemas/listing/listing.defaults";
+import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 
 export type ReviewSeed = {
     seedKey: string;
@@ -125,14 +126,16 @@ export async function createReviews(
                 comment: {$regex: demoSeedMarkerRegex(seed.seedKey)},
             });
 
+            // The order's own buyer reviews it (a task's order is the buyer's who posted the task).
+            const orderBuyer = nestedEntityToRef(order.customer) ?? reviewer._id;
             const payload = {
                 order: order._id,
                 listing: listing._id,
                 rating: seed.rating,
                 comment: withDemoSeedMarker(seed.comment, seed.seedKey),
-                reviewer: reviewer._id,
+                reviewer: orderBuyer,
                 company: company._id,
-                createdBy: reviewer._id,
+                createdBy: orderBuyer,
             };
 
             if (!existing) {

@@ -4,6 +4,8 @@ import {createCrudRouter, selectIdsOf, type CrudCreateParams} from "@coreModule/
 import {marketplaceOperator} from "@marketplaceModule/utilities/services/portalBuyerTargets";
 import {asJobBuyer, assertJobOpenLimit, intoOperator, jobSiteCompany} from "@marketplaceModule/utilities/services/portalJobs";
 import {assertJobAddress, createJobLeads} from "@marketplaceModule/utilities/services/jobMatching";
+import {runAfterCommit} from "@coreModule/utilities/middlewares/transactionUtils";
+import {publishTaskChange} from "@marketplaceModule/utilities/services/taskBoardEvents";
 import {quotesForBuyer} from "@marketplaceModule/utilities/services/jobBids";
 import {jobApproxPoint} from "@marketplaceModule/utilities/services/jobLocation";
 import type {CreateMyTaskRequestResponse} from "armonia/src/modules/marketplace/api/marketplace/private/taskRequest/taskRequest.dto";
@@ -251,6 +253,8 @@ router.put(
                 {session, logger, languageCode, auditUserId: actionUserCtx.userId},
             );
             const notified = await createJobLeads(created, {logger, languageCode, session});
+            // Live (D172): a public task appears on the board for whoever watches it.
+            await runAfterCommit(session ?? undefined, () => publishTaskChange(created._id, logger));
             return {data: {_id: created._id.toString(), notified}};
         });
     }),

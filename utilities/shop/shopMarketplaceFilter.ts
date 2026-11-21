@@ -17,10 +17,10 @@ export const SHOP_LISTING_SORT_SPECS: Record<Exclude<ShopListingSort, "recommend
     rating: {avgRating: -1, reviewCount: -1, createdAt: -1},
 };
 
-/** A category slug of the shared tree (D144) and every category below it; null when the slug matches nothing. */
-async function listingCategoryScope(slug: string): Promise<ObjectId[] | null> {
+/** A category of the shared tree (D144), picked by `isRoot`, and every category below it; null when none matches. */
+async function categoryScope(isRoot: (category: {_id: ObjectId; slug?: string}) => boolean): Promise<ObjectId[] | null> {
     const categories: any[] = await listingCategoryService.find(await marketplaceCategoryClause(), {withDeleted: false}, undefined, "slug parentListingCategory");
-    const root = categories.find((category) => category.slug === slug);
+    const root = categories.find(isRoot);
     if (!root) return null;
 
     const scope: ObjectId[] = [root._id];
@@ -31,6 +31,16 @@ async function listingCategoryScope(slug: string): Promise<ObjectId[] | null> {
         }
     }
     return scope;
+}
+
+/** A category slug of the shared tree (D144) and every category below it; null when the slug matches nothing. */
+export function listingCategoryScope(slug: string): Promise<ObjectId[] | null> {
+    return categoryScope((category) => category.slug === slug);
+}
+
+/** A category of the shared tree (D144) by id and every category below it; null when the id matches nothing. */
+export function listingCategoryScopeById(id: string): Promise<ObjectId[] | null> {
+    return categoryScope((category) => category._id.toString() === id);
 }
 
 /**

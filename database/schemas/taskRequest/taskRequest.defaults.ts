@@ -133,10 +133,15 @@ export type CreateTaskRequestsResult = {
     bySeedKey: Record<string, HydratedDocument<ITaskRequest>>;
 };
 
+/**
+ * The demo customers' online jobs, posted on the apex like real ones: stored in the marketplace operator (D143) and
+ * shown on the public task board while open (D172). The buyers take turns, and none of them is a provider, so every
+ * services company may quote on them.
+ */
 export async function createTaskRequests(
     parentLogger: serverLogger,
-    company: ICompany,
-    requester: IUser,
+    operator: ICompany,
+    buyers: readonly IUser[],
     currency: ICurrency,
     address: DemoTaskAddress,
 ): Promise<CreateTaskRequestsResult> {
@@ -147,7 +152,9 @@ export async function createTaskRequests(
     const bySeedKey: Record<string, HydratedDocument<ITaskRequest>> = {};
 
     try {
-        for (const seed of defaultTaskRequestSeeds) {
+        for (const [index, seed] of defaultTaskRequestSeeds.entries()) {
+            const requester = buyers[index % buyers.length];
+            if (!requester) break;
             // Every company files under the shared tree (D144).
             const category = await ListingCategory.findOne({
                 slug: seed.categorySlug,
@@ -160,7 +167,7 @@ export async function createTaskRequests(
             }
 
             let existing = await TaskRequest.findOne({
-                company: company._id,
+                company: operator._id,
                 name: {$in: demoSeedNameCandidates(seed.seedKey)},
             });
 
@@ -168,7 +175,7 @@ export async function createTaskRequests(
                 resolveTaskRequestPhotoIds(seed.seedKey),
                 seed.seedKey,
                 seed.title,
-                company,
+                operator,
                 requester._id,
                 logger,
                 "taskRequest",
@@ -192,7 +199,7 @@ export async function createTaskRequests(
                 expiresAt: dayjs().add(seed.expiresInDays, "day").toDate(),
                 mainImage: mainImageId,
                 imageGallery: galleryIds,
-                company: company._id,
+                company: operator._id,
                 createdBy: requester._id,
             };
 

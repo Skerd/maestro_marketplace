@@ -1,11 +1,22 @@
 import type {HydratedDocument} from "mongoose";
+import type {TaskLeadStatus} from "armonia/src/modules/marketplace/api/marketplace/private/taskLead/taskLead.schema-def";
 import Bid, {type IBid, type BidStatus} from "./bid";
 import {getLogger, serverLogger} from "@coreModule/loggers/serverLog";
 import {ICompany} from "@coreModule/database/schemas/company/company";
 import {IUser} from "@coreModule/database/schemas/user/user";
 import {ICurrency} from "@coreModule/database/schemas/currency/currency";
+import Media from "@coreModule/database/schemas/media/media";
 import {demoSeedTag} from "@coreModule/database/demo/demoSeed";
+import {allowForeignReferences} from "@coreModule/utilities/endpoints/tenantScope";
+import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
+import TaskLead from "@marketplaceModule/database/schemas/taskLead/taskLead";
+import Listing from "@marketplaceModule/database/schemas/listing/listing";
 import type {CreateTaskRequestsResult} from "@marketplaceModule/database/schemas/taskRequest/taskRequest.defaults";
+
+const LEAD_REFERENCE = {reason: "a lead in the provider's company points at the job and quote in the marketplace operator", fields: ["TaskLead.taskRequest", "TaskLead.bid"]} as const;
+
+/** The lead's state that goes with its quote's: waiting, won or lost (D143). */
+const LEAD_STATUS_OF_BID: Readonly<Record<BidStatus, TaskLeadStatus>> = {pending: "quoted", accepted: "won", rejected: "lost"};
 
 export type BidSeed = {
     seedKey: string;
@@ -106,15 +117,18 @@ export type CreateBidsResult = {
 };
 
 /**
- * Seeds one demo bid per task request.
+ * Seeds one demo quote per task request from the provider's company, the way a real one is stored (D143, D172): the
+ * quote next to the job in the marketplace operator, and the provider's lead in its own company (matched when it has
+ * an active listing in the job's category, else from the board), which can open the job's photos.
  *
  * `Bid.name` is immutable and auto-generated, and the schema carries no tag field,
- * so idempotency keys on `{company, taskRequest, bidder}` — the seeds place at most
- * one bid per task from the demo provider.
+ * so idempotency keys on `{company, taskRequest, bidderCompany}` — the seeds place at most
+ * one quote per task from the provider's company, as the board allows (D172).
  */
 export async function createBids(
     parentLogger: serverLogger,
-    company: ICompany,
+    operator: ICompany,
+    bidderCompany: ICompany,
     bidder: IUser,
     currency: ICurrency,
     taskRequests: CreateTaskRequestsResult,
@@ -135,20 +149,21 @@ export async function createBids(
 
             const seedTag = demoSeedTag(seed.seedKey);
             let existing = await Bid.findOne({
-                company: company._id,
+                company: operator._id,
                 taskRequest: taskRequest._id,
-                bidder: bidder._id,
+                bidderCompany: bidderCompany._id,
             });
 
             const payload = {
                 taskRequest: taskRequest._id,
                 bidder: bidder._id,
+                bidderCompany: bidderCompany._id,
                 amount: seed.amount,
                 currency: currency._id,
                 proposal: seed.proposal,
                 deliveryDays: seed.deliveryDays,
                 status: seed.status,
-                company: company._id,
+                company: operator._id,
                 createdBy: bidder._id,
             };
 
@@ -161,6 +176,7 @@ export async function createBids(
                 logger.debug(`Bid (${seedTag}) already exists; updated fields`);
             }
 
+            await seedLead(taskRequest, existing, bidderCompany, bidder);
             bids.push(existing);
             bySeedKey[seed.seedKey] = existing;
         } catch (e: unknown) {
@@ -176,4 +192,37 @@ export async function createBids(
     }
 
     return {bids, bySeedKey};
+}
+
+/** The provider's lead for a seeded quote, in its own company, with the job's photos shared with it (as a real lead). */
+async function seedLead(
+    taskRequest: CreateTaskRequestsResult["taskRequests"][number],
+    bid: HydratedDocument<IBid>,
+    bidderCompany: ICompany,
+    bidder: IUser,
+): Promise<void> {
+    const listing = await Listing.findOne({company: bidderCompany._id, category: taskRequest.category, status: "active"}).select("_id");
+    const lead = {
+        taskRequest: taskRequest._id,
+        provider: bidder._id,
+        origin: listing ? "matched" : "board",
+        status: LEAD_STATUS_OF_BID[bid.status],
+        bid: bid._id,
+        ...(listing ? {listing: listing._id} : {}),
+        company: bidderCompany._id,
+        createdBy: bidder._id,
+    };
+    await allowForeignReferences(LEAD_REFERENCE, async () => {
+        const existing = await TaskLead.findOne({company: bidderCompany._id, taskRequest: taskRequest._id});
+        if (existing) {
+            existing.set(lead);
+            await existing.save();
+        } else {
+            await TaskLead.create(lead);
+        }
+    });
+    const media = [taskRequest.mainImage, ...(taskRequest.imageGallery ?? [])].map(nestedEntityToRef).filter((id) => id != null);
+    if (media.length) {
+        await Media.updateMany({_id: {$in: media}}, {$addToSet: {sharedWithCompanies: bidderCompany._id}});
+    }
 }

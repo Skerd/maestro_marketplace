@@ -3,6 +3,7 @@ import {action} from "@coreModule/api/actionDecorator";
 import {validateSingleForm} from "armonia/src/modules/core/utilities/zod/shared.validator";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import {runAfterCommit, type TransactionRequiredParams} from "@coreModule/utilities/middlewares/transactionUtils";
+import {publishTaskChange} from "@marketplaceModule/utilities/services/taskBoardEvents";
 import type {AuthenticatedMWType} from "@coreModule/utilities/middlewares/authMW";
 import type {ITaskRequest} from "@marketplaceModule/database/schemas/taskRequest/taskRequest";
 import {taskRequestService} from "@marketplaceModule/database/schemas/taskRequest/taskRequest.service";
@@ -45,6 +46,7 @@ export async function closeTaskRequest(
     await taskRequestService.updateByIdOrThrow(taskRequest._id, {$set: {status: "closed"}}, {session: session ?? undefined, logger, languageCode, auditUserId: ctx.auditUserId});
     const ended = await endJobLeads(taskRequest._id, "expired", ctx);
     await notifyEndedLeads(NotificationEventCodes.TASK_REQUEST_CLOSED, ended.filter((lead) => lead.quoted), taskRequest, ctx);
+    await runAfterCommit(session ?? undefined, () => publishTaskChange(taskRequest._id, logger));
 
     const withLead = new Set(ended.map((lead) => lead.provider.toString()));
     const bidderIds = (await pendingBidderIds(taskRequest._id, companyId, {logger, languageCode})).filter((id) => !withLead.has(id));
@@ -129,6 +131,7 @@ export class TaskRequestActions {
                 {session, logger, languageCode, auditUserId: actionUserCtx.userId},
             );
             await reviveJobLeads(taskRequest._id, {session, logger, languageCode, auditUserId: actionUserCtx.userId});
+            await runAfterCommit(session, () => publishTaskChange(taskRequest._id, logger));
         }
 
         logger.finish(`Finished reopening task request: ${_id}`);

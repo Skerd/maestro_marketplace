@@ -13,7 +13,7 @@ import {cityService} from "@coreModule/database/schemas/city/city.service";
 import type {ICompany} from "@coreModule/database/schemas/company/company";
 import {taskRequestService} from "@marketplaceModule/database/schemas/taskRequest/taskRequest.service";
 import {marketplaceConfigService} from "@marketplaceModule/database/schemas/marketplaceConfig/marketplaceConfig.service";
-import {marketplaceOperatorCompanyId, marketplaceOperatorLimits} from "@marketplaceModule/utilities/services/marketplaceOperator";
+import {findMarketplaceOperatorId, marketplaceOperatorCompanyId, marketplaceOperatorLimits} from "@marketplaceModule/utilities/services/marketplaceOperator";
 
 /** Open jobs one buyer may have at a time (D143): enough for real needs, little room for spam. */
 export const JOB_OPEN_LIMIT = 5;
@@ -31,11 +31,18 @@ export async function asJobBuyer<P extends {company: ICompany; languageCode: str
     return withTenant(operatorId, () => work({...params, company: operator}), "marketplace");
 }
 
-/** The company whose own site a job was posted on; undefined on the apex. Refused when that site has no services. */
+/**
+ * The company whose own site a job was posted on; undefined on the apex and on the operator's site, the public task
+ * board (D172), where a job is public like one posted on the apex. Refused when that site has no services.
+ */
 export async function jobSiteCompany(origin: string | undefined, languageCode: string): Promise<ObjectId | undefined> {
     const slug = portalSiteSlug(origin ?? "");
     if (!slug) return undefined;
-    return (await findPortalSiteCompany(slug, "marketplace", languageCode))._id;
+    const [siteCompany, operatorId] = await Promise.all([
+        findPortalSiteCompany(slug, "marketplace", languageCode),
+        findMarketplaceOperatorId(),
+    ]);
+    return operatorId?.equals(siteCompany._id) ? undefined : siteCompany._id;
 }
 
 /** Refuses a new job while the buyer already has the operator's limit of open ones (default `JOB_OPEN_LIMIT`). */

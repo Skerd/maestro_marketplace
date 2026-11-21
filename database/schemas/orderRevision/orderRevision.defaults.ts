@@ -6,6 +6,7 @@ import {IUser} from "@coreModule/database/schemas/user/user";
 import {withDemoSeedMarker} from "@coreModule/database/demo/demoSeed";
 import type {IOrderDelivery} from "@marketplaceModule/database/schemas/orderDelivery/orderDelivery";
 import type {CreateOrdersResult} from "@marketplaceModule/database/schemas/order/order.defaults";
+import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 
 export type OrderRevisionSeed = {
     seedKey: string;
@@ -59,14 +60,16 @@ export async function createOrderRevisions(
                 continue;
             }
 
+            // The order's own buyer asks for the change (a task's order is the buyer's who posted the task).
+            const requestedBy = nestedEntityToRef(order.customer) ?? customer._id;
             const payload = {
                 order: order._id,
                 delivery: delivery._id,
-                requestedBy: customer._id,
+                requestedBy,
                 reason: withDemoSeedMarker(seed.reason, seed.seedKey),
                 status: seed.status,
                 company: company._id,
-                createdBy: customer._id,
+                createdBy: requestedBy,
             };
 
             let existing = await OrderRevision.findOne({

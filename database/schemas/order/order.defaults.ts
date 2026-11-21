@@ -6,6 +6,8 @@ import {ICompany} from "@coreModule/database/schemas/company/company";
 import {IUser} from "@coreModule/database/schemas/user/user";
 import {ICurrency} from "@coreModule/database/schemas/currency/currency";
 import {demoSeedName, demoSeedNameCandidates} from "@coreModule/database/demo/demoSeed";
+import {allowForeignReferences} from "@coreModule/utilities/endpoints/tenantScope";
+import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import type {CreateListingsResult} from "@marketplaceModule/database/schemas/listing/listing.defaults";
 import type {CreateTaskRequestsResult} from "@marketplaceModule/database/schemas/taskRequest/taskRequest.defaults";
 import type {CreateBidsResult} from "@marketplaceModule/database/schemas/bid/bid.defaults";
@@ -104,6 +106,12 @@ export const defaultOrderSeeds: readonly OrderSeed[] = [
     },
 ];
 
+/** An awarded job's order is in the provider's company; the job and its quote are in the marketplace operator (D147). */
+const AWARD_REFERENCE = {
+    reason: "an awarded portal job's order, in the winning provider's company, points at the job and quote in the marketplace operator",
+    fields: ["Order.taskRequest", "Order.bid"],
+} as const;
+
 export type CreateOrdersResult = {
     orders: HydratedDocument<IOrder>[];
     bySeedKey: Record<string, HydratedDocument<IOrder>>;
@@ -130,6 +138,8 @@ export async function createOrders(
             let listingId;
             let taskRequestId;
             let bidId;
+            // A task's order is the buyer's who posted it; a listing's is the demo customer's.
+            let customerId = customer._id;
 
             if (seed.listingSeedKey) {
                 const listing = listings.bySeedKey[seed.listingSeedKey];
@@ -147,6 +157,7 @@ export async function createOrders(
                     continue;
                 }
                 taskRequestId = taskRequest._id;
+                customerId = nestedEntityToRef(taskRequest.requester) ?? customer._id;
             }
 
             if (seed.bidSeedKey) {
@@ -168,7 +179,7 @@ export async function createOrders(
                 ...(listingId ? {listing: listingId} : {}),
                 ...(taskRequestId ? {taskRequest: taskRequestId} : {}),
                 ...(bidId ? {bid: bidId} : {}),
-                customer: customer._id,
+                customer: customerId,
                 provider: provider._id,
                 amount: seed.amount,
                 currency: currency._id,
@@ -178,13 +189,15 @@ export async function createOrders(
                     ? {deliveryDueDate: dayjs().add(seed.deliveryDaysFromNow, "day").toDate()}
                     : {}),
                 company: company._id,
-                createdBy: customer._id,
+                createdBy: customerId,
             };
 
-            if (!existing) {
-                existing = await Order.create(payload);
-                logger.debug(`Successfully created order '${seed.seedKey}'`);
-            } else {
+            const save = async (): Promise<HydratedDocument<IOrder>> => {
+                if (!existing) {
+                    const created = await Order.create(payload);
+                    logger.debug(`Successfully created order '${seed.seedKey}'`);
+                    return created;
+                }
                 const nextName = demoSeedName(seed.seedKey);
                 if (existing.name !== nextName) {
                     // `name` is immutable on the schema; migrate legacy demo-seed names.
@@ -195,7 +208,9 @@ export async function createOrders(
                 existing.set(updatable);
                 await existing.save();
                 logger.debug(`Order '${seed.seedKey}' already exists; updated fields`);
-            }
+                return existing;
+            };
+            existing = taskRequestId ? await allowForeignReferences(AWARD_REFERENCE, save) : await save();
 
             orders.push(existing);
             bySeedKey[seed.seedKey] = existing;

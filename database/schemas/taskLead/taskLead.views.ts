@@ -44,9 +44,18 @@ const jobCards: ViewConfig["nodes"] = [
         field: {name: "taskRequest.expiresAt", widget: "#DisplayCard", label: "expiresAt", widgetProps: {icon: "#Calendar", type: "date"}},
     },
     {
+        // A task of the task board the provider has no lead on yet shows neither (D172).
         render: "#DisplayCard",
+        dependent: "status",
         permissions: {read: "status"},
         field: {name: "status", widget: "#DisplayCard", label: "status", widgetProps: {icon: "#Flag", languageKeyCategory: "taskLeadStatus", type: "enum"}},
+    },
+    {
+        // Matched to the provider, or opened by their own quote from the task board (D172).
+        render: "#DisplayCard",
+        dependent: "origin",
+        permissions: {read: "origin"},
+        field: {name: "origin", widget: "#DisplayCard", label: "origin", widgetProps: {icon: "#TargetArrow", languageKeyCategory: "taskLeadOrigin", type: "enum"}},
     },
 ];
 

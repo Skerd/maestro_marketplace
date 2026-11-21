@@ -10,7 +10,8 @@ import {listingService} from "@marketplaceModule/database/schemas/listing/listin
 import {listingCategoryService} from "@marketplaceModule/database/schemas/listingCategory/listingCategory.service";
 import {resolveStorefrontContext, inStorefrontCatalog} from "@coreModule/utilities/marketing/portalStorefront";
 import {liveProviderCompanyClause} from "@marketplaceModule/utilities/shop/marketplaceSellers";
-import {marketplaceCategoryClause} from "@marketplaceModule/utilities/services/marketplaceOperator";
+import {findMarketplaceOperatorId, marketplaceCategoryClause} from "@marketplaceModule/utilities/services/marketplaceOperator";
+import {asCrossTenant} from "@coreModule/utilities/endpoints/tenantScope";
 import type {
     ShopListingLocation,
     ShopListingTaxonomyResponse,
@@ -37,9 +38,15 @@ router.post(
         const {languageCode, origin} = params;
 
         const ctx = await resolveStorefrontContext(origin, languageCode);
-        return inStorefrontCatalog(ctx, async () => {
+        // The operator's own site is the public task board (D172): like the apex, it offers every provider's work.
+        const operatorId = ctx.mode === "tenant" ? await findMarketplaceOperatorId() : undefined;
+        const taskBoard = ctx.mode === "tenant" && !!operatorId?.equals(ctx.company._id);
+        const view = <T>(read: () => Promise<T>): Promise<T> => taskBoard
+            ? asCrossTenant("the task board offers every provider's categories (D172)", read)
+            : inStorefrontCatalog(ctx, read);
+        return view(async () => {
             const activeMatch: Record<string, unknown> = {status: "active", deletedAt: null};
-            const companyFilter = ctx.mode === "tenant"
+            const companyFilter = ctx.mode === "tenant" && !taskBoard
                 ? {company: ctx.company._id}
                 : await liveProviderCompanyClause();
             Object.assign(activeMatch, companyFilter);
@@ -76,7 +83,7 @@ router.post(
             for (const id of counts.keys()) {
                 for (let current: string | undefined = id; current && !used.has(current); current = parentOf.get(current)) used.add(current);
             }
-            const shown = ctx.mode === "tenant" ? categories.filter((category) => used.has(category._id.toString())) : categories;
+            const shown = ctx.mode === "tenant" && !taskBoard ? categories.filter((category) => used.has(category._id.toString())) : categories;
 
             return {
                 data: {

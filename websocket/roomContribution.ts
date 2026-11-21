@@ -1,4 +1,5 @@
-import {registerRoomDisplayNames} from "@coreModule/websocket/roomRegistry";
+import {registerBroadcastRooms, registerRoomDisplayNames} from "@coreModule/websocket/roomRegistry";
+import {TASK_BOARD_ROOM, TASK_ROOM_FAMILY} from "armonia/src/modules/marketplace/websocket/types";
 
 /**
  * Site rooms for the marketplace panel paths (`/marketplace/...`).
@@ -22,5 +23,10 @@ export function registerMarketplaceRoomContributions(): void {
         listingcategories: "Listing categories",
         listingcategories_configurations: "Listing categories configurations",
         marketplacesettings_configurations: "Marketplace settings",
+        taskboard: "Task board",
     });
+    // The public task board's live updates (D172): they carry only what the board shows anyone, so any signed-in
+    // connection may listen (anonymous visitors have no socket).
+    registerBroadcastRooms({name: TASK_BOARD_ROOM, canJoin: () => true});
+    registerBroadcastRooms({name: TASK_ROOM_FAMILY, canJoin: () => true});
 }

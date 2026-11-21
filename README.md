@@ -13,16 +13,20 @@ marketplace/
 ├── api/marketplace/private/        # Panel and buyer routes, /api/marketplace/*; `order.ts` registers the order as
 │                                   # finance's `marketplaceOrder` escrow source (escrow viewers, provider earnings)
 ├── api/marketplace/public/         # Public services pages: shopListings, shopListing, shopProvider, shopListingTaxonomy,
-│                                   # shopMarketplaceReviews, servicesConfig
+│                                   # shopMarketplaceReviews, servicesConfig; shopTask (one task of the public board, D172)
 ├── database/
 │   ├── moduleBootstrap.ts          # Models, default roles, ref selects, media backfill (Listing, TaskRequest)
 │   ├── companyDemoSeed.ts          # Settings (listed on the portal), marketplace demo, escrow ledger rows (order 35);
-│   │                               # the demo company is Tirana Pros (site slug `pros`)
+│   │                               # the demo company is Tirana Pros (site slug `pros`); its ten online jobs are
+│   │                               # the demo customers', stored in the operator with Tirana Pros' quotes and leads
+│   │                               # Adria Home Fix's seed also runs demo/taskBoardDemo.ts: the task board's
+│   │                               # workflows across the operator and both services companies (D172)
 │   └── schemas/<resource>/         # 16 marketplace models + MarketplaceConfig
 ├── domain/
 │   ├── ai/tools/                   # listings, demand (task requests, bids), service orders, overview
 │   ├── notifications/              # TASK_REQUEST_*, BID_*, ORDER_*, DISPUTE_* handlers and codes
 │   └── portal/servicesPortalProvider.ts   # Portal section `services` (kind `service`)
+│       portal/tasksPortalProvider.ts      # Portal section `tasks` (kind `task`): the public task board (D172)
 ├── utilities/
 │   ├── config.ts                   # Env limits and Stripe Connect return URLs
 │   ├── cron/ + cronJobs/           # marketplace.orderAutoComplete, marketplace.taskRequestExpiry
@@ -43,6 +47,12 @@ One document per company (`/api/marketplace/marketplaceConfig`, `ensure` creates
 ## The marketplace operator (D143)
 
 The core company seed creates **Kudoo Services** (VAT `MARKETPLACE_OPERATOR_VAT`, protected, modules core + finance + marketplace). This module's demo seed marks its settings `isOperator` and gives it no listings or orders. It owns the shared service categories and the jobs posted on the portal (roadmap P12.1, P12.2). Code finds it with `findMarketplaceOperatorId()` or `marketplaceOperatorCompanyId(lang)`, which fails closed with `marketplace_unavailable` (`utilities/services/marketplaceOperator.ts`).
+
+Its own site (site slug `tasks`) is the **public task board** (D172): the portal section `tasks` (`domain/portal/tasksPortalProvider.ts`) lists the operator's open tasks on the apex and on that site only, and `POST /api/marketplace/shopTask` shows one to anyone. A public task is every operator task not posted on a provider's own site (`publicTaskClause`, `utilities/services/publicTasks.ts`); it shows what a lead shows before the award (city level, the approximate area) plus the live quotes' count and average (`taskQuoteStats`), the board as its seller and the companies with a live quote (`taskQuotingCompanies`: name, logo and site only), never the street, pin, buyer or a quote's amount. The operator is never a seller (`marketplacePortalCompanyIds` leaves it out), so its site has no services section, its taxonomy spans every provider's categories, and a task posted there is public like one posted on the apex (`jobSiteCompany`).
+
+**Quoting from the board (D172):** any company with the module that the portal may show, except the operator, quotes on a public task with `POST /api/marketplace/taskLead/quoteJob` (`_id` = the task; permission `taskleads[action:quoteJob]`). It goes through the caller's lead: the matched one, else a new **board lead** (`TaskLead.origin = board`, no `listing`) in their company, which shares the task's photos (`boardLeadFor`, `utilities/services/taskBoard.ts`); `placeLeadQuote` then places the bid exactly as `quote` does. A company keeps one live quote per task (`assertNoCompanyQuote`, both actions). Board leads do not count towards the lead cap, which limits notifications only. The panel's Task board reads `POST /api/marketplace/taskBoard` (a page of open public tasks, with the caller's own lead and quote) and `/taskBoard/single`. On the portal task page a signed-in user quotes for one of their companies: `POST /api/marketplace/taskBoard/portalOptions` lists the companies their roles let them quote for (core `memberCompaniesFor`) with each one's live quote, and `taskLead/quoteJob` runs for the company named in `actAs` (`@action({memberCompany: true})`, core `resolveMemberCompany` in `authMW`).
+
+**Live (D172):** after the commit of a quote, a new public task, a close (or expiry), a reopen, an award or a rejected quote, `publishTaskChange` (`utilities/services/taskBoardEvents.ts`) sends `TASK_UPDATED` with the task's public state (status, count, the average from three quotes) to the broadcast rooms `liveTaskBoard` and `liveTask_<id>`, registered in `websocket/roomContribution.ts` (core `registerBroadcastRooms`, any signed-in connection may listen); a quote also sends `TASK_QUOTE_RECEIVED` to the buyer. A task posted on a provider's own site is never sent. Codes and room names: armonia `marketplace/websocket/types.ts`.
 
 ## Service categories and service areas (D143, D144)
 

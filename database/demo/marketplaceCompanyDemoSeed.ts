@@ -4,15 +4,17 @@ import Currency from "@coreModule/database/schemas/currency/currency";
 import Country from "@coreModule/database/schemas/country/country";
 import State from "@coreModule/database/schemas/state/state";
 import City from "@coreModule/database/schemas/city/city";
+import Company from "@coreModule/database/schemas/company/company";
 import User from "@coreModule/database/schemas/user/user";
+import {coreDemoCustomerSeeds} from "@coreModule/database/demo/demoSignupUsers";
 import {defaultSysUsers} from "@coreModule/database/schemas/user/user.defaults";
 import {defaultCompaniesValues} from "@coreModule/database/schemas/company/company.defaults";
 import {createProviderProfiles} from "@marketplaceModule/database/schemas/providerProfile/providerProfile.defaults";
 import {createListings, homeServiceListingSeeds} from "@marketplaceModule/database/schemas/listing/listing.defaults";
 import {createListingPackages} from "@marketplaceModule/database/schemas/listingPackage/listingPackage.defaults";
 import {createListingAddOns} from "@marketplaceModule/database/schemas/listingAddOn/listingAddOn.defaults";
-import {createTaskRequests} from "@marketplaceModule/database/schemas/taskRequest/taskRequest.defaults";
-import {createBids} from "@marketplaceModule/database/schemas/bid/bid.defaults";
+import {createTaskRequests, type CreateTaskRequestsResult} from "@marketplaceModule/database/schemas/taskRequest/taskRequest.defaults";
+import {createBids, type CreateBidsResult} from "@marketplaceModule/database/schemas/bid/bid.defaults";
 import {createOrders} from "@marketplaceModule/database/schemas/order/order.defaults";
 import {createOrderDeliveries} from "@marketplaceModule/database/schemas/orderDelivery/orderDelivery.defaults";
 import {createOrderRevisions} from "@marketplaceModule/database/schemas/orderRevision/orderRevision.defaults";
@@ -23,11 +25,14 @@ import {createDisputes} from "@marketplaceModule/database/schemas/dispute/disput
 import {createBookings} from "@marketplaceModule/database/schemas/booking/booking.defaults";
 import {createPromotions} from "@marketplaceModule/database/schemas/promotion/promotion.defaults";
 import {createEscrowTransactions} from "@marketplaceModule/database/demo/escrowTransactions.demo";
+import {seedTaskBoardDemo} from "@marketplaceModule/database/demo/taskBoardDemo";
+import {findMarketplaceOperatorId} from "@marketplaceModule/utilities/services/marketplaceOperator";
 
 /**
- * The main user (echo@echo.com) is both the provider and the buyer, so every
- * marketplace demo row is visible from one login. Invoked from
- * {@link seedCompanyDemoData} after the product catalog seed.
+ * The main user (echo@echo.com) is the provider and the buyer of the listing orders, so most marketplace demo rows
+ * are visible from one login. The online jobs are the portal demo customers' (Arta, Luca, Nina) on the public task
+ * board, since nobody may quote on their own job (D172). Invoked from {@link seedCompanyDemoData} after the product
+ * catalog seed.
  */
 /** The demo home-repair provider ("Adria Home Fix" in the core company seed), which gets the on-site kit. */
 const HOME_SERVICES_DEMO_VAT = "Z623456789Z";
@@ -93,6 +98,9 @@ export async function seedMarketplaceCompanyDemoData(parentLogger: serverLogger 
     if (company.vat === HOME_SERVICES_DEMO_VAT) {
         // The home-repair provider only advertises on-site services with their service areas (D143).
         await createListings(logger, company, provider, currency, undefined, homeServiceListingSeeds);
+        // The last services company in the seed list: the operator and Tirana Pros exist now, so the public task
+        // board's workflows can be seeded across them (D172).
+        await seedTaskBoardDemo(logger, company);
         logger.finish("Finished seeding marketplace demo data!");
         return;
     }
@@ -107,9 +115,17 @@ export async function seedMarketplaceCompanyDemoData(parentLogger: serverLogger 
     await createListingPackages(logger, company, provider, currency, listings);
     await createListingAddOns(logger, company, provider, currency, listings);
 
-    let taskRequests = {taskRequests: [], bySeedKey: {}} as Awaited<ReturnType<typeof createTaskRequests>>;
-    if (demoAddress) {
-        taskRequests = await createTaskRequests(logger, company, customer, currency, {
+    // Jobs are posted on the apex by portal customers and stored in the marketplace operator, where this company
+    // quotes on them like any provider (D143, D172); the order after an award opens here.
+    const operatorId = await findMarketplaceOperatorId();
+    const operator = operatorId ? await Company.findById(operatorId) : null;
+    const demoCustomers = await User.find({username: {$in: coreDemoCustomerSeeds.map((seed) => seed.username)}});
+    const inSeedOrder = coreDemoCustomerSeeds.flatMap((seed) => demoCustomers.filter((user) => user.username === seed.username));
+    const buyers = inSeedOrder.length ? inSeedOrder : [customer];
+    let taskRequests: CreateTaskRequestsResult = {taskRequests: [], bySeedKey: {}};
+    let bids: CreateBidsResult = {bids: [], bySeedKey: {}};
+    if (demoAddress && operator) {
+        taskRequests = await createTaskRequests(logger, operator, buyers, currency, {
             street: demoAddress.street,
             postalCode: demoAddress.postalCode,
             country: demoAddress.country,
@@ -118,11 +134,11 @@ export async function seedMarketplaceCompanyDemoData(parentLogger: serverLogger 
             latitude: demoAddress.latitude,
             longitude: demoAddress.longitude,
         });
+        bids = await createBids(logger, operator, company, provider, currency, taskRequests);
     } else {
-        logger.warn("Skipping task requests — Tirana geo not resolved.");
+        logger.warn("Skipping task requests — Tirana geo or the marketplace operator not found.");
     }
 
-    const bids = await createBids(logger, company, provider, currency, taskRequests);
     const orders = await createOrders(
         logger,
         company,

@@ -4,8 +4,10 @@
  * and stored on the job (`approxPoint`): drawn again on every view, repeated looks would average out the real spot.
  */
 
-/** Radius of the area shown, in metres; larger than the largest shift, so the real pin always lies inside. */
-export const JOB_AREA_RADIUS_M = 600;
+import {JOB_AREA_RADIUS_M} from "armonia/src/modules/marketplace/helpers/jobArea";
+
+/** Radius of the area shown (armonia, shared with the portal); larger than the largest shift, so the real pin always lies inside. */
+export {JOB_AREA_RADIUS_M};
 const SHIFT_MIN_M = 100;
 const SHIFT_MAX_M = 500;
 const METRES_PER_DEGREE = 111320;
