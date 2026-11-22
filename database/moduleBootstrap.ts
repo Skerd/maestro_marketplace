@@ -24,6 +24,8 @@ import {registerDefaultRoles} from "@coreModule/database/schemas/role/role.defau
 import {marketplaceDefaultRoles} from "@marketplaceModule/database/schemas/role/marketplace.role.defaults";
 import {ListingSchemaDef} from "armonia/src/modules/marketplace/api/marketplace/private/listing/listing.schema-def";
 import {TaskRequestSchemaDef} from "armonia/src/modules/marketplace/api/marketplace/private/taskRequest/taskRequest.schema-def";
+import {marketplaceConfigService} from "@marketplaceModule/database/schemas/marketplaceConfig/marketplaceConfig.service";
+import type {SelfServeBusinessType} from "@coreModule/domain/company/selfServeBusinessTypes";
 
 export const marketplaceModels: Model<any>[] = [
     MarketplaceConfig,
@@ -69,8 +71,19 @@ registerPublicMediaBackfillSource({
     loadModel: () => import("@marketplaceModule/database/schemas/taskRequest/taskRequest").then((m) => m.default),
 });
 
+/** A services company (provider) may sign itself up on the portal; it is listed there once the platform approves it (D178). */
+const selfServeBusinessTypes: SelfServeBusinessType[] = [{
+    key: "marketplace",
+    modules: ["marketplace"],
+    onCreated: async ({company, session, logger, languageCode}) => {
+        const config = await marketplaceConfigService.getOrCreateForCompany(company._id, {session, logger, languageCode});
+        await marketplaceConfigService.updateOne({_id: config._id}, {$set: {listedOnPortal: true}}, {session, logger});
+    },
+}];
+
 export const moduleBootstrap = {
     models: marketplaceModels,
     dropModuleCollections: dropMarketplaceCollections,
     defaultRoles: marketplaceDefaultRoles,
+    selfServeBusinessTypes,
 };
