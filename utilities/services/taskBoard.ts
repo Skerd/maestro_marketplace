@@ -4,7 +4,8 @@ import {apiValidationException} from "armonia/src/modules/core/helpers/exception
 import type {TaskBoardPortalOption, TaskBoardTask} from "armonia/src/modules/marketplace/api/marketplace/private/taskBoard/taskBoard.types";
 import {allowForeignReferences, asCrossTenant} from "@coreModule/utilities/endpoints/tenantScope";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
-import {portalListedCompanyIds} from "@coreModule/utilities/marketing/portalCompanies";
+import {PORTAL_APPROVED_CLAUSE, portalListedCompanyIds} from "@coreModule/utilities/marketing/portalCompanies";
+import {companyService} from "@coreModule/database/schemas/company/company.service";
 import {mediaService} from "@coreModule/database/schemas/media/media.service";
 import type {serverLogger} from "@coreModule/loggers/serverLog";
 import type {UserContext} from "@coreModule/utilities/types/types";
@@ -29,7 +30,8 @@ const LEAD_REFERENCE = {reason: "a lead in the provider's company points at the 
 
 /**
  * Who may quote from the task board (D172): any company with the marketplace module that the portal may show (active,
- * not hidden by the platform owner), whatever its listings, except the operator, which sells nothing (D143).
+ * not hidden by the platform owner, approved when it signed up by itself, D178), whatever its listings, except the
+ * operator, which sells nothing (D143).
  */
 export async function assertTaskBoardBidder(companyId: ObjectId, languageCode: string): Promise<void> {
     if (!(await isTaskBoardBidder(companyId))) throw apiValidationException("task_board_bidder_not_allowed", "", null, languageCode);
@@ -37,11 +39,13 @@ export async function assertTaskBoardBidder(companyId: ObjectId, languageCode: s
 
 /** Whether a company may quote from the task board (see `assertTaskBoardBidder`). */
 export async function isTaskBoardBidder(companyId: ObjectId): Promise<boolean> {
-    const [eligible, operatorId] = await Promise.all([
+    const [eligible, approved, operatorId] = await Promise.all([
         asCrossTenant(BOARD_REASON, () => portalListedCompanyIds("marketplace", {}, {companyId})),
+        // Quoting names the company on the apex, so a self-serve company quotes once the platform approved it (D178).
+        companyService.count({_id: companyId, ...PORTAL_APPROVED_CLAUSE}),
         findMarketplaceOperatorId(),
     ]);
-    return eligible.length > 0 && !!operatorId && !operatorId.equals(companyId);
+    return eligible.length > 0 && approved > 0 && !!operatorId && !operatorId.equals(companyId);
 }
 
 /**
