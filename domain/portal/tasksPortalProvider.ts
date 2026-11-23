@@ -122,13 +122,13 @@ export function registerTasksPortalProvider(): void {
         key: "tasks",
         order: 16,
         sitePath: "tasks",
-        // As the portal's section tabs name it (sinfonia `portalSectionName`).
+        // As the portal names it: the section (sinfonia `portalSectionName`) and its kinds' tabs (`portalKindName`).
         names: {
-            "en-US": {title: "Tasks", description: "Jobs clients posted. Pros send quotes; the client picks one."},
-            "sq-AL": {title: "Kërkesat për ofertë", description: "Punë të publikuara nga klientët. Profesionistët ofertojnë, klienti zgjedh njërin."},
-            "it-IT": {title: "Richieste di preventivo", description: "Lavori pubblicati dai clienti. I professionisti fanno un'offerta, il cliente sceglie."},
-            "fr-FR": {title: "Demandes de devis", description: "Des travaux publiés par des clients. Les pros font une offre, le client choisit."},
-            "de-CH": {title: "Ausschreibungen", description: "Aufträge von Kundinnen und Kunden. Fachleute offerieren, die Kundschaft wählt."},
+            "en-US": {title: "Tasks", description: "Jobs clients posted. Pros send quotes; the client picks one.", kinds: {task: "Tasks"}},
+            "sq-AL": {title: "Kërkesat për ofertë", description: "Punë të publikuara nga klientët. Profesionistët ofertojnë, klienti zgjedh njërin.", kinds: {task: "Kërkesat për ofertë"}},
+            "it-IT": {title: "Richieste di preventivo", description: "Lavori pubblicati dai clienti. I professionisti fanno un'offerta, il cliente sceglie.", kinds: {task: "Richieste di preventivo"}},
+            "fr-FR": {title: "Demandes de devis", description: "Des travaux publiés par des clients. Les pros font une offre, le client choisit.", kinds: {task: "Demandes de devis"}},
+            "de-CH": {title: "Ausschreibungen", description: "Aufträge von Kundinnen und Kunden. Fachleute offerieren, die Kundschaft wählt.", kinds: {task: "Ausschreibungen"}},
         },
         kinds: ["task"],
         companyIds: taskBoardCompanyIds,

@@ -50,13 +50,13 @@ export function registerServicesPortalProvider(): void {
         key: "services",
         order: 15,
         sitePath: "services",
-        // As the portal's section tabs name it (sinfonia `portalSectionName`).
+        // As the portal names it: the section (sinfonia `portalSectionName`) and its kinds' tabs (`portalKindName`).
         names: {
-            "en-US": {title: "Services", description: "Hire local providers for a job, or post one and compare their bids."},
-            "sq-AL": {title: "Shërbime", description: "Angazhoni ofrues pranë jush, ose publikoni një punë dhe krahasoni ofertat e tyre."},
-            "it-IT": {title: "Servizi", description: "Affida un lavoro a fornitori della zona, oppure pubblica una richiesta e confronta le offerte."},
-            "fr-FR": {title: "Services", description: "Engagez des prestataires près de chez vous, ou publiez une demande et comparez leurs offres."},
-            "de-CH": {title: "Dienstleistungen", description: "Beauftragen Sie Anbieter aus der Nähe oder schreiben Sie einen Auftrag aus und vergleichen Sie die Angebote."},
+            "en-US": {title: "Services", description: "Hire local providers for a job, or post one and compare their bids.", kinds: {service: "Services"}},
+            "sq-AL": {title: "Shërbime", description: "Angazhoni ofrues pranë jush, ose publikoni një punë dhe krahasoni ofertat e tyre.", kinds: {service: "Shërbime"}},
+            "it-IT": {title: "Servizi", description: "Affida un lavoro a fornitori della zona, oppure pubblica una richiesta e confronta le offerte.", kinds: {service: "Servizi"}},
+            "fr-FR": {title: "Services", description: "Engagez des prestataires près de chez vous, ou publiez une demande et comparez leurs offres.", kinds: {service: "Services"}},
+            "de-CH": {title: "Dienstleistungen", description: "Beauftragen Sie Anbieter aus der Nähe oder schreiben Sie einen Auftrag aus und vergleichen Sie die Angebote.", kinds: {service: "Dienstleistungen"}},
         },
         kinds: ["service"],
         companyIds: marketplacePortalCompanyIds,
