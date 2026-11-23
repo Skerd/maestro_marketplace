@@ -1,7 +1,7 @@
 import type {ObjectId} from "mongodb";
 import {registerPortalProvider} from "@coreModule/domain/portal/portalProviderRegistry";
 import type {PortalBrowseParams} from "@coreModule/domain/portal/portalProvider.types";
-import {catalogItems, filterValue} from "@coreModule/domain/portal/portalCatalog";
+import {catalogItems, catalogRating, filterValue} from "@coreModule/domain/portal/portalCatalog";
 import {companyAddressCities} from "@coreModule/utilities/marketing/portalCompanies";
 import {publicMediaUrl} from "@coreModule/utilities/media/publicMediaUrl";
 import {PORTAL_CURRENCY_SELECT} from "@coreModule/utilities/mappers/portal/portalStorefrontMapper.dto";
@@ -17,8 +17,8 @@ async function browseServices({scope, companyIds, query, priceMin, priceMax, sor
     if (!filter) return {items: [], total: 0};
     filter.company = {$in: companyIds};
     const [listings, total] = await Promise.all([
-        listingService.findCatalogRows<{_id: ObjectId; company: ObjectId; title: string; mainImage?: ObjectId; price?: number; priceCurrency?: CurrencyRef; address?: {city?: {name?: string}}; category?: {name?: string}}>(filter, {
-            select: "company title mainImage price priceCurrency address.city category",
+        listingService.findCatalogRows<{_id: ObjectId; company: ObjectId; title: string; mainImage?: ObjectId; price?: number; priceCurrency?: CurrencyRef; address?: {city?: {name?: string}}; category?: {name?: string}; avgRating?: number; reviewCount?: number}>(filter, {
+            select: "company title mainImage price priceCurrency address.city category avgRating reviewCount",
             populate: [{path: "priceCurrency", select: PORTAL_CURRENCY_SELECT}, {path: "address.city", select: "name"}, {path: "category", select: "name"}],
             sort: SHOP_LISTING_SORT_SPECS[sort ?? "newest"],
             skip,
@@ -34,6 +34,7 @@ async function browseServices({scope, companyIds, query, priceMin, priceMax, sor
         image: publicMediaUrl(listing.mainImage),
         ...(listing.price != null && listing.priceCurrency?.abbreviation ? {price: {amount: listing.price, currency: listing.priceCurrency.abbreviation}} : {}),
         city: listing.address?.city?.name,
+        ...catalogRating(listing.avgRating, listing.reviewCount),
         section: "services",
         path: `/service?${new URLSearchParams({id: listing._id.toString()})}`,
     }));

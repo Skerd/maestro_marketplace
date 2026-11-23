@@ -1,3 +1,4 @@
+import {ObjectId} from "mongodb";
 import type {HydratedDocument} from "mongoose";
 import Review, {type IReview} from "./review";
 import {getLogger, serverLogger} from "@coreModule/loggers/serverLog";
@@ -6,6 +7,7 @@ import {IUser} from "@coreModule/database/schemas/user/user";
 import {demoSeedMarkerRegex, withDemoSeedMarker} from "@coreModule/database/demo/demoSeed";
 import type {CreateOrdersResult} from "@marketplaceModule/database/schemas/order/order.defaults";
 import type {CreateListingsResult} from "@marketplaceModule/database/schemas/listing/listing.defaults";
+import {refreshListingRating} from "@marketplaceModule/domain/reviews/listingRating";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 
 export type ReviewSeed = {
@@ -151,6 +153,10 @@ export async function createReviews(
             bySeedKey[seed.seedKey] = existing;
         }
 
+        // Seeded rows skip the review routes, so the listings' stored ratings are refreshed here (D178).
+        for (const listingId of new Set(reviews.map((review) => String(review.listing)))) {
+            await refreshListingRating(new ObjectId(listingId), {logger});
+        }
         logger.finish("Finished creating reviews!", defaultReviewSeeds.length);
         return {reviews, bySeedKey};
     } catch (e: unknown) {

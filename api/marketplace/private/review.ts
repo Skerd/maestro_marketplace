@@ -18,31 +18,20 @@ import {orderService} from "@marketplaceModule/database/schemas/order/order.serv
 import Review, {type IReview} from "@marketplaceModule/database/schemas/review/review";
 import {reviewService} from "@marketplaceModule/database/schemas/review/review.service";
 import {reviewToDTO, reviewsToDTO} from "@marketplaceModule/utilities/mappers/review/reviewMapper.dto";
+import {refreshListingRating} from "@marketplaceModule/domain/reviews/listingRating";
 import {reviewsToSelect} from "@marketplaceModule/utilities/mappers/review/reviewMapper.select";
 import {asPortalBuyer, isOrderParty} from "@marketplaceModule/utilities/services/marketplaceAccess";
 import {restoreUnlessKeyTaken} from "@coreModule/api/restoreUnlessKeyTaken";
 import type {serverLogger} from "@coreModule/loggers/serverLog";
 
 /** Recomputes a listing's average rating and review count from its live reviews. */
+/** Keeps the reviewed listing's stored rating in step with its reviews. */
 async function recalculateListingRating(
     review: IReview,
     ctx: {session: ClientSession; logger: serverLogger; languageCode: string},
 ): Promise<void> {
     if (!review.listing) return;
-    const listingId = review.listing._id;
-    // Callers pass whole route params; updateById spreads its options into the query, so only these go through
-    const opts = {session: ctx.session, logger: ctx.logger, languageCode: ctx.languageCode};
-
-    const agg = await reviewService.aggregate(
-        [
-            {$match: {listing: listingId, deletedAt: null}},
-            {$group: {_id: null, avg: {$avg: "$rating"}, count: {$sum: 1}}},
-        ],
-        opts,
-    );
-    const avg = agg.length > 0 ? Math.round(agg[0].avg * 10) / 10 : 0;
-    const count = agg.length > 0 ? agg[0].count : 0;
-    await listingService.updateById(listingId, {$set: {avgRating: avg, reviewCount: count}}, opts);
+    await refreshListingRating(review.listing._id, ctx);
 }
 
 /** The customer reviews a completed order once; listing and reviewer are derived server-side. */
