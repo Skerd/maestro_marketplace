@@ -1,7 +1,7 @@
 import type {ObjectId} from "mongodb";
 import {registerPortalProvider} from "@coreModule/domain/portal/portalProviderRegistry";
-import type {PortalBrowseParams} from "@coreModule/domain/portal/portalProvider.types";
-import {catalogItems, filterValue, priceRange} from "@coreModule/domain/portal/portalCatalog";
+import type {PortalBrowseParams, PortalNewSinceContext} from "@coreModule/domain/portal/portalProvider.types";
+import {catalogItems, filterValue, newSinceClause, priceRange} from "@coreModule/domain/portal/portalCatalog";
 import type {PortalScope} from "@coreModule/utilities/marketing/portalCompanies";
 import {publicMediaUrl} from "@coreModule/utilities/media/publicMediaUrl";
 import {PORTAL_CURRENCY_SELECT} from "@coreModule/utilities/mappers/portal/portalStorefrontMapper.dto";
@@ -73,14 +73,18 @@ async function comparableCurrencyIds(filter: Record<string, unknown>, picked?: s
     return currencies.map((currency) => currency._id);
 }
 
-/** Open public tasks (D172), with the shared category filter (`f.category`), on-site or online (`f.delivery`). */
-async function browseTasks({companyIds, query, city, priceMin, priceMax, sort, skip, limit, filters}: PortalBrowseParams) {
+/**
+ * Open public tasks (D172), with the shared category filter (`f.category`), on-site or online (`f.delivery`);
+ * `narrowing` keeps only the tasks a "new since" ask is about.
+ */
+async function browseTasks({companyIds, query, city, priceMin, priceMax, sort, skip, limit, filters}: PortalBrowseParams, narrowing: Record<string, unknown> = {}) {
     const [operatorId] = companyIds;
     if (!operatorId) return {items: [], total: 0};
     const filter = await openPublicTaskFilter(operatorId, {
         search: query, categorySlug: filterValue(filters, "category"), delivery: filterValue(filters, "delivery"), city,
     });
     if (!filter) return {items: [], total: 0};
+    Object.assign(filter, narrowing);
     const budget = priceRange(priceMin, priceMax);
     if (budget || sort === "priceAsc" || sort === "priceDesc") {
         // The common currency of the tasks the other filters keep, before the budget range narrows them.
@@ -120,6 +124,8 @@ export function registerTasksPortalProvider(): void {
         kinds: ["task"],
         companyIds: taskBoardCompanyIds,
         citiesByCompany: taskCities,
-        browse: browseTasks,
+        browse: (params) => browseTasks(params),
+        // Tasks posted after the date (D178): a saved search's alert, a person's kept items.
+        newSince: (context: PortalNewSinceContext) => browseTasks({...context, sort: "newest", skip: 0}, newSinceClause(context)),
     });
 }
