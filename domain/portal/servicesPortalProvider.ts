@@ -1,7 +1,7 @@
 import type {ObjectId} from "mongodb";
 import {registerPortalProvider} from "@coreModule/domain/portal/portalProviderRegistry";
 import type {PortalBrowseParams, PortalNewSinceContext} from "@coreModule/domain/portal/portalProvider.types";
-import {catalogItems, catalogRating, filterValue, newSinceClause} from "@coreModule/domain/portal/portalCatalog";
+import {catalogItems, catalogRating, filterValue, idClause, itemPagePath, newSinceClause} from "@coreModule/domain/portal/portalCatalog";
 import {companyAddressCities} from "@coreModule/utilities/marketing/portalCompanies";
 import {publicMediaUrl} from "@coreModule/utilities/media/publicMediaUrl";
 import {PORTAL_CURRENCY_SELECT} from "@coreModule/utilities/mappers/portal/portalStorefrontMapper.dto";
@@ -49,11 +49,28 @@ export function registerServicesPortalProvider(): void {
     registerPortalProvider({
         key: "services",
         order: 15,
+        sitePath: "services",
+        // As the portal's section tabs name it (sinfonia `portalSectionName`).
+        names: {
+            "en-US": {title: "Services", description: "Hire local providers for a job, or post one and compare their bids."},
+            "sq-AL": {title: "Shërbime", description: "Angazhoni ofrues pranë jush, ose publikoni një punë dhe krahasoni ofertat e tyre."},
+            "it-IT": {title: "Servizi", description: "Affida un lavoro a fornitori della zona, oppure pubblica una richiesta e confronta le offerte."},
+            "fr-FR": {title: "Services", description: "Engagez des prestataires près de chez vous, ou publiez une demande et comparez leurs offres."},
+            "de-CH": {title: "Dienstleistungen", description: "Beauftragen Sie Anbieter aus der Nähe oder schreiben Sie einen Auftrag aus und vergleichen Sie die Angebote."},
+        },
         kinds: ["service"],
         companyIds: marketplacePortalCompanyIds,
         citiesByCompany: companyAddressCities,
         browse: (params) => browseServices(params),
         // Listings published after the date (D178): a saved search's alert, a person's kept items.
         newSince: (context: PortalNewSinceContext) => browseServices({...context, sort: "newest", skip: 0}, newSinceClause(context)),
+        // A listing's page (D181): `/service?id=…`.
+        itemAt: async ({scope, companyId, path, languageCode}) => {
+            const {segments, query} = itemPagePath(path);
+            const clause = segments[0] === "service" ? idClause(query.get("id")) : null;
+            if (!clause) return undefined;
+            const {items} = await browseServices({kind: "service", scope, companyIds: [companyId], filters: {}, skip: 0, limit: 1, languageCode}, clause);
+            return items[0] ? {item: items[0], schemaType: "Service"} : undefined;
+        },
     });
 }

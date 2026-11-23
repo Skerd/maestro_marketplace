@@ -1,7 +1,7 @@
 import type {ObjectId} from "mongodb";
 import {registerPortalProvider} from "@coreModule/domain/portal/portalProviderRegistry";
 import type {PortalBrowseParams, PortalNewSinceContext} from "@coreModule/domain/portal/portalProvider.types";
-import {catalogItems, filterValue, newSinceClause, priceRange} from "@coreModule/domain/portal/portalCatalog";
+import {catalogItems, filterValue, idClause, itemPagePath, newSinceClause, priceRange} from "@coreModule/domain/portal/portalCatalog";
 import type {PortalScope} from "@coreModule/utilities/marketing/portalCompanies";
 import {publicMediaUrl} from "@coreModule/utilities/media/publicMediaUrl";
 import {PORTAL_CURRENCY_SELECT} from "@coreModule/utilities/mappers/portal/portalStorefrontMapper.dto";
@@ -121,11 +121,28 @@ export function registerTasksPortalProvider(): void {
     registerPortalProvider({
         key: "tasks",
         order: 16,
+        sitePath: "tasks",
+        // As the portal's section tabs name it (sinfonia `portalSectionName`).
+        names: {
+            "en-US": {title: "Tasks", description: "Jobs clients posted. Pros send quotes; the client picks one."},
+            "sq-AL": {title: "Kërkesat për ofertë", description: "Punë të publikuara nga klientët. Profesionistët ofertojnë, klienti zgjedh njërin."},
+            "it-IT": {title: "Richieste di preventivo", description: "Lavori pubblicati dai clienti. I professionisti fanno un'offerta, il cliente sceglie."},
+            "fr-FR": {title: "Demandes de devis", description: "Des travaux publiés par des clients. Les pros font une offre, le client choisit."},
+            "de-CH": {title: "Ausschreibungen", description: "Aufträge von Kundinnen und Kunden. Fachleute offerieren, die Kundschaft wählt."},
+        },
         kinds: ["task"],
         companyIds: taskBoardCompanyIds,
         citiesByCompany: taskCities,
         browse: (params) => browseTasks(params),
         // Tasks posted after the date (D178): a saved search's alert, a person's kept items.
         newSince: (context: PortalNewSinceContext) => browseTasks({...context, sort: "newest", skip: 0}, newSinceClause(context)),
+        // A posted task's page (D181): `/task?id=…`; a client asking for quotes, so a Demand.
+        itemAt: async ({scope, companyId, path, languageCode}) => {
+            const {segments, query} = itemPagePath(path);
+            const clause = segments[0] === "task" ? idClause(query.get("id")) : null;
+            if (!clause) return undefined;
+            const {items} = await browseTasks({kind: "task", scope, companyIds: [companyId], filters: {}, skip: 0, limit: 1, languageCode}, clause);
+            return items[0] ? {item: items[0], schemaType: "Demand"} : undefined;
+        },
     });
 }

@@ -84,3 +84,19 @@ describe("services and tasks new since a date (P23.7)", () => {
         expect(titles(await ask("tasks", operator, {kind: "task", since: new Date(0), ids: [ids.oldTask.toString(), ids.closed.toString()]}))).toEqual(["Old tap"]);
     });
 });
+
+describe("a listing's and a task's page (D181)", () => {
+    it("finds what each page names by id, and nothing for a paused listing or a closed task", async () => {
+        const at = (key: string, company: ObjectId, path: string) => {
+            const section = getPortalProvider(key);
+            if (!section?.itemAt) throw new Error(`the ${key} section must answer itemAt`);
+            const itemAt = section.itemAt;
+            return withTenant(company, () => itemAt({scope: {companyId: company}, companyId: company, path, languageCode: "en-US"}));
+        };
+        expect(getPortalProvider("services")?.sitePath).toBe("services");
+        expect(await at("services", provider, `/service?id=${ids.seo.toString()}`)).toMatchObject({schemaType: "Service", item: {title: "SEO audit"}});
+        expect(await at("services", provider, `/service?id=${ids.paused.toString()}`)).toBeUndefined();
+        expect(await at("tasks", operator, `/task?id=${ids.tap.toString()}`)).toMatchObject({schemaType: "Demand", item: {title: "Fix a tap"}});
+        expect(await at("tasks", operator, `/task?id=${ids.closed.toString()}`)).toBeUndefined();
+    });
+});
