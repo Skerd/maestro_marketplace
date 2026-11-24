@@ -81,6 +81,10 @@ Portal accounts belong to the platform company, which does not have this module.
 | `MARKETPLACE_AUTO_ACCEPT_DAYS` | 3 | Days after a delivery's due date before it is accepted for the buyer |
 | `MARKETPLACE_MAX_REVISIONS` | 3 | Revision requests allowed per order |
 | `STRIPE_CONNECT_RETURN_URL`, `STRIPE_CONNECT_REFRESH_URL` | panel `/account/providerprofile?connect=…` | Stripe Connect onboarding redirects |
+| `KAFKA_TOPIC_NEW_LEAD_EMAIL`, `KAFKA_CONSUMER_GROUP_NEW_LEAD_EMAIL` | none, required while Kafka is on | The new-lead email's topic and group (D188) |
+| `KAFKA_TOPIC_NEW_QUOTE_EMAIL`, `KAFKA_CONSUMER_GROUP_NEW_QUOTE_EMAIL` | none, required while Kafka is on | The new-quote email's topic and group (D188) |
+
+The new-lead and new-quote emails go through those topics so they survive a restart and are retried (D188, BE-10), and are sent in-process when core `publishEvent` returns `false`. `startMarketplaceKafkaConsumers` (`kafka/kafkaConsumer.ts`) consumes both.
 
 ## Cron handlers
 

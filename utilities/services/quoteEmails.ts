@@ -9,6 +9,8 @@ import {companyService} from "@coreModule/database/schemas/company/company.servi
 import {currencyService} from "@coreModule/database/schemas/currency/currency.service";
 import type {ITaskRequest} from "@marketplaceModule/database/schemas/taskRequest/taskRequest";
 import {sendNewQuoteMail} from "@marketplaceModule/utilities/emails/sendNewQuoteMail";
+import {publishNewQuoteEmail} from "@marketplaceModule/kafka/kafkaProducer";
+import type {NewQuoteEmailEvent} from "@marketplaceModule/kafka/types";
 
 const logger = getLogger("marketplace_quote_emails");
 const REASON = "a new-quote email names the provider company that quoted on the buyer's job in the operator";
@@ -17,8 +19,8 @@ export type NewQuote = {provider: ObjectId; providerCompany: ObjectId; amount: n
 
 /**
  * Emails a portal buyer that a pro quoted on their job (D143, P12.4), in the buyer's language, with a button to the
- * job on the portal. The portal has no notification list, so this is the buyer's notice. Best-effort: run after the
- * commit, it never throws, so a mail failure loses no quote.
+ * job on the portal, through its Kafka topic (D188). The portal has no notification list, so this is the buyer's notice.
+ * Best-effort: run after the commit, it never throws, so a mail failure loses no quote.
  */
 export async function emailNewQuote(job: ITaskRequest, quote: NewQuote): Promise<void> {
     try {
@@ -34,7 +36,10 @@ export async function emailNewQuote(job: ITaskRequest, quote: NewQuote): Promise
                 currencyId ? currencyService.findById(currencyId, {}, undefined, "abbreviation symbol") : null,
             ]);
             if (!buyer?.username) return;
-            await sendNewQuoteMail({
+            await dispatchNewQuoteEmail({
+                eventType: "new_quote_email",
+                timestamp: Date.now(),
+                jobId: job._id.toString(),
                 companyId: jobCompany.toString(),
                 languageCode: receiverLanguage(buyer),
                 email: buyer.username,
@@ -50,4 +55,12 @@ export async function emailNewQuote(job: ITaskRequest, quote: NewQuote): Promise
     } catch (error) {
         logger.err(`New-quote email for job ${job._id.toString()} failed: ${error instanceof Error ? error.message : String(error)}`);
     }
+}
+
+/**
+ * Hands a new-quote email to its Kafka topic, so it survives a restart and is retried (D188); sends it directly when
+ * Kafka is off or the publish fails.
+ */
+async function dispatchNewQuoteEmail(event: NewQuoteEmailEvent): Promise<void> {
+    if (!(await publishNewQuoteEmail(event, logger))) await sendNewQuoteMail(event);
 }

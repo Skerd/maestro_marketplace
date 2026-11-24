@@ -5,7 +5,19 @@ vi.hoisted(() => {
 });
 import {connectTestDatabase, disconnectTestDatabase} from "@coreModule/_tests/testDatabase";
 
-const {sent} = vi.hoisted(() => ({sent: [] as {companyId: string; to: string; subject: string; html: string}[]}));
+const {sent, published, publishResult} = vi.hoisted(() => ({
+    sent: [] as {companyId: string; to: string; subject: string; html: string}[],
+    published: [] as {topic: string | undefined; key: string; event: {eventType: string; email: string}}[],
+    // Not published by default: the email is then sent directly, as with Kafka off (D188).
+    publishResult: {value: false},
+}));
+vi.mock("@coreModule/kafka/kafkaProducer", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@coreModule/kafka/kafkaProducer")>()),
+    publishEvent: vi.fn(async (topic: string | undefined, key: string, event: {eventType: string; email: string}) => {
+        published.push({topic, key, event});
+        return publishResult.value;
+    }),
+}));
 vi.mock("@coreModule/utilities/emails/mailDeliveryService", () => ({
     sendMail: vi.fn(async (companyId: string, mail: {to: string; subject: string; html: string}) => {
         sent.push({companyId, ...mail});
@@ -33,6 +45,7 @@ import Listing from "@marketplaceModule/database/schemas/listing/listing";
 import type {ITaskRequest} from "@marketplaceModule/database/schemas/taskRequest/taskRequest";
 import {emailNewLeads} from "@marketplaceModule/utilities/services/leadEmails";
 import {emailNewQuote} from "@marketplaceModule/utilities/services/quoteEmails";
+import {MARKETPLACE_KAFKA} from "@marketplaceModule/environment";
 
 const operator = new ObjectId();
 const provider = new ObjectId();
@@ -53,6 +66,8 @@ afterAll(async () => {
 
 beforeEach(() => fixtures(async () => {
     sent.length = 0;
+    published.length = 0;
+    publishResult.value = false;
     for (const collection of await mongoose.connection.db!.collections()) await collection.deleteMany({});
     await Company.collection.insertOne({_id: provider, name: "Adria Home Fix", vat: "VAT-1", isActive: true, modules: ["marketplace"], deletedAt: null});
     await User.collection.insertMany([
@@ -103,5 +118,20 @@ describe("new-quote emails (P12.4)", () => {
         expect(mail.subject).toBe("Ofertë e re për Kitchen tap drips — Adria Home Fix");
         expect(mail.html).toContain(`https://panel.example.test/services/account/jobs/${job._id.toString()}`);
         for (const shown of ["Pat Plumber, Adria Home Fix", "45 EUR", "2 ditë"]) expect(mail.html).toContain(shown);
+    });
+});
+
+describe("on Kafka (D188)", () => {
+    it("publish the lead and the quote on their own topics instead of sending them", async () => {
+        publishResult.value = true;
+        const lead = new ObjectId();
+        await emailNewLeads(job, [{company: provider, provider: plumber, lead, listing}]);
+        await emailNewQuote(job, {provider: plumber, providerCompany: provider, amount: 45, deliveryDays: 2});
+
+        expect(sent).toEqual([]);
+        expect(published.map((p) => [p.topic, p.key, p.event.eventType, p.event.email])).toEqual([
+            [MARKETPLACE_KAFKA.TOPICS.NEW_LEAD_EMAIL, lead.toString(), "new_lead_email", "pat@fix.test"],
+            [MARKETPLACE_KAFKA.TOPICS.NEW_QUOTE_EMAIL, job._id.toString(), "new_quote_email", "ana@client.test"],
+        ]);
     });
 });

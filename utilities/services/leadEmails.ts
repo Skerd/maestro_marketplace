@@ -14,6 +14,8 @@ import {listingCategoryService} from "@marketplaceModule/database/schemas/listin
 import {listingService} from "@marketplaceModule/database/schemas/listing/listing.service";
 import {NotificationEventCodes} from "@marketplaceModule/domain/notifications/notificationEventCodes";
 import {sendNewLeadMail} from "@marketplaceModule/utilities/emails/sendNewLeadMail";
+import {publishNewLeadEmail} from "@marketplaceModule/kafka/kafkaProducer";
+import type {NewLeadEmailEvent} from "@marketplaceModule/kafka/types";
 
 const logger = getLogger("marketplace_lead_emails");
 const REASON = "a new-lead email describes the operator's job to a provider in another company";
@@ -23,7 +25,8 @@ export type NewLead = {company: ObjectId; provider: ObjectId; lead: ObjectId; li
 /**
  * Emails each provider a new lead reached (D145), next to the in-app notice and under the same switch: a provider who
  * turned "New matching task request" off gets neither (D117). Each email is in its receiver's language (D128) and links
- * to the lead on the panel. Best-effort: run after the commit, it never throws, so a mail failure loses no lead.
+ * to the lead on the panel, through its Kafka topic (D188). Best-effort: run after the commit, it never throws, so a mail
+ * failure loses no lead.
  */
 export async function emailNewLeads(job: ITaskRequest, leads: NewLead[]): Promise<void> {
     const code = NotificationEventCodes.TASK_REQUEST_CREATED;
@@ -52,7 +55,10 @@ export async function emailNewLeads(job: ITaskRequest, leads: NewLead[]): Promis
                 const languageCode = receiverLanguage(user);
                 const path = notificationLink(code, {leadId: lead.lead.toString()}, languageCode);
                 if (!path) continue;
-                await sendNewLeadMail({
+                await dispatchNewLeadEmail({
+                    eventType: "new_lead_email",
+                    timestamp: Date.now(),
+                    leadId: lead.lead.toString(),
                     companyId: lead.company.toString(),
                     companyName: company?.name ?? "",
                     languageCode,
@@ -71,4 +77,12 @@ export async function emailNewLeads(job: ITaskRequest, leads: NewLead[]): Promis
     } catch (error) {
         logger.err(`New-lead emails for job ${job._id.toString()} failed: ${error instanceof Error ? error.message : String(error)}`);
     }
+}
+
+/**
+ * Hands a new-lead email to its Kafka topic, so it survives a restart and is retried (D188); sends it directly when
+ * Kafka is off or the publish fails.
+ */
+async function dispatchNewLeadEmail(event: NewLeadEmailEvent): Promise<void> {
+    if (!(await publishNewLeadEmail(event, logger))) await sendNewLeadMail(event);
 }
