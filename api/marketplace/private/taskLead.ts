@@ -4,7 +4,7 @@ import TaskLead, {type ITaskLead} from "@marketplaceModule/database/schemas/task
 import {taskLeadService} from "@marketplaceModule/database/schemas/taskLead/taskLead.service";
 import {TaskLeadActions} from "@marketplaceModule/database/schemas/taskLead/taskLead.actions";
 import {taskLeadToDTO, taskLeadToSelect} from "@marketplaceModule/utilities/mappers/taskLead/taskLeadMapper.dto";
-import {leadVisibilityFilter, markLeadViewed, taskLeadsToViews} from "@marketplaceModule/utilities/services/taskLeads";
+import {listedLeadFilter, markLeadViewed, taskLeadsToViews} from "@marketplaceModule/utilities/services/taskLeads";
 
 /**
  * A provider company's leads (D143): read-only, written by the job matching and the quote / decline actions. Each row
@@ -24,8 +24,8 @@ export const {router} = createCrudRouter<ITaskLead>({
     toDTO: (lead) => taskLeadToDTO(lead),
     toDTOArray: (leads) => leads.map((lead) => taskLeadToDTO(lead)),
     toSelect: (leads) => leads.map(taskLeadToSelect),
-    documentFilter: ({company, actionUserCtx}) => leadVisibilityFilter(company._id, actionUserCtx),
-    extraSelectFilter: ({company, actionUserCtx}) => leadVisibilityFilter(company._id, actionUserCtx),
+    documentFilter: ({company, actionUserCtx}) => listedLeadFilter(company._id, actionUserCtx),
+    extraSelectFilter: ({company, actionUserCtx}) => listedLeadFilter(company._id, actionUserCtx),
     enrichList: (docs, {logger, languageCode}) => taskLeadsToViews(docs, {logger, languageCode}),
     enrichSingle: async (doc, {logger, languageCode, actionUserCtx}) => {
         const ctx = {logger, languageCode};

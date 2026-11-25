@@ -17,8 +17,9 @@ import {ListingSimpleSnippet} from "@marketplaceModule/database/schemas/listing/
 import {OrderWithTaskOrListingSnippet} from "@marketplaceModule/database/schemas/order/order.snippets";
 import {applyReviewIndexes} from "./review.indexes";
 import {reviewViews} from "./review.views";
+import {platformHiddenPlugin, type IPlatformHiddenPluginFields} from "@coreModule/database/plugins/platformHiddenPlugin";
 
-export interface IReview extends Document, IOwnershipPluginFields, ISoftDeletePluginFields, ILifeCyclePluginFields {
+export interface IReview extends Document, IOwnershipPluginFields, ISoftDeletePluginFields, ILifeCyclePluginFields, IPlatformHiddenPluginFields {
     order: IOrder;
     /** Set for listing orders; task-request orders have no listing. */
     listing?: IListing;
@@ -61,10 +62,18 @@ const ReviewSchema = new Schema<IReview>(
     },
     {
         accessMode: "loose",
+        // Published by default (D191): the company replies or reports a review, it never removes one; only the
+        // platform hides one, through its report desk (`hiddenByPlatform`).
+        permissions: {
+            self: {delete: "no-permission"},
+            others: {delete: "no-permission"},
+        },
     },
 );
 
 ownershipPlugin(ReviewSchema);
+// The platform may hide it from the public after a report (D191).
+platformHiddenPlugin(ReviewSchema);
 auditPlugin(ReviewSchema);
 softDeletePlugin(ReviewSchema);
 lifeCyclePlugin(ReviewSchema);

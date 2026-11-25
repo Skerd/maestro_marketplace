@@ -1,7 +1,7 @@
 import type {DefaultRoleDefinition} from "@coreModule/database/schemas/role/role.defaults";
 
 // RolePermission groups are the capitalised collection names.
-const catalogOwn = ["Listings", "Listingcategories", "Listingpackages", "Listingaddons", "Listingflags", "Promotions", "Providerprofiles"];
+const catalogOwn = ["Listings", "Listingcategories", "Listingpackages", "Listingaddons", "Promotions", "Providerprofiles"];
 const demandOwn = ["Taskrequests", "Taskleads", "Marketplacebids", "Orders", "Bookings", "Disputes", "Reviews"];
 const settingsOwn = ["Marketplaceconfigs"];
 // Deliveries, milestones and revisions are written through the order's own actions, so they are only ever read.

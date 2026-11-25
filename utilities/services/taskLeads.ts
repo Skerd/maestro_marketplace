@@ -31,6 +31,15 @@ export function leadVisibilityFilter(companyId: ObjectId, caller: UserContext): 
     return caller.isAdmin ? {company: companyId} : {company: companyId, provider: new ObjectId(caller.userId)};
 }
 
+/**
+ * The leads a provider's lists show: `leadVisibilityFilter`, without the leads of jobs the platform hid after a report
+ * (D191); they come back if the platform shows the job again.
+ */
+export async function listedLeadFilter(companyId: ObjectId, caller: UserContext): Promise<Record<string, unknown>> {
+    const hidden = await asCrossTenant(JOB_REASON, () => taskRequestService.find({hiddenByPlatform: true}, {}, null, "_id"));
+    return {...leadVisibilityFilter(companyId, caller), ...(hidden.length ? {taskRequest: {$nin: hidden.map((job) => job._id)}} : {})};
+}
+
 /** The leads with the job each points at (redacted) and the quote placed from it. */
 export async function taskLeadsToViews(leads: ITaskLead[], ctx: Ctx): Promise<TaskLead[]> {
     if (!leads.length) return [];
@@ -88,7 +97,7 @@ export async function markLeadViewed(lead: ITaskLead, caller: UserContext, ctx: 
     return lead;
 }
 
-/** The job a lead points at, read in the operator; refused when it no longer takes quotes. */
+/** The job a lead points at, read in the operator; refused when it no longer takes quotes or the platform hid it (D191). */
 export async function openLeadJob(lead: ITaskLead, ctx: Ctx): Promise<ITaskRequest> {
     if (lead.status !== "new" && lead.status !== "viewed") {
         throw apiValidationException("task_lead_not_open", "", null, ctx.languageCode);
@@ -96,6 +105,6 @@ export async function openLeadJob(lead: ITaskLead, ctx: Ctx): Promise<ITaskReque
     const jobId = nestedEntityToRef(lead.taskRequest);
     const job = jobId ? await asCrossTenant(JOB_REASON, () =>
         taskRequestService.findById(jobId, {session: ctx.session ?? undefined, logger: ctx.logger, languageCode: ctx.languageCode})) : null;
-    if (!job) throw apiValidationException("task_lead_not_open", "", null, ctx.languageCode);
+    if (!job || job.hiddenByPlatform) throw apiValidationException("task_lead_not_open", "", null, ctx.languageCode);
     return job;
 }

@@ -45,6 +45,7 @@ import {releaseOrderMilestoneFormSchema} from "armonia/src/modules/marketplace/a
 import type {ActionMessage, SingleForm} from "armonia/src/modules/core/types/shared.types";
 import {getMarketplaceEnvConfig} from "@marketplaceModule/utilities/config";
 import {minorToNumber, sumMinor, toMinor} from "armonia/src/modules/core/helpers/money";
+import {publicListingClause} from "@marketplaceModule/utilities/shop/shopMarketplaceFilter";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -106,7 +107,8 @@ export class OrderActions {
         const platform = isPortalZoneOrigin(origin ?? "");
         // On the portal the listing's seller owns the order: its listing, packages and add-ons are read there (D16)
         return inPortalPurchase(platform, async () => {
-            const listingFilter: Record<string, unknown> = {_id: new ObjectId(listingRef), status: "active"};
+            // A listing the platform hid takes no new orders (D191).
+            const listingFilter: Record<string, unknown> = {_id: new ObjectId(listingRef), ...publicListingClause()};
             if (!platform) listingFilter.company = company._id;
 
             const listing = await listingService.findOneOrThrow(listingFilter, opts);
@@ -291,7 +293,8 @@ export class OrderActions {
             if (!isProvider && order.status === "in_progress") {
                 throw apiValidationException("customer_cannot_cancel_started_order", null, null, languageCode);
             }
-            if (await hasOpenDispute(order, p)) {
+            // The marketplace decides an open dispute (D191); the provider may still give in and refund the buyer.
+            if (!isProvider && await hasOpenDispute(order, p)) {
                 throw apiValidationException("cannot_cancel_with_open_dispute", null, null, languageCode);
             }
 

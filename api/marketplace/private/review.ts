@@ -2,7 +2,6 @@ import {ObjectId, type ClientSession} from "mongodb";
 import {createCrudRouter, selectIdsOf, type CrudCreateParams} from "@coreModule/api/crudRouterFactory";
 import SchemaGuard from "@coreModule/database/security/schemaGuard";
 import {escapeRegex} from "@coreModule/utilities/helpers";
-import {assertCanDelete} from "@coreModule/database/relationsRegistry";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import {orderSeller} from "@marketplaceModule/utilities/services/portalBuyerTargets";
 import authMW from "@coreModule/utilities/middlewares/authMW";
@@ -24,7 +23,6 @@ import {asPortalBuyer, isOrderParty} from "@marketplaceModule/utilities/services
 import {restoreUnlessKeyTaken} from "@coreModule/api/restoreUnlessKeyTaken";
 import type {serverLogger} from "@coreModule/loggers/serverLog";
 
-/** Recomputes a listing's average rating and review count from its live reviews. */
 /** Keeps the reviewed listing's stored rating in step with its reviews. */
 async function recalculateListingRating(
     review: IReview,
@@ -100,7 +98,7 @@ export const {router} = createCrudRouter<IReview, CreateReviewFormType>({
     },
     rateLimits: {read: 60, write: 30, delete: 20},
     createSchema: createReviewFormSchema,
-    // Not edited via PATCH; create-only with admin delete/restore
+    // Not edited via PATCH; create-only, published by default (D191)
     editSchema: validateSingleForm,
     toDTO: reviewToDTO,
     toDTOArray: reviewsToDTO,
@@ -110,15 +108,7 @@ export const {router} = createCrudRouter<IReview, CreateReviewFormType>({
     afterCreate: async (created, params) => {
         await recalculateListingRating(created, params);
     },
-    beforeDelete: async (params, doc) => {
-        if (!params.actionUserCtx.isAdmin) {
-            throw apiValidationException("only_admin_can_delete_review", null, null, params.languageCode);
-        }
-        await assertCanDelete(Review.modelName, doc._id, params.languageCode, params.session);
-    },
-    afterDelete: async (params, doc) => {
-        await recalculateListingRating(doc, params);
-    },
+    // No delete: the model refuses it for everyone (D191); a review deleted before that may still be restored.
     overrideRestoreHandler: restoreUnlessKeyTaken({
         model: Review,
         service: reviewService,

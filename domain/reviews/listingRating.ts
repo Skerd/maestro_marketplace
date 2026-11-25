@@ -2,10 +2,12 @@ import type {ClientSession, ObjectId} from "mongodb";
 import type {serverLogger} from "@coreModule/loggers/serverLog";
 import {listingService} from "@marketplaceModule/database/schemas/listing/listing.service";
 import {reviewService} from "@marketplaceModule/database/schemas/review/review.service";
+import {notHiddenByPlatform} from "@coreModule/database/plugins/platformHiddenPlugin";
 
 /**
- * Stores a listing's average rating and review count from its live reviews, which the portal's cards, the rating
- * filter and job matching read (D178). Called whenever a review is written, removed or restored, and by the demo seed.
+ * Stores a listing's average rating and review count from its live reviews the platform has not hidden (D191), which
+ * the portal's cards, the rating filter and job matching read (D178). Called whenever a review is written, restored,
+ * hidden or shown again, and by the demo seed.
  */
 export async function refreshListingRating(
     listingId: ObjectId,
@@ -15,7 +17,7 @@ export async function refreshListingRating(
     const opts = {session: ctx.session, logger: ctx.logger, languageCode: ctx.languageCode};
     const agg = await reviewService.aggregate(
         [
-            {$match: {listing: listingId, deletedAt: null}},
+            {$match: {listing: listingId, deletedAt: null, ...notHiddenByPlatform()}},
             {$group: {_id: null, avg: {$avg: "$rating"}, count: {$sum: 1}}},
         ],
         opts,

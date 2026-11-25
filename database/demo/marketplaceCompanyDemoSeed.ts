@@ -19,7 +19,6 @@ import {createOrders} from "@marketplaceModule/database/schemas/order/order.defa
 import {createOrderDeliveries} from "@marketplaceModule/database/schemas/orderDelivery/orderDelivery.defaults";
 import {createOrderRevisions} from "@marketplaceModule/database/schemas/orderRevision/orderRevision.defaults";
 import {createOrderMilestones} from "@marketplaceModule/database/schemas/orderMilestone/orderMilestone.defaults";
-import {createListingFlags} from "@marketplaceModule/database/schemas/listingFlag/listingFlag.defaults";
 import {createReviews} from "@marketplaceModule/database/schemas/review/review.defaults";
 import {createDisputes} from "@marketplaceModule/database/schemas/dispute/dispute.defaults";
 import {createBookings} from "@marketplaceModule/database/schemas/booking/booking.defaults";
@@ -159,7 +158,6 @@ export async function seedMarketplaceCompanyDemoData(parentLogger: serverLogger 
     await createDisputes(logger, company, customer, orders);
     await createBookings(logger, company, provider, orders);
     await createPromotions(logger, company, listings);
-    await createListingFlags(logger, company, customer, listings);
     // The escrow ledger hangs off these orders (the marketplace depends on finance, not the other way round). While card
     // payments are off nothing is held, so the demo shows no escrow either (D190).
     if (CARD_PAYMENTS_AVAILABLE) await createEscrowTransactions(logger, company, orders);

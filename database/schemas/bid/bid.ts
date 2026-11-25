@@ -19,10 +19,11 @@ import softDeletePlugin from "@coreModule/database/plugins/softDeletePlugin";
 import lifeCyclePlugin from "@coreModule/database/plugins/lifeCyclePlugin";
 import dayjs from "dayjs";
 import crypto from "crypto";
+import {platformHiddenPlugin, type IPlatformHiddenPluginFields} from "@coreModule/database/plugins/platformHiddenPlugin";
 
 export type BidStatus = "pending" | "accepted" | "rejected";
 
-export interface IBid extends Document, IOwnershipPluginFields, ISoftDeletePluginFields, ILifeCyclePluginFields {
+export interface IBid extends Document, IOwnershipPluginFields, ISoftDeletePluginFields, ILifeCyclePluginFields, IPlatformHiddenPluginFields {
     name: string;
     taskRequest: ITaskRequest;
     bidder: IUser;
@@ -118,6 +119,8 @@ BidSchema.pre("save", function (next) {
 });
 
 ownershipPlugin(BidSchema);
+// The platform may hide it from the public after a report (D191).
+platformHiddenPlugin(BidSchema);
 softDeletePlugin(BidSchema);
 auditPlugin(BidSchema);
 lifeCyclePlugin(BidSchema);

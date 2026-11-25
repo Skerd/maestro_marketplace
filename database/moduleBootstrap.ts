@@ -15,7 +15,6 @@ import ProviderProfile from "@marketplaceModule/database/schemas/providerProfile
 import Booking from "@marketplaceModule/database/schemas/booking/booking";
 import Dispute from "@marketplaceModule/database/schemas/dispute/dispute";
 import Promotion from "@marketplaceModule/database/schemas/promotion/promotion";
-import ListingFlag from "@marketplaceModule/database/schemas/listingFlag/listingFlag";
 import OrderDelivery from "@marketplaceModule/database/schemas/orderDelivery/orderDelivery";
 import OrderMilestone from "@marketplaceModule/database/schemas/orderMilestone/orderMilestone";
 import OrderRevision from "@marketplaceModule/database/schemas/orderRevision/orderRevision";
@@ -26,6 +25,7 @@ import {ListingSchemaDef} from "armonia/src/modules/marketplace/api/marketplace/
 import {TaskRequestSchemaDef} from "armonia/src/modules/marketplace/api/marketplace/private/taskRequest/taskRequest.schema-def";
 import {marketplaceConfigService} from "@marketplaceModule/database/schemas/marketplaceConfig/marketplaceConfig.service";
 import type {SelfServeBusinessType} from "@coreModule/domain/company/selfServeBusinessTypes";
+import {marketplaceReportables} from "@marketplaceModule/domain/reports/marketplaceReportables";
 
 export const marketplaceModels: Model<any>[] = [
     MarketplaceConfig,
@@ -42,7 +42,6 @@ export const marketplaceModels: Model<any>[] = [
     Booking,
     Dispute,
     Promotion,
-    ListingFlag,
     OrderDelivery,
     OrderMilestone,
     OrderRevision,
@@ -86,4 +85,6 @@ export const moduleBootstrap = {
     dropModuleCollections: dropMarketplaceCollections,
     defaultRoles: marketplaceDefaultRoles,
     selfServeBusinessTypes,
+    // Listings, task requests, bids and reviews people can report to the platform's desk (D191).
+    reportables: marketplaceReportables,
 };

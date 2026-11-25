@@ -12,20 +12,20 @@ import {pushWebsocketMessage, pushWebsocketRoomMessage} from "@coreModule/connec
 import type {serverLogger} from "@coreModule/loggers/serverLog";
 import {taskRequestService} from "@marketplaceModule/database/schemas/taskRequest/taskRequest.service";
 import {findMarketplaceOperatorId} from "@marketplaceModule/utilities/services/marketplaceOperator";
-import {taskQuoteStats} from "@marketplaceModule/utilities/services/publicTasks";
+import {publicTaskClause, taskQuoteStats} from "@marketplaceModule/utilities/services/publicTasks";
 
 const EVENTS_REASON = "the task board's live updates read the operator's task (D172)";
 
 /**
  * Tells everyone watching that a public task changed (D172): the board room and the task's own room get its public
- * state (status, quote count and the average from three quotes). A task posted on a provider's own site, or any task
- * of another company, is not public and is not sent. Best effort, after the commit: a failure is only logged.
+ * state (status, quote count and the average from three quotes). A task posted on a provider's own site, one the
+ * platform hid (D191), or any task of another company, is not public and is not sent. Best effort, after the commit: a failure is only logged.
  */
 export async function publishTaskChange(taskId: ObjectId, logger: serverLogger): Promise<void> {
     try {
         const operatorId = await findMarketplaceOperatorId();
         const task = operatorId ? await asCrossTenant(EVENTS_REASON, () => taskRequestService.findOne(
-            {_id: taskId, company: operatorId, restrictedToCompany: null},
+            {_id: taskId, ...publicTaskClause(operatorId)},
             {},
             [{path: "currency", select: "decimalPlaces"}],
             "status currency",

@@ -11,7 +11,7 @@ import {listingAddOnService} from "@marketplaceModule/database/schemas/listingAd
 import {listingPackageService} from "@marketplaceModule/database/schemas/listingPackage/listingPackage.service";
 import {providerProfileService} from "@marketplaceModule/database/schemas/providerProfile/providerProfile.service";
 import {resolveStorefrontContext, inStorefrontCatalog} from "@coreModule/utilities/marketing/portalStorefront";
-import {shopPromotionMap} from "@marketplaceModule/utilities/shop/shopMarketplaceFilter";
+import {publicListingClause, shopPromotionMap} from "@marketplaceModule/utilities/shop/shopMarketplaceFilter";
 import {loadProviderProfileMetrics} from "@marketplaceModule/utilities/mappers/providerProfile/providerProfileMetrics";
 import {loadProviderAvailability} from "@marketplaceModule/utilities/services/providerAvailability";
 import {
@@ -44,7 +44,7 @@ router.post(
 
         const ctx = await resolveStorefrontContext(origin, languageCode);
         return inStorefrontCatalog(ctx, async () => {
-            const listingFilter: Record<string, unknown> = {_id: new ObjectId(id), status: "active"};
+            const listingFilter: Record<string, unknown> = {_id: new ObjectId(id), ...publicListingClause()};
             if (ctx.mode === "tenant") listingFilter.company = ctx.company._id;
 
             const listing: any = await listingService.findOne(listingFilter, {withDeleted: false}, SHOP_LISTING_CARD_POPULATE);
@@ -78,7 +78,7 @@ router.post(
                 listing.category
                     ? listingService.find({
                         company: sellerCompanyId,
-                        status: "active",
+                        ...publicListingClause(),
                         category: listing.category._id,
                         _id: {$ne: listing._id},
                     }, {withDeleted: false}, SHOP_LISTING_CARD_POPULATE, SHOP_LISTING_CARD_FIELDS, {avgRating: -1, createdAt: -1}, RELATED_LIMIT)

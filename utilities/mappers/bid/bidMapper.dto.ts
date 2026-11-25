@@ -6,7 +6,7 @@ import type {TaskRequestSimple} from "armonia/src/modules/marketplace/dto/taskRe
 import {CurrencySimpleSnippet} from "@coreModule/database/schemas/currency/currency.snippets";
 import {SimpleUserSnippet} from "@coreModule/database/schemas/user/user.snippets";
 import {TaskRequestSimpleSnippet} from "@marketplaceModule/database/schemas/taskRequest/taskRequest.snippets";
-import {mapOwnershipToDTO, mapSoftDeleteToDTO, mapLifeCycleToDTO} from "@coreModule/utilities/mappers/plugin/pluginMappers.dto";
+import {mapOwnershipToDTO, mapSoftDeleteToDTO, mapLifeCycleToDTO, mapPlatformHiddenToDTO} from "@coreModule/utilities/mappers/plugin/pluginMappers.dto";
 import {mapSnippet} from "@coreModule/utilities/mappers/common.mapper";
 
 export function bidToDTO(bid: IBid): Bid {
@@ -20,6 +20,7 @@ export function bidToDTO(bid: IBid): Bid {
         proposal: bid.proposal,
         deliveryDays: bid.deliveryDays,
         status: bid.status,
+        ...mapPlatformHiddenToDTO(bid),
         ...mapOwnershipToDTO(bid),
         ...mapSoftDeleteToDTO(bid),
         ...mapLifeCycleToDTO(bid),

@@ -18,4 +18,6 @@ export const NotificationEventCodes = {
     DISPUTE_OPENED: "DISPUTE_OPENED",
     DISPUTE_RESOLVED: "DISPUTE_RESOLVED",
     DISPUTE_CLOSED: "DISPUTE_CLOSED",
+    /** To the marketplace operator's admins: a dispute waits for their decision (D191). */
+    DISPUTE_TO_DECIDE: "DISPUTE_TO_DECIDE",
 } as const;

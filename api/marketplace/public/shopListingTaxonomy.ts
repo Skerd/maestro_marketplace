@@ -10,6 +10,7 @@ import {listingService} from "@marketplaceModule/database/schemas/listing/listin
 import {listingCategoryService} from "@marketplaceModule/database/schemas/listingCategory/listingCategory.service";
 import {resolveStorefrontContext, inStorefrontCatalog} from "@coreModule/utilities/marketing/portalStorefront";
 import {liveProviderCompanyClause} from "@marketplaceModule/utilities/shop/marketplaceSellers";
+import {publicListingClause} from "@marketplaceModule/utilities/shop/shopMarketplaceFilter";
 import {findMarketplaceOperatorId, marketplaceCategoryClause} from "@marketplaceModule/utilities/services/marketplaceOperator";
 import {asCrossTenant} from "@coreModule/utilities/endpoints/tenantScope";
 import type {
@@ -29,7 +30,7 @@ async function placeNames(model: Model<any>, ids: unknown[]): Promise<Map<string
     return new Map(docs.map((doc) => [doc._id.toString(), {_id: doc._id.toString(), name: doc.name ?? ""}]));
 }
 
-/** Listing categories for the Services menu, and the places active listings cover for the location filter. */
+/** Listing categories for the Services menu, and the places public listings cover for the location filter. */
 router.post(
     "",
     authMW("public"),
@@ -45,7 +46,7 @@ router.post(
             ? asCrossTenant("the task board offers every provider's categories (D172)", read)
             : inStorefrontCatalog(ctx, read);
         return view(async () => {
-            const activeMatch: Record<string, unknown> = {status: "active", deletedAt: null};
+            const activeMatch: Record<string, unknown> = {...publicListingClause(), deletedAt: null};
             const companyFilter = ctx.mode === "tenant" && !taskBoard
                 ? {company: ctx.company._id}
                 : await liveProviderCompanyClause();

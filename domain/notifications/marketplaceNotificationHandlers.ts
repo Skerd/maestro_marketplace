@@ -26,6 +26,7 @@ type MarketplaceCode =
     | typeof NotificationEventCodes.DISPUTE_OPENED
     | typeof NotificationEventCodes.DISPUTE_RESOLVED
     | typeof NotificationEventCodes.DISPUTE_CLOSED
+    | typeof NotificationEventCodes.DISPUTE_TO_DECIDE
     | typeof NotificationEventCodes.TASK_REQUEST_CREATED;
 
 const DESCRIPTIONS: Record<MarketplaceCode, (payload: Record<string, unknown>) => string> = {
@@ -59,6 +60,8 @@ const DESCRIPTIONS: Record<MarketplaceCode, (payload: Record<string, unknown>) =
         `The dispute on order ${p.orderName as string} was resolved; the order is completed`,
     [NotificationEventCodes.DISPUTE_CLOSED]: p =>
         `The dispute on order ${p.orderName as string} was closed; the order is cancelled`,
+    [NotificationEventCodes.DISPUTE_TO_DECIDE]: p =>
+        `A dispute on order ${p.orderName as string} at ${p.companyName as string} waits for the marketplace's decision`,
     [NotificationEventCodes.TASK_REQUEST_CREATED]: p =>
         `A new task request matching your listing has been posted: ${p.taskRequestTitle as string}`,
 };
@@ -79,6 +82,7 @@ const IMPORTANCE: Record<MarketplaceCode, NotificationImportance> = {
     [NotificationEventCodes.DISPUTE_OPENED]: NotificationImportance.HIGH,
     [NotificationEventCodes.DISPUTE_RESOLVED]: NotificationImportance.HIGH,
     [NotificationEventCodes.DISPUTE_CLOSED]: NotificationImportance.HIGH,
+    [NotificationEventCodes.DISPUTE_TO_DECIDE]: NotificationImportance.HIGH,
     [NotificationEventCodes.TASK_REQUEST_CREATED]: NotificationImportance.MEDIUM,
 };
 
@@ -96,6 +100,8 @@ function paramsFor(code: MarketplaceCode, p: Record<string, unknown>): Record<st
             return {order: String(p.orderName ?? ""), days: Number(p.additionalDays ?? 0)};
         case NotificationEventCodes.ORDER_MILESTONE_RELEASED:
             return {order: String(p.orderName ?? ""), milestone: String(p.milestoneName ?? "")};
+        case NotificationEventCodes.DISPUTE_TO_DECIDE:
+            return {order: String(p.orderName ?? ""), company: String(p.companyName ?? "")};
         default:
             return {order: String(p.orderName ?? "")};
     }
@@ -141,6 +147,9 @@ function contentFor(code: MarketplaceCode, payload: Record<string, unknown>, rec
         case NotificationEventCodes.DISPUTE_RESOLVED:
         case NotificationEventCodes.DISPUTE_CLOSED:
             return {disputeId: payload.disputeId, orderId: payload.orderId, orderName: payload.orderName, ...providerKey(payload, receiverId, "providerDisputeId", payload.disputeId)};
+        // Every receiver is an operator admin, whose Disputes list opens it (D191).
+        case NotificationEventCodes.DISPUTE_TO_DECIDE:
+            return {disputeId: payload.disputeId, orderId: payload.orderId, orderName: payload.orderName, companyName: payload.companyName};
         case NotificationEventCodes.TASK_REQUEST_CREATED:
             // The lead in the provider's own company is what the notification opens (D143).
             return {
@@ -196,5 +205,6 @@ export function registerMarketplaceNotificationHandlers(): void {
     bindHandler(NotificationEventCodes.DISPUTE_OPENED);
     bindHandler(NotificationEventCodes.DISPUTE_RESOLVED);
     bindHandler(NotificationEventCodes.DISPUTE_CLOSED);
+    bindHandler(NotificationEventCodes.DISPUTE_TO_DECIDE);
     bindHandler(NotificationEventCodes.TASK_REQUEST_CREATED);
 }

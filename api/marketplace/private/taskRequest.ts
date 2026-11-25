@@ -42,6 +42,7 @@ import {escapeRegex} from "@coreModule/utilities/helpers";
 import SchemaGuard from "@coreModule/database/security/schemaGuard";
 import type {CrudOptions} from "@coreModule/database/services/baseCrudService";
 import {taskRequestHub} from "@marketplaceModule/utilities/services/recordHubs";
+import {notHiddenByPlatform} from "@coreModule/database/plugins/platformHiddenPlugin";
 
 const mediaUpload = mediaUploadMW({
     fields: {
@@ -55,11 +56,11 @@ const mediaUpload = mediaUploadMW({
 const buildCreate = buildCreateDataFromSchemaDef(TaskRequestSchemaDef);
 const buildUpdate = buildUpdateDataFromSchemaDef(TaskRequestSchemaDef);
 
-/** Live bid counts per task request. */
-async function liveBidCounts(taskRequestIds: ObjectId[], companyId: ObjectId, opts: CrudOptions): Promise<Map<string, number>> {
+/** Live bid counts per task request; `narrowing` keeps only the bids its reader may see. */
+async function liveBidCounts(taskRequestIds: ObjectId[], companyId: ObjectId, opts: CrudOptions, narrowing: Record<string, unknown> = {}): Promise<Map<string, number>> {
     const counts = await bidService.aggregate(
         [
-            {$match: {taskRequest: {$in: taskRequestIds}, company: companyId, deletedAt: null}},
+            {$match: {taskRequest: {$in: taskRequestIds}, company: companyId, deletedAt: null, ...narrowing}},
             {$group: {_id: "$taskRequest", count: {$sum: 1}}},
         ],
         opts,
@@ -195,7 +196,8 @@ router.post(
             taskRequestService.find(filter, opts, BUYER_TASK_POPULATE, undefined, {createdAt: -1}, limit, (page - 1) * limit),
             taskRequestService.count(filter, opts),
         ]);
-        const counts = await liveBidCounts(taskRequests.map((doc) => doc._id), company._id, opts);
+        // A quote the platform hid is not shown to the buyer (D191).
+        const counts = await liveBidCounts(taskRequests.map((doc) => doc._id), company._id, opts, notHiddenByPlatform());
 
         return {data: taskRequestsToDTO(taskRequests, counts), total, page, limit};
     })),
@@ -218,7 +220,7 @@ router.post(
         if (!taskRequest) throw apiValidationException("task_request_not_found", "", null, languageCode);
 
         const bids = await bidService.find(
-            {taskRequest: taskRequest._id, company: company._id},
+            {taskRequest: taskRequest._id, company: company._id, ...notHiddenByPlatform()},
             opts,
             [{path: "bidder", select: "name surname photo"}, "currency"],
             undefined,

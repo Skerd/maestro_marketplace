@@ -18,6 +18,7 @@ import type {ClientSession} from "mongoose";
 import type {AuthenticatedMWType} from "@coreModule/utilities/middlewares/authMW";
 import {companyService} from "@coreModule/database/schemas/company/company.service";
 import {inPortalPurchase, isPortalPurchase} from "@coreModule/utilities/marketing/portalStorefront";
+import {notHiddenByPlatform} from "@coreModule/database/plugins/platformHiddenPlugin";
 
 /** The two facts every rule below needs; the API passes its UserContext, the assistant its access decision. */
 type Caller = Pick<UserContext, "userId" | "isAdmin">;
@@ -79,7 +80,7 @@ export async function orderChildFilter(
 
 /**
  * Bids are private to the bidder and the task requester: a non-admin sees their
- * own bids and the bids on their own task requests, never a competitor's.
+ * own bids and the bids on their own task requests, never a competitor's, nor one the platform hid (D191).
  */
 export async function bidVisibilityFilter(
     companyId: ObjectId,
@@ -89,5 +90,5 @@ export async function bidVisibilityFilter(
     if (actionUserCtx.isAdmin) return {};
     const userId = new ObjectId(actionUserCtx.userId);
     const myTaskRequests = await taskRequestService.find({company: companyId, requester: userId}, opts, null, "_id");
-    return {$or: [{bidder: userId}, {taskRequest: {$in: myTaskRequests.map((taskRequest) => taskRequest._id)}}]};
+    return {$or: [{bidder: userId}, {taskRequest: {$in: myTaskRequests.map((taskRequest) => taskRequest._id)}, ...notHiddenByPlatform()}]};
 }

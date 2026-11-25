@@ -9,7 +9,7 @@ import {userService} from "@coreModule/database/schemas/user/user.service";
 import {listingService} from "@marketplaceModule/database/schemas/listing/listing.service";
 import {providerProfileService} from "@marketplaceModule/database/schemas/providerProfile/providerProfile.service";
 import {resolveStorefrontContext, inStorefrontCatalog} from "@coreModule/utilities/marketing/portalStorefront";
-import {shopPromotionMap} from "@marketplaceModule/utilities/shop/shopMarketplaceFilter";
+import {publicListingClause, shopPromotionMap} from "@marketplaceModule/utilities/shop/shopMarketplaceFilter";
 import {loadProviderProfileMetrics} from "@marketplaceModule/utilities/mappers/providerProfile/providerProfileMetrics";
 import {loadProviderAvailability} from "@marketplaceModule/utilities/services/providerAvailability";
 import {
@@ -42,7 +42,7 @@ router.post(
         const ctx = await resolveStorefrontContext(origin, languageCode);
         return inStorefrontCatalog(ctx, async () => {
             const providerId = new ObjectId(id);
-            const listingFilter: Record<string, unknown> = {status: "active", provider: providerId};
+            const listingFilter: Record<string, unknown> = {...publicListingClause(), provider: providerId};
             if (ctx.mode === "tenant") listingFilter.company = ctx.company._id;
 
             const listings = await listingService.find(listingFilter, {withDeleted: false}, SHOP_LISTING_CARD_POPULATE, SHOP_LISTING_CARD_FIELDS, {createdAt: -1}, LISTINGS_LIMIT);

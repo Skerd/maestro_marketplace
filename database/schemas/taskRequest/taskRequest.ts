@@ -29,10 +29,11 @@ import {IState} from "@coreModule/database/schemas/state/state";
 import {ICity} from "@coreModule/database/schemas/city/city";
 import dayjs from "dayjs";
 import crypto from "crypto";
+import {platformHiddenPlugin, type IPlatformHiddenPluginFields} from "@coreModule/database/plugins/platformHiddenPlugin";
 
 export type TaskRequestStatus = "open" | "closed" | "awarded";
 
-export interface ITaskRequest extends Document, IOwnershipPluginFields, ISoftDeletePluginFields, ILifeCyclePluginFields {
+export interface ITaskRequest extends Document, IOwnershipPluginFields, ISoftDeletePluginFields, ILifeCyclePluginFields, IPlatformHiddenPluginFields {
     requester: IUser;
     /** Posted on this company's own site: only its providers are matched (D143). Unset on the apex. */
     restrictedToCompany?: ICompany;
@@ -307,6 +308,8 @@ TaskRequestSchema.pre("save", function (next) {
 });
 
 ownershipPlugin(TaskRequestSchema);
+// The platform may hide it from the public after a report (D191).
+platformHiddenPlugin(TaskRequestSchema);
 publicMediaPlugin(TaskRequestSchema, {schemaDef: TaskRequestSchemaDef});
 auditPlugin(TaskRequestSchema);
 softDeletePlugin(TaskRequestSchema);

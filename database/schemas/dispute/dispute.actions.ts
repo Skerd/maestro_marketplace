@@ -6,7 +6,6 @@ import type {ResolveDisputeFormType} from "armonia/src/modules/marketplace/api/m
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import type {ActionMessage, SingleForm} from "armonia/src/modules/core/types/shared.types";
 import {runAfterCommit, type TransactionRequiredParams} from "@coreModule/utilities/middlewares/transactionUtils";
-import type {UserContext} from "@coreModule/utilities/types/types";
 import {orderDeliveryService} from "@marketplaceModule/database/schemas/orderDelivery/orderDelivery.service";
 import {orderService} from "@marketplaceModule/database/schemas/order/order.service";
 import {disputeService} from "@marketplaceModule/database/schemas/dispute/dispute.service";
@@ -15,12 +14,7 @@ import type {IOrder} from "@marketplaceModule/database/schemas/order/order";
 import {refundRemainingEscrow, releaseRemainingEscrow} from "@marketplaceModule/database/schemas/order/orderEscrow";
 import {emitNotificationEvent} from "@coreModule/domain/notifications/notificationEventBus";
 import {NotificationEventCodes} from "@marketplaceModule/domain/notifications/notificationEventCodes";
-
-function ensureAdmin(actionUserCtx: UserContext, languageCode: string): void {
-    if (!actionUserCtx.isAdmin) {
-        throw apiValidationException("only_admin_can_update_dispute", null, null, languageCode);
-    }
-}
+import {inDisputeCompany} from "@marketplaceModule/utilities/services/operatorDisputes";
 
 /** Loads a live dispute that is still open or under review, with its order. */
 async function loadOpenDispute(
@@ -61,6 +55,11 @@ async function notifyParties(params: TransactionRequiredParams, code: string, di
     });
 }
 
+/**
+ * The marketplace operator's decisions on a dispute (D191): only an admin of the operator company takes them, and each
+ * runs in the dispute's own company (`inDisputeCompany`), where its order, deliveries and escrow live. The seller and the
+ * buyer never decide their own dispute; the seller may still cancel and refund the order.
+ */
 export class DisputeActions {
     @action({
         auth: "private",
@@ -69,11 +68,13 @@ export class DisputeActions {
         schema: validateSingleForm,
     })
     async startReview(params: Record<string, any>): Promise<ActionMessage> {
-        const p = params as TransactionRequiredParams & SingleForm;
+        return inDisputeCompany(params as TransactionRequiredParams & SingleForm, (p) => this.startReviewIn(p));
+    }
+
+    private async startReviewIn(p: TransactionRequiredParams & SingleForm): Promise<ActionMessage> {
         const {logger, languageCode, session, actionUserCtx, _id} = p;
 
         logger.start(`Marking dispute under review: ${_id}...`);
-        ensureAdmin(actionUserCtx, languageCode);
 
         const {dispute} = await loadOpenDispute(p, "dispute_start_review_requires_open_status");
         if (dispute.status !== "open") {
@@ -98,12 +99,14 @@ export class DisputeActions {
         schema: resolveDisputeActionFormSchema,
     })
     async resolve(params: Record<string, any>): Promise<ActionMessage> {
-        const p = params as TransactionRequiredParams & ResolveDisputeFormType;
+        return inDisputeCompany(params as TransactionRequiredParams & ResolveDisputeFormType, (p) => this.resolveIn(p));
+    }
+
+    private async resolveIn(p: TransactionRequiredParams & ResolveDisputeFormType): Promise<ActionMessage> {
         const {logger, languageCode, session, company, actionUserCtx, _id, resolution} = p;
         const writeOpts = {session, logger, languageCode, auditUserId: actionUserCtx.userId};
 
         logger.start(`Resolving dispute: ${_id}...`);
-        ensureAdmin(actionUserCtx, languageCode);
 
         const resolutionText = resolution.trim();
         if (!resolutionText) {
@@ -142,12 +145,14 @@ export class DisputeActions {
         schema: resolveDisputeActionFormSchema,
     })
     async close(params: Record<string, any>): Promise<ActionMessage> {
-        const p = params as TransactionRequiredParams & ResolveDisputeFormType;
+        return inDisputeCompany(params as TransactionRequiredParams & ResolveDisputeFormType, (p) => this.closeIn(p));
+    }
+
+    private async closeIn(p: TransactionRequiredParams & ResolveDisputeFormType): Promise<ActionMessage> {
         const {logger, languageCode, session, company, actionUserCtx, _id, resolution} = p;
         const writeOpts = {session, logger, languageCode, auditUserId: actionUserCtx.userId};
 
         logger.start(`Closing dispute: ${_id}...`);
-        ensureAdmin(actionUserCtx, languageCode);
 
         const resolutionText = resolution.trim();
         if (!resolutionText) {

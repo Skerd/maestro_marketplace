@@ -17,11 +17,13 @@ import {NotificationEventCodes} from "@marketplaceModule/domain/notifications/no
 import {findMarketplaceOperatorId, marketplaceCategoryClause, marketplaceOperatorLimits} from "@marketplaceModule/utilities/services/marketplaceOperator";
 import {marketplacePortalCompanyIds} from "@marketplaceModule/utilities/shop/marketplaceSellers";
 import {emailNewLeads, type NewLead} from "@marketplaceModule/utilities/services/leadEmails";
+import {notHiddenByPlatform} from "@coreModule/database/plugins/platformHiddenPlugin";
 
 /**
  * Job matching (D143). A job reaches the providers who do that work: an active listing in the job's category, a
  * sub-category or a parent one, and for on-site work a service area that contains the job's pin. One lead per
  * provider, the best rated and then the closest first, at most `JOB_LEAD_CAP`; each lives in the provider's company.
+ * A job or a listing the platform hid after a report takes no part (D191).
  */
 export const JOB_LEAD_CAP = 10;
 /** The largest radius a listing can declare (its SchemaDef `max`): no on-site match lies further away. */
@@ -91,6 +93,7 @@ async function candidateCompanies(job: ITaskRequest): Promise<ObjectId[]> {
 
 /** The providers a job reaches, best first. Reads across companies; writes nothing. */
 export async function findJobMatches(job: ITaskRequest, cap: number = JOB_LEAD_CAP): Promise<JobMatch[]> {
+    if (job.hiddenByPlatform) return [];
     const categoryId = nestedEntityToRef(job.category);
     const scope = categoryId ? await categoryScope(categoryId) : null;
     if (!scope) return [];
@@ -102,6 +105,7 @@ export async function findJobMatches(job: ITaskRequest, cap: number = JOB_LEAD_C
         company: {$in: companies},
         status: "active",
         deletedAt: null,
+        ...notHiddenByPlatform(),
         category: {$in: scope.ids},
         ...(requester ? {provider: {$ne: requester}} : {}),
     };
@@ -229,14 +233,14 @@ const REMATCH_REASON = "a provider's new or changed listing is matched to the op
 export async function matchListingToOpenJobs(listingId: ObjectId, ctx: MatchContext): Promise<number> {
     try {
         return await asCrossTenant(REMATCH_REASON, async () => {
-            const listing = await listingService.findById(listingId, {logger: ctx.logger, languageCode: ctx.languageCode}, null, "category status company");
+            const listing = await listingService.findById(listingId, {logger: ctx.logger, languageCode: ctx.languageCode}, null, "category status company hiddenByPlatform");
             const categoryId = nestedEntityToRef(listing?.category);
-            if (!listing || listing.status !== "active" || !categoryId) return 0;
+            if (!listing || listing.status !== "active" || listing.hiddenByPlatform || !categoryId) return 0;
             const scope = await categoryScope(categoryId);
             if (!scope) return 0;
             const companies = [nestedEntityToRef(listing.company), await findMarketplaceOperatorId()].filter((id): id is ObjectId => !!id);
             const jobs = await taskRequestService.find(
-                {company: {$in: companies}, status: "open", expiresAt: {$gt: new Date()}, category: {$in: scope.ids}},
+                {company: {$in: companies}, status: "open", expiresAt: {$gt: new Date()}, category: {$in: scope.ids}, ...notHiddenByPlatform()},
                 {logger: ctx.logger, languageCode: ctx.languageCode},
                 null,
                 undefined,
@@ -256,7 +260,7 @@ export async function matchListingToOpenJobs(listingId: ObjectId, ctx: MatchCont
 /** The daily sweep (`marketplace.taskRematch`): every open job of the company is topped up with the pros who now fit. */
 export async function runTaskRematch(company: ObjectId, ctx: MatchContext): Promise<number> {
     const jobs = await taskRequestService.find(
-        {company, status: "open", expiresAt: {$gt: new Date()}},
+        {company, status: "open", expiresAt: {$gt: new Date()}, ...notHiddenByPlatform()},
         {logger: ctx.logger, languageCode: ctx.languageCode},
         null,
         undefined,

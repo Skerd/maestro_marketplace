@@ -19,15 +19,16 @@ import {taskLeadService} from "@marketplaceModule/database/schemas/taskLead/task
 import {marketplaceOperator} from "@marketplaceModule/utilities/services/portalBuyerTargets";
 import {inJobCompany} from "@marketplaceModule/utilities/services/portalJobs";
 import {endJobLeads, notifyEndedLeads, openAwardOrder} from "@marketplaceModule/utilities/services/jobOutcome";
+import {notHiddenByPlatform} from "@coreModule/database/plugins/platformHiddenPlugin";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** Loads a pending bid with its task request. */
+/** Loads a pending bid with its task request; a bid the platform hid is not the buyer's to take or turn down (D191). */
 async function loadPendingBid(params: TransactionRequiredParams & SingleForm): Promise<{bid: IBid; taskRequest: ITaskRequest}> {
     const {session, logger, languageCode, company, _id} = params;
     const opts = {session, logger, languageCode};
 
-    const bid = await bidService.findOne({_id: new ObjectId(_id), status: "pending", company: company._id}, opts);
+    const bid = await bidService.findOne({_id: new ObjectId(_id), status: "pending", company: company._id, ...notHiddenByPlatform()}, opts);
     if (!bid) {
         throw apiValidationException("bid_not_found_or_already_processed", null, null, languageCode);
     }

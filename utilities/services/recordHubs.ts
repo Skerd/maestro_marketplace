@@ -1,9 +1,9 @@
 /**
- * Marketplace sheets as hubs (UX-03): a listing's orders, bookings, reviews and reports; a provider's listings,
+ * Marketplace sheets as hubs (UX-03): a listing's orders, bookings and reviews; a provider's listings,
  * orders, bids and reviews; a task request's bids and the order it led to. Newest first. Each list is read the way
  * its own list route reads it: only when the caller's role can read that model, with the caller's field grants
  * (SEC-09), and with that route's record filter (a non-admin sees only the orders they are a party to and what hangs
- * off them, their own reports, and the bids `bidVisibilityFilter` allows).
+ * off them, and the bids `bidVisibilityFilter` allows).
  */
 
 import {ObjectId} from "mongodb";
@@ -18,8 +18,6 @@ import Booking from "@marketplaceModule/database/schemas/booking/booking";
 import {bookingService} from "@marketplaceModule/database/schemas/booking/booking.service";
 import Listing from "@marketplaceModule/database/schemas/listing/listing";
 import {listingService} from "@marketplaceModule/database/schemas/listing/listing.service";
-import ListingFlag from "@marketplaceModule/database/schemas/listingFlag/listingFlag";
-import {listingFlagService} from "@marketplaceModule/database/schemas/listingFlag/listingFlag.service";
 import Order from "@marketplaceModule/database/schemas/order/order";
 import {orderService} from "@marketplaceModule/database/schemas/order/order.service";
 import Review from "@marketplaceModule/database/schemas/review/review";
@@ -27,7 +25,6 @@ import {reviewService} from "@marketplaceModule/database/schemas/review/review.s
 import {bidsToDTOArray} from "@marketplaceModule/utilities/mappers/bid/bidMapper.dto";
 import {bookingsToDTOArray} from "@marketplaceModule/utilities/mappers/booking/bookingMapper.dto";
 import {listingsToDTO} from "@marketplaceModule/utilities/mappers/listing/listingMapper.dto";
-import {listingFlagsToDTO} from "@marketplaceModule/utilities/mappers/listingFlag/listingFlagMapper.dto";
 import {ordersToDTO} from "@marketplaceModule/utilities/mappers/order/orderMapper.dto";
 import {reviewsToDTO} from "@marketplaceModule/utilities/mappers/review/reviewMapper.dto";
 import {bidVisibilityFilter, orderPartyFilter} from "@marketplaceModule/utilities/services/marketplaceAccess";
@@ -36,7 +33,7 @@ import {bidVisibilityFilter, orderPartyFilter} from "@marketplaceModule/utilitie
 const HUB_LIMIT = 20;
 
 type HubCtx = {companyId: ObjectId; actionUserCtx: UserContext; languageCode: string};
-export type ListingHub = Pick<ListingDTO, "orders" | "bookings" | "reviews" | "flags">;
+export type ListingHub = Pick<ListingDTO, "orders" | "bookings" | "reviews">;
 export type ProviderProfileHub = Pick<ProviderProfile, "listings" | "orders" | "bids" | "reviews">;
 export type TaskRequestHub = Pick<TaskRequest, "bids" | "orders">;
 
@@ -50,27 +47,22 @@ export async function listingHub(listingId: ObjectId, ctx: HubCtx): Promise<List
     const ordersFetch = readableListFetch(Order, ctx);
     const bookingsFetch = readableListFetch(Booking, ctx);
     const reviewsFetch = readableListFetch(Review, ctx);
-    const flagsFetch = readableListFetch(ListingFlag, ctx);
     // The orders route shows a non-admin only the orders they are a party to, and the bookings route only those orders' bookings.
     const visibleOrders = {...base, listing: listingId, ...orderPartyFilter(ctx.actionUserCtx)};
-    // Reports are private: a non-admin sees only their own, as on the reports list.
-    const ownFlags = ctx.actionUserCtx.isAdmin ? {} : {user: new ObjectId(ctx.actionUserCtx.userId)};
 
-    const [orders, bookings, reviews, flags] = await Promise.all([
+    const [orders, bookings, reviews] = await Promise.all([
         ordersFetch ? orderService.find(visibleOrders, {}, ordersFetch.populate, ordersFetch.select, {createdAt: -1}, HUB_LIMIT) : null,
         bookingsFetch
             ? orderIdsOf(visibleOrders).then((orderIds) =>
                 bookingService.find({...base, order: {$in: orderIds}}, {}, bookingsFetch.populate, bookingsFetch.select, {startAt: -1}, HUB_LIMIT))
             : null,
         reviewsFetch ? reviewService.find({...base, listing: listingId}, {}, reviewsFetch.populate, reviewsFetch.select, {createdAt: -1}, HUB_LIMIT) : null,
-        flagsFetch ? listingFlagService.find({...base, listing: listingId, ...ownFlags}, {}, flagsFetch.populate, flagsFetch.select, {createdAt: -1}, HUB_LIMIT) : null,
     ]);
 
     const hub: ListingHub = {};
     if (orders) hub.orders = ordersToDTO(orders);
     if (bookings) hub.bookings = bookingsToDTOArray(bookings);
     if (reviews) hub.reviews = reviewsToDTO(reviews);
-    if (flags) hub.flags = listingFlagsToDTO(flags);
     return hub;
 }
 

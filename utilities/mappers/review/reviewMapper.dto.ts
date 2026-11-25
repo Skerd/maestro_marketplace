@@ -7,7 +7,7 @@ import {SimpleUserSnippet} from "@coreModule/database/schemas/user/user.snippets
 import {ListingSimpleSnippet} from "@marketplaceModule/database/schemas/listing/listing.snippets";
 import {OrderWithTaskOrListingSnippet} from "@marketplaceModule/database/schemas/order/order.snippets";
 import {mapSnippet} from "@coreModule/utilities/mappers/common.mapper";
-import {mapOwnershipToDTO, mapSoftDeleteToDTO, mapLifeCycleToDTO} from "@coreModule/utilities/mappers/plugin/pluginMappers.dto";
+import {mapOwnershipToDTO, mapSoftDeleteToDTO, mapLifeCycleToDTO, mapPlatformHiddenToDTO} from "@coreModule/utilities/mappers/plugin/pluginMappers.dto";
 
 export function reviewToDTO(review: IReview): Review {
     return {
@@ -17,6 +17,7 @@ export function reviewToDTO(review: IReview): Review {
         rating: review.rating,
         comment: review.comment,
         reviewer: mapSnippet<SimpleUser>()(review.reviewer, SimpleUserSnippet),
+        ...mapPlatformHiddenToDTO(review),
         ...mapOwnershipToDTO(review),
         ...mapSoftDeleteToDTO(review),
         ...mapLifeCycleToDTO(review),

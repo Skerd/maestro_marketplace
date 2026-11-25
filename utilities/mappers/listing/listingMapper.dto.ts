@@ -18,7 +18,8 @@ import {mapMedia, mapSnippet} from "@coreModule/utilities/mappers/common.mapper"
 import {
     mapLifeCycleToDTO,
     mapOwnershipToDTO,
-    mapSoftDeleteToDTO
+    mapSoftDeleteToDTO,
+    mapPlatformHiddenToDTO,
 } from "@coreModule/utilities/mappers/plugin/pluginMappers.dto";
 import {listingPackageToDTO} from "@marketplaceModule/utilities/mappers/listingPackage/listingPackageMapper.dto";
 import {listingAddOnToDTO} from "@marketplaceModule/utilities/mappers/listingAddOn/listingAddOnMapper.dto";
@@ -57,6 +58,7 @@ export function listingToDTO(listing: IListing): Listing {
         listingAddOns: listing.listingAddOns?.map((addon) => listingAddOnToDTO(addon)) || undefined,
         avgRating: listing.avgRating ?? 0,
         reviewCount: listing.reviewCount ?? 0,
+        ...mapPlatformHiddenToDTO(listing),
         ...mapSoftDeleteToDTO(listing),
         ...mapOwnershipToDTO(listing),
         ...mapLifeCycleToDTO(listing),

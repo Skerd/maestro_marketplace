@@ -12,7 +12,7 @@ import {StateSimpleSnippet} from "@coreModule/database/schemas/state/state.snipp
 import {CitySimpleSnippet} from "@coreModule/database/schemas/city/city.snippets";
 import {SimpleUserSnippet} from "@coreModule/database/schemas/user/user.snippets";
 import {ListingCategorySimpleSnippet} from "@marketplaceModule/database/schemas/listingCategory/listingCategory.snippets";
-import {mapOwnershipToDTO, mapSoftDeleteToDTO, mapLifeCycleToDTO} from "@coreModule/utilities/mappers/plugin/pluginMappers.dto";
+import {mapOwnershipToDTO, mapSoftDeleteToDTO, mapLifeCycleToDTO, mapPlatformHiddenToDTO} from "@coreModule/utilities/mappers/plugin/pluginMappers.dto";
 import {mapMedia, mapSnippet} from "@coreModule/utilities/mappers/common.mapper";
 
 export function taskRequestToDTO(taskRequest: ITaskRequest, bidCount?: number): TaskRequest {
@@ -40,6 +40,7 @@ export function taskRequestToDTO(taskRequest: ITaskRequest, bidCount?: number): 
         imageGallery: taskRequest.imageGallery ? taskRequest.imageGallery.map(mapMedia) : undefined,
         videoGallery: taskRequest.videoGallery ? taskRequest.videoGallery.map(mapMedia) : undefined,
         bidCount,
+        ...mapPlatformHiddenToDTO(taskRequest),
         ...mapSoftDeleteToDTO(taskRequest),
         ...mapOwnershipToDTO(taskRequest),
         ...mapLifeCycleToDTO(taskRequest),

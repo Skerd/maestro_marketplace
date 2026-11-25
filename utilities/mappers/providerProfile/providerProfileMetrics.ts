@@ -2,6 +2,7 @@ import {ObjectId} from "mongodb";
 import {orderService} from "@marketplaceModule/database/schemas/order/order.service";
 import {reviewService} from "@marketplaceModule/database/schemas/review/review.service";
 import type {CrudOptions} from "@coreModule/database/services/baseCrudService";
+import {notHiddenByPlatform} from "@coreModule/database/plugins/platformHiddenPlugin";
 
 export type ProviderProfileMetrics = {
     averageRating?: number;
@@ -11,7 +12,7 @@ export type ProviderProfileMetrics = {
 
 /**
  * Reputation shown on a provider profile: the average rating of the reviews on
- * the provider's orders (listing and task-request orders alike) and the share of
+ * the provider's orders the platform has not hidden (D191) (listing and task-request orders alike) and the share of
  * finished orders that completed rather than being cancelled. Aggregates skip the
  * soft-delete filter, so live rows are matched explicitly.
  */
@@ -30,7 +31,7 @@ export async function loadProviderProfileMetrics(
     const providerOrders = await orderService.find({company: companyId, provider: providerId}, ctx, null, "_id");
     const reviewAgg: {avgRating: number; count: number}[] = await reviewService.aggregate(
         [
-            {$match: {company: companyId, order: {$in: providerOrders.map((order) => order._id)}, deletedAt: null}},
+            {$match: {company: companyId, order: {$in: providerOrders.map((order) => order._id)}, deletedAt: null, ...notHiddenByPlatform()}},
             {$group: {_id: null, avgRating: {$avg: "$rating"}, count: {$sum: 1}}},
         ],
         ctx,

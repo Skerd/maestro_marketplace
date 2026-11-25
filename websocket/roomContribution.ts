@@ -9,7 +9,6 @@ export function registerMarketplaceRoomContributions(): void {
     registerRoomDisplayNames({
         marketplacesystemmap: "Marketplace system map",
         listings: "Listings",
-        listingflags: "Listing flags",
         promotions: "Promotions",
         taskrequests: "Task requests",
         bids: "Bids",

@@ -7,6 +7,7 @@ import type {CrudOptions} from "@coreModule/database/services/baseCrudService";
 import type {ShopPromotionMap} from "@marketplaceModule/utilities/mappers/shopMarketplace/shopMarketplace.mapper";
 import type {ShopListingsFormType} from "armonia/src/modules/marketplace/api/marketplace/public/shopMarketplace/shopMarketplace.form.validator";
 import {liveProviderCompanyClause} from "./marketplaceSellers";
+import {notHiddenByPlatform} from "@coreModule/database/plugins/platformHiddenPlugin";
 import type {ShopListingSort} from "armonia/src/modules/marketplace/api/marketplace/public/shopMarketplace/shopMarketplace.form.validator";
 
 /** Mongo sort of each storefront listing order ("recommended" is newest after the promoted listings). */
@@ -16,6 +17,11 @@ export const SHOP_LISTING_SORT_SPECS: Record<Exclude<ShopListingSort, "recommend
     priceDesc: {price: -1, createdAt: -1},
     rating: {avgRating: -1, reviewCount: -1, createdAt: -1},
 };
+
+/** A listing the public may see: active, and not hidden by the platform after a report (D191). */
+export function publicListingClause(): Record<string, unknown> {
+    return {status: "active", ...notHiddenByPlatform()};
+}
 
 /** A category of the shared tree (D144), picked by `isRoot`, and every category below it; null when none matches. */
 async function categoryScope(isRoot: (category: {_id: ObjectId; slug?: string}) => boolean): Promise<ObjectId[] | null> {
@@ -44,7 +50,7 @@ export function listingCategoryScopeById(id: string): Promise<ObjectId[] | null>
 }
 
 /**
- * Storefront listing filter: active listings narrowed by the browse form.
+ * Storefront listing filter: public listings (`publicListingClause`) narrowed by the browse form.
  * When `companyId` is omitted (platform), all live companies' active listings are included.
  * Null when the category slug is unknown or ambiguous (an empty page).
  */
@@ -52,7 +58,7 @@ export async function buildShopListingFilter(
     companyId: ObjectId | undefined,
     form: ShopListingsFormType,
 ): Promise<Record<string, unknown> | null> {
-    const filter: Record<string, unknown> = {status: "active"};
+    const filter: Record<string, unknown> = publicListingClause();
     const platform = companyId == null;
     const companyClause: Record<string, unknown> = platform
         ? await liveProviderCompanyClause()

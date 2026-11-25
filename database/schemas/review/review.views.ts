@@ -13,6 +13,30 @@ export const reviewSheetView: ViewConfig = {
         showCloseButton: true,
     },
     nodes: [
+        // The platform hid it after a report (D191): staff still see it, and why the public no longer does.
+        {
+            render: "#SheetGroup",
+            dependent: "hiddenByPlatform",
+            props: {title: "hiddenByPlatform", titleIcon: "#IconEyeOff", accent: "danger", defaultOpen: true},
+            children: [
+                {
+                    render: "#SheetGrid",
+                    props: {columns: 1},
+                    children: [
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "hiddenByPlatform"},
+                            field: {
+                                name: "hiddenByPlatform",
+                                widget: "#DisplayCard",
+                                label: "hiddenByPlatformNote",
+                                widgetProps: {icon: "#IconEyeOff", dontRenderValue: true},
+                            },
+                        },
+                    ],
+                },
+            ],
+        },
         {
             // The rating is in the header with what was reviewed (UX-01); the cards link the order and listing.
             render: "#SheetGroup",

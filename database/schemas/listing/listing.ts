@@ -38,11 +38,12 @@ import type {IListingPackage} from "@marketplaceModule/database/schemas/listingP
 import type {IListingAddOn} from "@marketplaceModule/database/schemas/listingAddOn/listingAddOn";
 import type {IPromotion} from "@marketplaceModule/database/schemas/promotion/promotion";
 import lifeCyclePlugin from "@coreModule/database/plugins/lifeCyclePlugin";
+import {platformHiddenPlugin, type IPlatformHiddenPluginFields} from "@coreModule/database/plugins/platformHiddenPlugin";
 
 export type ListingStatus = "draft" | "active" | "inactive";
 export type PricingType = "fixed" | "hourly";
 
-export interface IListing extends Document, IOwnershipPluginFields, ISoftDeletePluginFields, ILifeCyclePluginFields {
+export interface IListing extends Document, IOwnershipPluginFields, ISoftDeletePluginFields, ILifeCyclePluginFields, IPlatformHiddenPluginFields {
     name: string;
     title: string;
     description?: string;
@@ -349,6 +350,8 @@ ListingSchema.pre("save", function (next) {
 });
 
 ownershipPlugin(ListingSchema);
+// The platform may hide it from the public after a report (D191).
+platformHiddenPlugin(ListingSchema);
 publicMediaPlugin(ListingSchema, {schemaDef: ListingSchemaDef});
 auditPlugin(ListingSchema);
 softDeletePlugin(ListingSchema);

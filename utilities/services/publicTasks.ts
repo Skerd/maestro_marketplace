@@ -14,10 +14,11 @@ import {listingCategoryService} from "@marketplaceModule/database/schemas/listin
 import {taskLeadJobToDTO} from "@marketplaceModule/utilities/mappers/taskLead/taskLeadMapper.dto";
 import {marketplaceCategoryClause} from "@marketplaceModule/utilities/services/marketplaceOperator";
 import {listingCategoryScope, listingCategoryScopeById} from "@marketplaceModule/utilities/shop/shopMarketplaceFilter";
+import {notHiddenByPlatform} from "@coreModule/database/plugins/platformHiddenPlugin";
 
 const QUOTES_REASON = "the public task board counts every company's quotes on the operator's tasks (D172)";
 
-/** Quotes that still count on a task: waiting for the buyer, or the one that won. */
+/** Quotes that still count on a task: waiting for the buyer, or the one that won; a quote the platform hid never does (D191). */
 const LIVE_QUOTE_STATUSES = ["pending", "accepted"];
 
 /**
@@ -28,10 +29,10 @@ export const MIN_QUOTES_FOR_AVERAGE = 3;
 
 /**
  * The operator's tasks the public may see (D172): every one except those posted on a provider's own site, which stay
- * between the buyer and that provider (D143).
+ * between the buyer and that provider (D143), and those the platform hid after a report (D191).
  */
 export function publicTaskClause(operatorId: ObjectId): Record<string, unknown> {
-    return {company: operatorId, restrictedToCompany: null};
+    return {company: operatorId, restrictedToCompany: null, ...notHiddenByPlatform()};
 }
 
 /** Tasks still taking quotes: open and not past their expiry (the daily sweep closes them a little later). */
@@ -89,7 +90,7 @@ export async function taskQuoteStats(tasks: {_id?: ObjectId; currency?: {decimal
     const stats = new Map<string, PublicTaskQuotes>(tasks.map((task) => [String(task._id), {count: 0}]));
     if (!tasks.length) return stats;
     const bids = await asCrossTenant(QUOTES_REASON, () => bidService.find(
-        {taskRequest: {$in: tasks.map((task) => task._id)}, status: {$in: LIVE_QUOTE_STATUSES}},
+        {taskRequest: {$in: tasks.map((task) => task._id)}, status: {$in: LIVE_QUOTE_STATUSES}, ...notHiddenByPlatform()},
         {...options, withDeleted: false},
         null,
         "taskRequest amount",
@@ -122,7 +123,7 @@ export const TASK_SELLER_SELECT = "name logo siteSlug siteHost";
  */
 export async function taskQuotingCompanies(taskId: ObjectId, options: CrudOptions = {}): Promise<PortalSeller[]> {
     const bids = await asCrossTenant(QUOTES_REASON, () => bidService.find(
-        {taskRequest: taskId, status: {$in: LIVE_QUOTE_STATUSES}},
+        {taskRequest: taskId, status: {$in: LIVE_QUOTE_STATUSES}, ...notHiddenByPlatform()},
         {...options, withDeleted: false},
         [{path: "bidderCompany", select: TASK_SELLER_SELECT}],
         "bidderCompany createdAt",

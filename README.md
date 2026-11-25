@@ -15,7 +15,8 @@ marketplace/
 ├── api/marketplace/public/         # Public services pages: shopListings, shopListing, shopProvider, shopListingTaxonomy,
 │                                   # shopMarketplaceReviews, servicesConfig; shopTask (one task of the public board, D172)
 ├── database/
-│   ├── moduleBootstrap.ts          # Models, default roles, ref selects, media backfill (Listing, TaskRequest)
+│   ├── moduleBootstrap.ts          # Models, default roles, ref selects, media backfill (Listing, TaskRequest),
+│   │                               # reportables (D191)
 │   ├── companyDemoSeed.ts          # Settings (listed on the portal), marketplace demo, escrow ledger rows (order 35);
 │   │                               # the demo company is Tirana Pros (site slug `pros`); its ten online jobs are
 │   │                               # the demo customers', stored in the operator with Tirana Pros' quotes and leads
@@ -25,6 +26,7 @@ marketplace/
 ├── domain/
 │   ├── ai/tools/                   # listings, demand (task requests, bids), service orders, overview
 │   ├── notifications/              # TASK_REQUEST_*, BID_*, ORDER_*, DISPUTE_* handlers and codes
+│   ├── reports/marketplaceReportables.ts  # What people report to the platform's desk (D191)
 │   └── portal/servicesPortalProvider.ts   # Portal section `services` (kind `service`)
 │       portal/tasksPortalProvider.ts      # Portal section `tasks` (kind `task`): the public task board (D172)
 ├── utilities/
@@ -73,6 +75,29 @@ A job's budget is one optional "up to" amount (`budgetMax`). An on-site job need
 ## Portal buyer routes
 
 Portal accounts belong to the platform company, which does not have this module. Each buyer route declares the company its record lives in, and core's module gate checks that company instead (`portalBuyer`, `utilities/services/portalBuyerTargets.ts`): the order's seller for order actions and `order/mySingle` (`orderSeller("_id")`), reviews, disputes and bookings (`orderSeller("order")`); the listing's seller for `createFromListing` (`listingSeller`); the milestone's for `releaseMilestone` (`milestoneSeller`); the operator for `order/my`. The job routes (`createMine`, `my`, `mySingle`, `close`, `reopen`) name the operator (`marketplaceOperator`); bid routes follow in P12.3.
+
+## Reports, reviews and disputes (D191)
+
+**Reports go to the platform, not to the seller.** `domain/reports/marketplaceReportables.ts` declares four kinds for
+core's report desk (`moduleBootstrap.reportables`): `marketplace.listing`, `marketplace.job` (a task request),
+`marketplace.bid` and `marketplace.review`. The desk reads one by its id across companies (`snapshot`: title or excerpt,
+owning company, the author for a job, bid or review, its portal page) and hides or shows it with `setHidden`, which sets
+the server-only `hiddenByPlatform` in the company that keeps it. Every public read leaves a hidden record out
+(`notHiddenByPlatform`, `utilities/services/platformHidden.ts`): the portal catalog, search, sitemap and landing pages, a
+company's services site and provider pages (`publicListingClause`), the task board and its live updates
+(`publicTaskClause`), job matching and the providers' leads, the buyer's quotes, public reviews and every rating
+(`refreshListingRating`, provider metrics). Staff of the owning company still see it, with a "Hidden by the platform"
+note on its sheet and card. The marketplace's own listing reports (`ListingFlag`, which went to the seller) are gone.
+
+**Reviews are published by default.** No one deletes a review (`Review` model: `delete: "no-permission"`); the company
+reports one to the platform from its panel.
+
+**The operator decides disputes.** `startReview`, `resolve` and `close` are taken only by an admin of the marketplace
+operator and run in the dispute's own company (`inDisputeCompany`, `utilities/services/operatorDisputes.ts`), where its
+order, deliveries and escrow live; deleting or restoring a dispute is the operator's too. The seller and the buyer see
+their dispute read-only; the provider may still cancel and refund the order while it is open. A new dispute notifies
+the operator's admins (`DISPUTE_TO_DECIDE`). The operator's panel lists every company's disputes:
+`POST /api/marketplace/dispute/access`, `/operator` and `/operator/single`.
 
 ## Environment
 

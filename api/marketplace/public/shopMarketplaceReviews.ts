@@ -9,6 +9,8 @@ import {listingService} from "@marketplaceModule/database/schemas/listing/listin
 import {orderService} from "@marketplaceModule/database/schemas/order/order.service";
 import {reviewService} from "@marketplaceModule/database/schemas/review/review.service";
 import {resolveStorefrontContext, inStorefrontCatalog} from "@coreModule/utilities/marketing/portalStorefront";
+import {publicListingClause} from "@marketplaceModule/utilities/shop/shopMarketplaceFilter";
+import {notHiddenByPlatform} from "@coreModule/database/plugins/platformHiddenPlugin";
 import {toShopMarketplaceReview} from "@marketplaceModule/utilities/mappers/shopMarketplace/shopMarketplace.mapper";
 import {
     shopMarketplaceReviewsFormSchema,
@@ -20,8 +22,8 @@ export const basePath = "/api/marketplace/shopMarketplaceReviews";
 export const router = Router();
 
 /**
- * Reviews of one active listing, or of every order a provider with an active
- * listing delivered (listing and task-request orders alike).
+ * Reviews of one public listing, or of every order a provider with a public
+ * listing delivered (listing and task-request orders alike); a review the platform hid is left out (D191).
  */
 router.post(
     "",
@@ -33,7 +35,7 @@ router.post(
 
         const ctx = await resolveStorefrontContext(origin, languageCode);
         return inStorefrontCatalog(ctx, async () => {
-            const active: Record<string, unknown> = {status: "active"};
+            const active: Record<string, unknown> = publicListingClause();
             if (ctx.mode === "tenant") active.company = ctx.company._id;
 
             let filter: Record<string, unknown>;
@@ -43,7 +45,7 @@ router.post(
                     throw apiValidationException("listing_not_found", null, null, languageCode);
                 }
                 const sellerCompanyId = (listing as any).company;
-                filter = {company: sellerCompanyId, listing: new ObjectId(listingId)};
+                filter = {company: sellerCompanyId, listing: new ObjectId(listingId), ...notHiddenByPlatform()};
             } else {
                 const provider = new ObjectId(providerId);
                 const listing = await listingService.findOne({...active, provider}, {withDeleted: false}, undefined, "_id company");
@@ -52,7 +54,7 @@ router.post(
                 }
                 const sellerCompanyId = (listing as any).company;
                 const orders = await orderService.find({company: sellerCompanyId, provider}, {withDeleted: false}, undefined, "_id");
-                filter = {company: sellerCompanyId, order: {$in: orders.map((order) => order._id)}};
+                filter = {company: sellerCompanyId, order: {$in: orders.map((order) => order._id)}, ...notHiddenByPlatform()};
             }
 
             const [reviews, total] = await Promise.all([

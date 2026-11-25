@@ -14,6 +14,30 @@ export const listingSheetView: ViewConfig = {
     },
     // UX-03 order: the status sits in the header; price and packages, then description and media, then details.
     nodes: [
+        // The platform hid it after a report (D191): staff still see it, and why the public no longer does.
+        {
+            render: "#SheetGroup",
+            dependent: "hiddenByPlatform",
+            props: {title: "hiddenByPlatform", titleIcon: "#IconEyeOff", accent: "danger", defaultOpen: true},
+            children: [
+                {
+                    render: "#SheetGrid",
+                    props: {columns: 1},
+                    children: [
+                        {
+                            render: "#DisplayCard",
+                            permissions: {read: "hiddenByPlatform"},
+                            field: {
+                                name: "hiddenByPlatform",
+                                widget: "#DisplayCard",
+                                label: "hiddenByPlatformNote",
+                                widgetProps: {icon: "#IconEyeOff", dontRenderValue: true},
+                            },
+                        },
+                    ],
+                },
+            ],
+        },
         {
             // The title is the sheet title, not a card (UX-03).
             render: "#SheetGroup",
@@ -335,54 +359,6 @@ export const listingSheetView: ViewConfig = {
                                                 linkedSheetModel: "reviews",
                                                 linkedSheetWidget: "#ReviewSheetView",
                                                 linkedSheetEntityProp: "review",
-                                            },
-                                        },
-                                    },
-                                },
-                            ],
-                        },
-                    ],
-                },
-            ],
-        },
-        {
-            // Cards or one line each, the reader's choice (remembered per list).
-            render: "#ReferencesViewModeScope",
-            props: {storageKey: "marketplace.listing.sheet.flags.listDisplay", defaultMode: "compact"},
-            children: [
-                {
-                    // Read with the caller's own grants on that model; absent when they may not read it (listingHub).
-                    render: "#SheetGroup",
-                    dependent: "flags",
-                    dependentRuntimeOnly: true,
-                    props: {title: "flagsGroup", titleActions: "#ReferencesViewModeToggle", defaultOpen: false},
-                    children: [
-                        {
-                            render: "div",
-                            props: {className: "rounded-lg bg-muted/30 border border-border/50"},
-                            children: [
-                                {
-                                    render: "#ReferencesRender",
-                                    field: {
-                                        name: "flags",
-                                        widget: "#ReferencesRender",
-                                        widgetProps: {
-                                            cardWidget: "#ListingFlagCard",
-                                            pageSize: 4,
-                                            columns: 2,
-                                            compactRow: {
-                                                // Who reported it, when, why, and whether it was dealt with.
-                                                icon: "#IconFlag",
-                                                label: "flagRow",
-                                                labelPath: ["user.name", "user.surname"],
-                                                labelJoinSeparator: " ",
-                                                valuePath: ["createdAt", "reason", "status"],
-                                                valueLanguageKeyCategories: [null, "listingFlagReason", "listingFlagStatus"],
-                                                valueFormats: ["date", null, null],
-                                                joinSeparator: " · ",
-                                                linkedSheetModel: "listingflags",
-                                                linkedSheetWidget: "#ListingFlagSheetView",
-                                                linkedSheetEntityProp: "listingFlag",
                                             },
                                         },
                                     },
