@@ -8,7 +8,7 @@ import type {ClientSession, ObjectId} from "mongodb";
 import {orderDeliveryService} from "@marketplaceModule/database/schemas/orderDelivery/orderDelivery.service";
 import {orderService} from "@marketplaceModule/database/schemas/order/order.service";
 import {providerProfileService} from "@marketplaceModule/database/schemas/providerProfile/providerProfile.service";
-import {createEscrowRefund, createEscrowReleaseAndFee, escrowBalance} from "@financeModule/utilities/escrowHelper";
+import {createEscrowRefund, createEscrowRelease, escrowBalance} from "@financeModule/utilities/escrowHelper";
 import {emitNotificationEvent} from "@coreModule/domain/notifications/notificationEventBus";
 import {runAfterCommit} from "@coreModule/utilities/middlewares/transactionUtils";
 import {NotificationEventCodes} from "@marketplaceModule/domain/notifications/notificationEventCodes";
@@ -24,14 +24,14 @@ export type OrderEscrowContext = {
     auditUserId?: string | ObjectId;
 };
 
-/** Releases everything still held for the order to its provider, minus the platform fee. */
+/** Releases everything still held for the order to its provider (the platform keeps no fee, D190). */
 export async function releaseRemainingEscrow(order: IOrder, ctx: OrderEscrowContext): Promise<void> {
     const {companyId, ...opts} = ctx;
     const remaining = await escrowBalance(order._id, companyId, opts);
     if (remaining <= 0) return;
 
     const providerStripeAccountId = await providerProfileService.getPayoutAccountId(order.provider._id, companyId, opts);
-    await createEscrowReleaseAndFee(order._id, remaining, order.currency._id, companyId, opts, {providerStripeAccountId});
+    await createEscrowRelease(order._id, remaining, order.currency._id, companyId, opts, {providerStripeAccountId});
 }
 
 /** Refunds everything still held for the order to its customer. */

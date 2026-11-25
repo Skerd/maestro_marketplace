@@ -1,5 +1,8 @@
 import {afterAll, beforeAll, beforeEach, describe, expect, it, vi} from "vitest";
 
+// The demo's escrow ledger as it is seeded once card payments are on (D190 leaves them off until then).
+vi.mock("armonia/src/modules/finance/helpers/cardPaymentAvailability", () => ({CARD_PAYMENTS_AVAILABLE: true}));
+
 vi.hoisted(() => {
     process.env.ENABLED_MODULES = "core,finance,marketplace";
 });

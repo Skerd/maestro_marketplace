@@ -25,6 +25,7 @@ import {createDisputes} from "@marketplaceModule/database/schemas/dispute/disput
 import {createBookings} from "@marketplaceModule/database/schemas/booking/booking.defaults";
 import {createPromotions} from "@marketplaceModule/database/schemas/promotion/promotion.defaults";
 import {createEscrowTransactions} from "@marketplaceModule/database/demo/escrowTransactions.demo";
+import {CARD_PAYMENTS_AVAILABLE} from "armonia/src/modules/finance/helpers/cardPaymentAvailability";
 import {seedTaskBoardDemo} from "@marketplaceModule/database/demo/taskBoardDemo";
 import {findMarketplaceOperatorId} from "@marketplaceModule/utilities/services/marketplaceOperator";
 
@@ -159,8 +160,9 @@ export async function seedMarketplaceCompanyDemoData(parentLogger: serverLogger 
     await createBookings(logger, company, provider, orders);
     await createPromotions(logger, company, listings);
     await createListingFlags(logger, company, customer, listings);
-    // The escrow ledger hangs off these orders (the marketplace depends on finance, not the other way round).
-    await createEscrowTransactions(logger, company, orders);
+    // The escrow ledger hangs off these orders (the marketplace depends on finance, not the other way round). While card
+    // payments are off nothing is held, so the demo shows no escrow either (D190).
+    if (CARD_PAYMENTS_AVAILABLE) await createEscrowTransactions(logger, company, orders);
 
     logger.finish("Finished seeding marketplace demo data!");
 }

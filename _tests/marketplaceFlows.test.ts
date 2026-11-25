@@ -1,4 +1,10 @@
-import {afterAll, beforeAll, beforeEach, describe, expect, it} from "vitest";
+import {afterAll, beforeAll, beforeEach, describe, expect, it, vi} from "vitest";
+
+// Card payments are switched per test: the escrow tests run as when cards are on, the D190 block as today (off).
+const cards = vi.hoisted(() => ({on: true}));
+vi.mock("armonia/src/modules/finance/helpers/cardPaymentAvailability", () => ({
+    get CARD_PAYMENTS_AVAILABLE() { return cards.on; },
+}));
 import {connectTestDatabase, disconnectTestDatabase} from "@coreModule/_tests/testDatabase";
 import mongoose from "mongoose";
 import {ObjectId} from "mongodb";
@@ -94,6 +100,8 @@ async function ledgerTotals(orderId: ObjectId): Promise<Record<string, number>> 
 }
 
 describe("marketplace order escrow", {timeout: 30000}, () => {
+    beforeEach(() => { cards.on = true; });
+
     it("never pays out more than the hold across milestones and final acceptance", () => asCompany(async () => {
         const orderId = await seedOrderInProgress(100);
         const actions = new OrderActions();
@@ -111,7 +119,9 @@ describe("marketplace order escrow", {timeout: 30000}, () => {
 
         const totals = await ledgerTotals(orderId);
         expect(totals.hold).toBe(100);
-        expect(totals.release + totals.fee).toBe(100);
+        // The platform keeps no fee (D190): the provider is released the whole hold.
+        expect(totals.release).toBe(100);
+        expect(totals.fee).toBeUndefined();
         expect(await escrowBalance(orderId, companyId, {})).toBe(0);
         expect((await Order.findById(orderId))!.status).toBe("completed");
     }));
@@ -164,6 +174,35 @@ describe("marketplace order escrow", {timeout: 30000}, () => {
         });
         await expect(new OrderActions().createFromListing({...as(customerId), listing: listing.toString(), addOns: [addOn.toString()]}))
             .rejects.toMatchObject({error_code: "add_on_currency_mismatch"});
+    }));
+});
+
+describe("while card payments are off (D190)", {timeout: 30000}, () => {
+    beforeEach(() => { cards.on = false; });
+
+    it("holds nothing: the buyer pays the provider directly, milestones are released and the order completes", () => asCompany(async () => {
+        const orderId = await seedOrderInProgress(100);
+        const actions = new OrderActions();
+
+        await actions.createMilestone({...as(customerId), order: orderId.toString(), name: "Sketches", amount: 30});
+        const milestone = await OrderMilestone.findOne({order: orderId});
+        await actions.releaseMilestone({...as(customerId), milestone: milestone!._id.toString()});
+        expect((await OrderMilestone.findById(milestone!._id))!.status).toBe("released");
+
+        await actions.submitDelivery({...as(providerId), _id: orderId.toString(), message: "Final files"});
+        await actions.acceptDelivery({...as(customerId), _id: orderId.toString()});
+
+        expect(await EscrowTransaction.countDocuments({order: orderId})).toBe(0);
+        expect((await Order.findById(orderId))!.status).toBe("completed");
+    }));
+
+    it("refunds nothing through the platform when the provider cancels", () => asCompany(async () => {
+        const orderId = await seedOrderInProgress(100);
+
+        await new OrderActions().cancel({...as(providerId), _id: orderId.toString()});
+
+        expect(await EscrowTransaction.countDocuments({order: orderId})).toBe(0);
+        expect((await Order.findById(orderId))!.status).toBe("cancelled");
     }));
 });
 

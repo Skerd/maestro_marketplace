@@ -43,6 +43,8 @@ import {portalPurchaseRoute} from "@coreModule/utilities/marketing/portalStorefr
 import {loadProviderAvailability} from "@marketplaceModule/utilities/services/providerAvailability";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {escrowTransactionService} from "@financeModule/database/schemas/escrowTransaction/escrowTransaction.service";
+import {CARD_PAYMENTS_AVAILABLE} from "armonia/src/modules/finance/helpers/cardPaymentAvailability";
+import {companyService} from "@coreModule/database/schemas/company/company.service";
 import {registerEscrowSource} from "@financeModule/utilities/services/escrowSources";
 import Dispute from "@marketplaceModule/database/schemas/dispute/dispute";
 import Booking from "@marketplaceModule/database/schemas/booking/booking";
@@ -289,11 +291,15 @@ router.post(
         ]);
 
         const escrowClientSecret = (unpaidHold as {stripeClientSecret?: string} | null)?.stripeClientSecret;
+        // While card payments are off nothing is held: the buyer pays the provider directly, to its bank account (D190).
+        const providerCompany = CARD_PAYMENTS_AVAILABLE ? null : await companyService.findById(orderCompanyId, opts, undefined, "bankAccount");
+        const bankAccount = providerCompany?.bankAccount;
 
         return {
             data: {
                 ...toBuyerDTO(order),
                 ...(escrowClientSecret ? {escrowClientSecret} : {}),
+                ...(CARD_PAYMENTS_AVAILABLE ? {} : {paysProviderDirectly: bankAccount?.iban ? {bankAccount: {holder: bankAccount.holder, iban: bankAccount.iban, bic: bankAccount.bic, bankName: bankAccount.bankName}} : {}}),
                 deliveries: orderDeliveriesToDTO(deliveries),
                 milestones: orderMilestonesToDTO(milestones),
                 revisions: orderRevisionsToDTO(revisions),

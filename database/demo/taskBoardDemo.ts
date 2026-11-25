@@ -17,6 +17,7 @@ import City from "@coreModule/database/schemas/city/city";
 import User from "@coreModule/database/schemas/user/user";
 import Media from "@coreModule/database/schemas/media/media";
 import EscrowTransaction from "@financeModule/database/schemas/escrowTransaction/escrowTransaction";
+import {CARD_PAYMENTS_AVAILABLE} from "armonia/src/modules/finance/helpers/cardPaymentAvailability";
 import TaskRequest, {type ITaskRequest} from "@marketplaceModule/database/schemas/taskRequest/taskRequest";
 import TaskLead from "@marketplaceModule/database/schemas/taskLead/taskLead";
 import Bid from "@marketplaceModule/database/schemas/bid/bid";
@@ -295,10 +296,14 @@ async function seedAward(
     const completed = award.order === "completed";
     await Order.updateOne({_id: order._id}, {$set: {status: award.order}});
 
-    const escrow = (type: "hold" | "release", amount: number, extra: Record<string, unknown> = {}) => EscrowTransaction.create({
-        sourceType: "marketplaceOrder", sourceId: order._id, order: order._id, amount: decimal128FromMinor(toMinor(amount)), currency,
-        type, status: "completed", gatewayStatus: "ledger_only", company: company._id, createdBy: company.createdBy, ...extra,
-    });
+    // While card payments are off nothing is held: the buyer paid the provider directly, so no escrow rows (D190).
+    const escrow = async (type: "hold" | "release", amount: number, extra: Record<string, unknown> = {}) => {
+        if (!CARD_PAYMENTS_AVAILABLE) return;
+        await EscrowTransaction.create({
+            sourceType: "marketplaceOrder", sourceId: order._id, order: order._id, amount: decimal128FromMinor(toMinor(amount)), currency,
+            type, status: "completed", gatewayStatus: "ledger_only", company: company._id, createdBy: company.createdBy, ...extra,
+        });
+    };
     // The buyer paid into escrow on accepting; the provider is paid per finished milestone, or all at completion.
     await escrow("hold", winner.amount);
     for (const [orderIndex, milestone] of (award.milestones ?? []).entries()) {

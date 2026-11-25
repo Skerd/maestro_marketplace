@@ -27,7 +27,8 @@ import {listingAddOnService} from "@marketplaceModule/database/schemas/listingAd
 import {providerProfileService} from "@marketplaceModule/database/schemas/providerProfile/providerProfile.service";
 import {orderService} from "@marketplaceModule/database/schemas/order/order.service";
 import type {IOrder} from "@marketplaceModule/database/schemas/order/order";
-import {createEscrowHold, createEscrowReleaseAndFee, escrowBalance} from "@financeModule/utilities/escrowHelper";
+import {createEscrowHold, createEscrowRelease, escrowBalance} from "@financeModule/utilities/escrowHelper";
+import {CARD_PAYMENTS_AVAILABLE} from "armonia/src/modules/finance/helpers/cardPaymentAvailability";
 import {emitNotificationEvent} from "@coreModule/domain/notifications/notificationEventBus";
 import {NotificationEventCodes} from "@marketplaceModule/domain/notifications/notificationEventCodes";
 import {
@@ -72,6 +73,16 @@ async function hasOpenDispute(order: IOrder, params: TransactionRequiredParams):
         "_id",
     );
     return openDispute !== null;
+}
+
+/**
+ * Whether the order's money has all gone to the provider once its last milestone is released: nothing is left held in
+ * escrow, or, while card payments are off and nothing is ever held, the released milestones add up to the order (D190).
+ */
+async function orderFullyPaidOut(order: IOrder, companyId: ObjectId, opts: {session: TransactionRequiredParams["session"]; logger: TransactionRequiredParams["logger"]; languageCode: string}): Promise<boolean> {
+    if (CARD_PAYMENTS_AVAILABLE) return await escrowBalance(order._id, companyId, opts) === 0;
+    const released = await orderMilestoneService.find({order: order._id, company: companyId, status: "released"}, opts, undefined, "amount");
+    return sumMinor(released.map((milestone) => toMinor(milestone.amount))) >= toMinor(order.amount);
 }
 
 export class OrderActions {
@@ -195,7 +206,8 @@ export class OrderActions {
 
         await orderService.updateByIdOrThrow(order._id, {$set: {status: "accepted"}}, {...opts, auditUserId: actionUserCtx.userId});
 
-        if (order.amount > 0) {
+        // While card payments are off nothing is held: the buyer pays the provider directly (D190).
+        if (order.amount > 0 && CARD_PAYMENTS_AVAILABLE) {
             await createEscrowHold(order._id, order.amount, order.currency._id, company._id, {...opts, auditUserId: actionUserCtx.userId});
         }
 
@@ -632,16 +644,20 @@ export class OrderActions {
                 throw apiValidationException("cannot_release_with_open_dispute", null, null, languageCode);
             }
 
-            const balance = await escrowBalance(order._id, company._id, opts);
-            if (toMinor(milestone.amount) > toMinor(balance)) {
-                throw apiValidationException("milestone_exceeds_escrow_balance", null, null, languageCode);
+            // While card payments are off nothing is held: releasing a milestone records that the buyer paid the
+            // provider directly (D190).
+            if (CARD_PAYMENTS_AVAILABLE) {
+                const balance = await escrowBalance(order._id, company._id, opts);
+                if (toMinor(milestone.amount) > toMinor(balance)) {
+                    throw apiValidationException("milestone_exceeds_escrow_balance", null, null, languageCode);
+                }
             }
 
             await orderMilestoneService.updateByIdOrThrow(milestone._id, {$set: {status: "released"}}, writeOpts);
 
-            if (milestone.amount > 0) {
+            if (milestone.amount > 0 && CARD_PAYMENTS_AVAILABLE) {
                 const providerStripeAccountId = await providerProfileService.getPayoutAccountId(order.provider._id, company._id, opts);
-                await createEscrowReleaseAndFee(
+                await createEscrowRelease(
                     order._id,
                     milestone.amount,
                     order.currency._id,
@@ -652,7 +668,7 @@ export class OrderActions {
             }
 
             const pendingMilestones = await orderMilestoneService.count({order: order._id, company: company._id, status: "pending"}, opts);
-            if (pendingMilestones === 0 && await escrowBalance(order._id, company._id, opts) === 0) {
+            if (pendingMilestones === 0 && await orderFullyPaidOut(order, company._id, opts)) {
                 await orderService.updateByIdOrThrow(order._id, {$set: {status: "completed"}}, writeOpts);
             }
 
