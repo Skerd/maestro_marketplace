@@ -7,7 +7,7 @@ import State from "@coreModule/database/schemas/state/state";
 import City from "@coreModule/database/schemas/city/city";
 import Company from "@coreModule/database/schemas/company/company";
 import User from "@coreModule/database/schemas/user/user";
-import {coreDemoCustomerSeeds} from "@coreModule/database/demo/demoSignupUsers";
+import {CORE_DEMO_CUSTOMER_PASSWORD, coreDemoCustomerSeeds, createDemoSignupUsers} from "@coreModule/database/demo/demoSignupUsers";
 import {defaultSysUsers} from "@coreModule/database/schemas/user/user.defaults";
 import {defaultCompaniesValues} from "@coreModule/database/schemas/company/company.defaults";
 import {createProviderProfiles} from "@marketplaceModule/database/schemas/providerProfile/providerProfile.defaults";
@@ -119,12 +119,15 @@ export async function seedMarketplaceCompanyDemoData(parentLogger: serverLogger 
     // quotes on them like any provider (D172, D197); the order after an award opens here.
     const platformId = await findPlatformCompanyId();
     const platform = platformId ? await Company.findById(platformId) : null;
+    // The buyers are the core demo customers, portal accounts of the platform company; a company set up by hand (the
+    // seed script's `--company`) may come before them, so they join the platform here. Never this company's own user,
+    // who quotes on the jobs.
+    if (platform) await createDemoSignupUsers(logger, platform, coreDemoCustomerSeeds, CORE_DEMO_CUSTOMER_PASSWORD);
     const demoCustomers = await User.find({username: {$in: coreDemoCustomerSeeds.map((seed) => seed.username)}});
-    const inSeedOrder = coreDemoCustomerSeeds.flatMap((seed) => demoCustomers.filter((user) => user.username === seed.username));
-    const buyers = inSeedOrder.length ? inSeedOrder : [customer];
+    const buyers = coreDemoCustomerSeeds.flatMap((seed) => demoCustomers.filter((user) => user.username === seed.username));
     let taskRequests: CreateTaskRequestsResult = {taskRequests: [], bySeedKey: {}};
     let bids: CreateBidsResult = {bids: [], bySeedKey: {}};
-    if (demoAddress && platform) {
+    if (demoAddress && platform && buyers.length) {
         taskRequests = await createTaskRequests(logger, platform, buyers, currency, {
             street: demoAddress.street,
             postalCode: demoAddress.postalCode,
@@ -136,7 +139,7 @@ export async function seedMarketplaceCompanyDemoData(parentLogger: serverLogger 
         });
         bids = await createBids(logger, platform, company, provider, currency, taskRequests);
     } else {
-        logger.warn("Skipping task requests — Tirana geo or the platform company not found.");
+        logger.warn("Skipping task requests — Tirana geo, the platform company or its demo customers not found.");
     }
 
     const orders = await createOrders(

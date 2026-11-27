@@ -31,13 +31,12 @@ const TASK_SORT_SPECS: Record<string, Record<string, 1 | -1>> = {
 };
 
 /**
- * The task board belongs to the platform company, which keeps the portal's jobs (D172, D197): on the apex; no other
- * company's site has one.
+ * The task board belongs to the platform company, which keeps the portal's jobs (D172, D197), and lives on the apex
+ * only: no company's own site has one, the platform company's included.
  */
 async function taskBoardCompanyIds(scope: PortalScope): Promise<ObjectId[]> {
     const platformId = await findPlatformCompanyId();
-    if (!platformId || (scope.companyId && !platformId.equals(scope.companyId))) return [];
-    return [platformId];
+    return platformId && !scope.companyId ? [platformId] : [];
 }
 
 /** The cities of the open public tasks, for the cards and the "where" filter. */

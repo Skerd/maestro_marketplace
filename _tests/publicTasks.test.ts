@@ -78,7 +78,7 @@ beforeEach(() => fixtures(async () => {
     host.site = undefined;
     for (const collection of await mongoose.connection.db!.collections()) await collection.deleteMany({});
     const company = (_id: ObjectId, name: string, siteSlug: string) => ({_id, name, siteSlug, vat: `VAT-${name}`, isActive: true, modules: ["core", "finance", "marketplace"], deletedAt: null});
-    await Company.collection.insertMany([company(fix, "Fix", "fix"), company(pros, "Pros", "pros"), {_id: platform, name: "Platform", vat: "VAT-Platform", isPlatformOwner: true, isActive: true, modules: ["core"], deletedAt: null}]);
+    await Company.collection.insertMany([company(fix, "Fix", "fix"), company(pros, "Pros", "pros"), {_id: platform, name: "Platform", siteSlug: "mainplatform", vat: "VAT-Platform", isPlatformOwner: true, isActive: true, modules: ["core"], deletedAt: null}]);
     // The platform company keeps job settings, even listed on the portal: it runs no marketplace, so it sells nothing (D197).
     await MarketplaceConfig.collection.insertMany([
         {company: platform, currency: eur, listedOnPortal: true, deletedAt: null},
@@ -121,9 +121,9 @@ beforeEach(() => fixtures(async () => {
 }));
 
 describe("public task board (D172)", {timeout: 30000}, () => {
-    it("is the platform company's, on the apex only; the platform company is not in the services section", async () => {
+    it("is the platform company's, on the apex only, not on any company's own site; the platform company is not in the services section", async () => {
         expect((await fixtures(() => board.companyIds({}))).map(String)).toEqual([platform.toString()]);
-        expect((await withTenant(platform, () => board.companyIds({companyId: platform}))).map(String)).toEqual([platform.toString()]);
+        expect(await withTenant(platform, () => board.companyIds({companyId: platform}))).toEqual([]);
         expect(await withTenant(fix, () => board.companyIds({companyId: fix}))).toEqual([]);
 
         expect((await fixtures(() => marketplacePortalCompanyIds({}))).map(String)).toEqual([fix.toString()]);
@@ -138,7 +138,7 @@ describe("public task board (D172)", {timeout: 30000}, () => {
         expect(page.items[2]).toEqual({
             kind: "task", id: tasks.tap.toString(), title: "Leaking tap", subtitle: "plumbing", city: "Tirana",
             price: {amount: 80, currency: "EUR", upTo: true}, section: "tasks", path: `/task?id=${tasks.tap}`,
-            company: {name: "Platform", slug: platform.toString()},
+            company: {name: "Platform", slug: "mainplatform"},
         });
     });
 
@@ -173,7 +173,8 @@ describe("public task board (D172)", {timeout: 30000}, () => {
         expect(task.quotedBy).toEqual([{_id: fix.toString(), name: "Fix", siteSlug: "fix"}]);
         const logo = (await post({id: tasks.logo.toString()})).body.data;
         expect(logo.quotedBy.map((company: {name: string}) => company.name).sort()).toEqual(["Fix", "Pros"]);
-        expect(JSON.stringify(logo)).not.toMatch(/120|140/);
+        // Whole numbers only: a random id may hold these digits.
+        expect(JSON.stringify(logo)).not.toMatch(/\b(120|140)\b/);
         expect(task.address.city.name).toBe("Tirana");
         expect(task.approxPoint).toEqual({latitude: 41.329, longitude: 19.821});
         const body = JSON.stringify(task);
@@ -182,12 +183,13 @@ describe("public task board (D172)", {timeout: 30000}, () => {
         }
     });
 
-    it("hides a task posted on a provider's own site, and the board from every other company's site", async () => {
+    it("hides a task posted on a provider's own site, and every task from any company's own site, the platform's included", async () => {
         expect((await post({id: tasks.onFixSite.toString()})).body.error_code).toBe("task_request_not_found");
         expect((await post({id: tasks.fixPanel.toString()})).body.error_code).toBe("task_request_not_found");
 
-        host.site = platform.toString();
         expect((await post({id: tasks.tap.toString()})).status).toBe(200);
+        host.site = platform.toString();
+        expect((await post({id: tasks.tap.toString()})).status).not.toBe(200);
         host.site = fix.toString();
         expect((await post({id: tasks.tap.toString()})).body.error_code).toBe("task_request_not_found");
     });

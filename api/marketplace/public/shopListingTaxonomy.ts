@@ -1,4 +1,3 @@
-import {findPlatformCompanyId} from "@coreModule/utilities/security/platformAccess";
 import {Router} from "express";
 import {ObjectId} from "mongodb";
 import type {Model} from "mongoose";
@@ -14,7 +13,6 @@ import {resolveStorefrontContext, inStorefrontCatalog} from "@coreModule/utiliti
 import {liveProviderCompanyClause} from "@marketplaceModule/utilities/shop/marketplaceSellers";
 import {publicListingClause} from "@marketplaceModule/utilities/shop/shopMarketplaceFilter";
 import {marketplaceCategoryClause} from "@marketplaceModule/utilities/services/marketplacePlatform";
-import {asCrossTenant} from "@coreModule/utilities/endpoints/tenantScope";
 import {validateFormZod} from "@coreModule/utilities/middlewares/validateFormZod";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {listDisplayName} from "@coreModule/utilities/helpers/listNames";
@@ -64,16 +62,9 @@ router.post(
         const {languageCode, origin, section} = params;
 
         const ctx = await resolveStorefrontContext(origin, languageCode);
-        // The platform company keeps the public task board (D172, D197): on its own site, like the apex, it offers
-        // every provider's work.
-        const platformId = ctx.mode === "tenant" ? await findPlatformCompanyId() : undefined;
-        const taskBoard = ctx.mode === "tenant" && !!platformId?.equals(ctx.company._id);
-        const view = <T>(read: () => Promise<T>): Promise<T> => taskBoard
-            ? asCrossTenant("the task board offers every provider's categories (D172)", read)
-            : inStorefrontCatalog(ctx, read);
-        return view(async () => {
+        return inStorefrontCatalog(ctx, async () => {
             const activeMatch: Record<string, unknown> = {...publicListingClause(), deletedAt: null};
-            const companyFilter = ctx.mode === "tenant" && !taskBoard
+            const companyFilter = ctx.mode === "tenant"
                 ? {company: ctx.company._id}
                 : await liveProviderCompanyClause();
             Object.assign(activeMatch, companyFilter);
@@ -106,8 +97,8 @@ router.post(
             const counts = new Map(categoryCounts.map((row) => [String(row._id), row.count]));
             const usedIds = categoryCounts.map((row) => nestedEntityToRef(row._id)).filter((id): id is ObjectId => !!id);
             const used = await withAncestors(usedIds, categoryFilter);
-            // The apex and the task board offer every section (anyone may post a job in any); a company's own site only its own.
-            const ownSite = ctx.mode === "tenant" && !taskBoard;
+            // The apex offers every section (anyone may post a job in any); a company's own site only its own.
+            const ownSite = ctx.mode === "tenant";
             const sections = ownSite ? [] : await listingCategoryService.find({...categoryFilter, parentListingCategory: null}, {withDeleted: false}, undefined, CATEGORY_SELECT);
             const byId = new Map<string, any>([...sections, ...used].map((row) => [String(row._id), row]));
             if (section) {

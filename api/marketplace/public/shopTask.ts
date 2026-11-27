@@ -41,7 +41,7 @@ router.post(
     asyncHandler(async (params: NotAuthenticatedMWType & ShopMarketplaceIdFormType): Promise<ShopTaskResponse> => {
         const {languageCode, origin, logger, id} = params;
         const [ctx, platformId] = await Promise.all([resolveStorefrontContext(origin, languageCode), findPlatformCompanyId()]);
-        if (!platformId || (ctx.mode === "tenant" && !platformId.equals(ctx.company._id))) {
+        if (!platformId || ctx.mode === "tenant") {
             throw apiValidationException("task_request_not_found", "", null, languageCode);
         }
         return asCrossTenant("the public task board shows the platform's tasks to everyone (D172)", async () => {
@@ -57,7 +57,9 @@ router.post(
                 taskQuotingCompanies(task._id, {logger, languageCode}),
             ]);
             const quotes = stats.get(task._id.toString()) ?? {count: 0};
-            return {data: {...toPublicTask(task, quotes), seller: toPortalSeller(task.company), quotedBy}};
+            // The board is the platform company's and lives on the apex only (D197): it is named, never linked to a site.
+            const seller = toPortalSeller(task.company);
+            return {data: {...toPublicTask(task, quotes), seller: seller && {_id: seller._id, name: seller.name, ...(seller.logo ? {logo: seller.logo} : {})}, quotedBy}};
         });
     }),
 );
