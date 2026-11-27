@@ -18,8 +18,10 @@ marketplace/
 │   ├── moduleBootstrap.ts          # Models, default roles, ref selects, media backfill (Listing, TaskRequest),
 │   │                               # reportables (D191)
 │   ├── companyDemoSeed.ts          # Settings (listed on the portal), marketplace demo, escrow ledger rows (order 35);
-│   │                               # the demo company is Tirana Pros (site slug `pros`); its ten online jobs are
-│   │                               # the demo customers', stored in the operator with Tirana Pros' quotes and leads
+│   │                               # the demo company is Tirana Pros (site slug `pros`), a construction brigade:
+│   │                               # ten on-site building listings; its ten building jobs are the demo customers',
+│   │                               # stored in the operator with Tirana Pros' quotes and leads. Another company:
+│   │                               # scripts/seed-marketplace-demo.ts --company="<name or id>"
 │   │                               # Adria Home Fix's seed also runs demo/taskBoardDemo.ts: the task board's
 │   │                               # workflows across the operator and both services companies (D172)
 │   └── schemas/<resource>/         # 16 marketplace models + MarketplaceConfig

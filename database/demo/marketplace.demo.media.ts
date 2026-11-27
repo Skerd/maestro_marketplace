@@ -1,63 +1,24 @@
 /**
  * Unsplash photo kits for marketplace demo listings and task requests.
  * Same pattern as product catalog media: main + gallery shots that match the
- * seed topic (logo desk, coding laptop, mic booth, …) instead of blue tiles.
+ * seed topic (building site, bathroom, roof, facade, …) instead of blue tiles.
  */
 
 export type MarketplacePhotoKit = readonly [string, string, string];
 
 /** seedKey → [main, gallery-1, gallery-2] Unsplash photo ids (without `photo-`). */
 export const LISTING_PHOTO_KITS: Readonly<Record<string, MarketplacePhotoKit>> = {
-    "listing-01-logo-design": [
-        "1561070791-2526d30994b5",
-        "1558655146-d09347e92766",
-        "1611224923853-80b023f02d71",
-    ],
-    "listing-02-website-dev": [
-        "1461749280684-dccba630e2f6",
-        "1498050108023-c5249f4df085",
-        "1517694712202-14dd9538aa97",
-    ],
-    "listing-03-blog-writing": [
-        "1455390582262-044cdead277a",
-        "1486312338219-ce68d2c6f44d",
-        "1434030216411-0b793f4b4173",
-    ],
-    "listing-04-social-media": [
-        "1611162616305-c69b3fa7fbe0",
-        "1611162618071-b39a2ec055fb",
-        "1557804506-669a67965ba0",
-    ],
-    "listing-05-video-editing": [
-        "1574717024653-61fd2cf4d44d",
-        "1492691527719-9d1e07e534b4",
-        "1478720568477-152d9b164e26",
-    ],
-    "listing-06-voice-over": [
-        "1590602847861-f357a9332bbc",
-        "1511379938547-c1f69419868d",
-        "1598488035139-bdbb2231ce04",
-    ],
-    "listing-07-virtual-assistant": [
-        "1600880292203-757bb62b4baf",
-        "1552664730-d307ca884978",
-        "1542744173-8e7e53415bb0",
-    ],
-    "listing-08-product-photo": [
-        "1526170375885-4d8ecf77b99f",
-        "1516035069371-29a1b244cc32",
-        "1542291026-7eec264c27ff",
-    ],
-    "listing-09-mobile-apps": [
-        "1511707171634-5f897ff02aa9",
-        "1556656793-08538906a9f8",
-        "1517336714731-489689fd1ca8",
-    ],
-    "listing-10-seo": [
-        "1460925895917-afdab827c52f",
-        "1551288049-bebda4e38f71",
-        "1543286386-713bdd548da4",
-    ],
+    // The construction brigade (on site): renovation, bathrooms, kitchens, shell, trades, roofs, terraces, facades.
+    "listing-01-apartment-renovation": ["1517581177682-a085bb7ffb15", "1581858726788-75bc0f6a952d", "1618221195710-dd6b41faaea6"],
+    "listing-02-bathroom-renovation": ["1631889993959-41b4e9c6e3c5", "1600566752355-35792bedcfea", "1552321554-5fefe8c9ef14"],
+    "listing-03-kitchen-renovation": ["1556912172-45b7abe8b7e1", "1507089947368-19c1da9775ae", "1484154218962-a197022b5858"],
+    "listing-04-house-shell": ["1541888946425-d81bb19240f5", "1531834685032-c34bf0d84c77", "1503387762-592deb58ef4e"],
+    "listing-05-tiling": ["1620626011761-996317b8d101", "1600607687939-ce8a6c25118c", "1513694203232-719a280e022f"],
+    "listing-06-plastering": ["1562259949-e8e7689d7828", "1595846519845-68e298c2edd8", "1501183638710-841dd1904471"],
+    "listing-07-masonry-crew": ["1504307651254-35680f356dfd", "1508450859948-4e04fabaa4ea", "1589939705384-5185137a7f0f"],
+    "listing-08-roof-repair": ["1632759145351-1d592919f522", "1503594384566-461fe158e797", "1572120360610-d971b9d7767c"],
+    "listing-09-terrace-waterproofing": ["1600573472550-8090b5e0745e", "1564013799919-ab600027ffc6", "1416331108676-a22ccb276e35"],
+    "listing-10-facade-insulation": ["1574359411659-15573a27fd0c", "1600047509807-ba8f99d2cdde", "1600585154526-990dced4db0d"],
     // Home services (on-site, D143): tap, pipes, electrician, cleaning, tools.
     "home-01-leaks": ["1585704032915-c3400ca199e7", "1584622650111-993a426fbf0a", "1607472586893-edb57bdc0e39"],
     "home-02-drains": ["1607472586893-edb57bdc0e39", "1584622650111-993a426fbf0a", "1585704032915-c3400ca199e7"],
@@ -68,56 +29,19 @@ export const LISTING_PHOTO_KITS: Readonly<Record<string, MarketplacePhotoKit>> =
 };
 
 export const TASK_REQUEST_PHOTO_KITS: Readonly<Record<string, MarketplacePhotoKit>> = {
-    "task-01-mobile-app": [
-        "1571019613454-1cb2f99b2d8b",
-        "1511707171634-5f897ff02aa9",
-        "1556656793-08538906a9f8",
-    ],
-    "task-02-social-graphics": [
-        "1482049016688-2d3e1b311543",
-        "1611162616305-c69b3fa7fbe0",
-        "1561070791-2526d30994b5",
-    ],
-    "task-03-ecommerce-setup": [
-        "1607083206869-4c7672e72a8a",
-        "1472851294608-062f824d29cc",
-        "1526170375885-4d8ecf77b99f",
-    ],
-    "task-04-seo-audit": [
-        "1551288049-bebda4e38f71",
-        "1460925895917-afdab827c52f",
-        "1504868584819-f8e8b4b6d7e3",
-    ],
-    "task-05-product-video": [
-        "1492691527719-9d1e07e534b4",
-        "1574717024653-61fd2cf4d44d",
-        "1516035069371-29a1b244cc32",
-    ],
-    "task-06-podcast-editing": [
-        "1598488035139-bdbb2231ce04",
-        "1590602847861-f357a9332bbc",
-        "1511379938547-c1f69419868d",
-    ],
-    "task-07-business-plan": [
-        "1454165804606-c3d57bc86b40",
-        "1450101499163-c8848c66ca85",
-        "1542744173-8e7e53415bb0",
-    ],
-    "task-08-wordpress-migration": [
-        "1498050108023-c5249f4df085",
-        "1461749280684-dccba630e2f6",
-        "1516321318423-f06f85e504b3",
-    ],
-    "task-09-brand-identity": [
-        "1469334031218-e382a71b716b",
-        "1558655146-d09347e92766",
-        "1618354691373-d851c5c3a990",
-    ],
-    "task-10-data-dashboard": [
-        "1551288049-bebda4e38f71",
-        "1543286386-713bdd548da4",
-        "1460925895917-afdab827c52f",
-    ],
+    "task-01-house-build": ["1600585154340-be6161a56a0c", "1503387762-592deb58ef4e", "1541888946425-d81bb19240f5"],
+    "task-02-bathroom-refit": ["1552321554-5fefe8c9ef14", "1620626011761-996317b8d101", "1631889993959-41b4e9c6e3c5"],
+    "task-03-office-fitout": ["1513694203232-719a280e022f", "1581858726788-75bc0f6a952d", "1600210492486-724fe5c67fb0"],
+    "task-04-terrace-leak": ["1600573472550-8090b5e0745e", "1632759145351-1d592919f522", "1564013799919-ab600027ffc6"],
+    "task-05-shop-strip-out": ["1517581177682-a085bb7ffb15", "1504917595217-d4dc5ebe6122", "1513467535987-fd81bc7d62f8"],
+    "task-06-retaining-wall": ["1517089596392-fb9a9033e05b", "1503708928676-1cb796a0891e", "1558036117-15d82a90b9b1"],
+    "task-07-attic-conversion": ["1590725140246-20acdee442be", "1501183638710-841dd1904471", "1505798577917-a65157d3320a"],
+    "task-08-facade-repair": ["1574359411659-15573a27fd0c", "1599707254554-027aeb4deacd", "1565008447742-97f6f38c985c"],
+    "task-09-kitchen-tiles": ["1556912172-45b7abe8b7e1", "1484154218962-a197022b5858", "1504148455328-c376907d081c"],
+    "task-10-steel-stairs": ["1504917595217-d4dc5ebe6122", "1600573472550-8090b5e0745e", "1621905251189-08b45d6a269e"],
+    // The public task board's two online jobs (`taskBoardDemo.ts`).
+    "board-02-logo": ["1469334031218-e382a71b716b", "1558655146-d09347e92766", "1618354691373-d851c5c3a990"],
+    "board-05-translation": ["1454165804606-c3d57bc86b40", "1450101499163-c8848c66ca85", "1542744173-8e7e53415bb0"],
 };
 
 export function resolveListingPhotoIds(seedKey: string): string[] {

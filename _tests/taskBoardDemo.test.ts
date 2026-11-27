@@ -174,8 +174,11 @@ describe("the task board demo (D172, P21.2a)", {timeout: 60000}, () => {
     });
 });
 
-describe("the online demo jobs, posted on the apex (D172)", {timeout: 60000}, () => {
-    const ONLINE = ["dev-mobile", "dev-ecommerce", "dev-website", "marketing-seo", "video-production", "audio-podcast", "biz-plans", "data-analysis"];
+describe("the demo building jobs, posted on the apex (D172)", {timeout: 60000}, () => {
+    const BUILDING = [
+        "build-new-builds-house", "build-bathrooms-renovation", "build-renovation-commercial", "build-waterproofing-terraces", "build-demolition-strip-out",
+        "build-masonry-retaining", "build-extensions-attic", "build-facades-renovation", "build-tiling-floor", "build-staircases-metal",
+    ];
 
     /** Tirana Pros' chain as its company seed runs it: the jobs, its quotes and the order of the awarded one. */
     async function seedOnlineJobs() {
@@ -195,7 +198,11 @@ describe("the online demo jobs, posted on the apex (D172)", {timeout: 60000}, ()
     }
 
     beforeEach(() => fixtures(async () => {
-        await ListingCategory.collection.insertMany(ONLINE.map((slug) => ({name: slug, slug, delivery: "remote", order: 0, company: platform, deletedAt: null})));
+        const categories = BUILDING.map((slug) => ({_id: new ObjectId(), name: slug, slug, delivery: "onsite", order: 0, company: platform, deletedAt: null}));
+        await ListingCategory.collection.insertMany(categories);
+        // Tirana Pros renovates bathrooms: the bathroom job reaches it by matching, the rest it finds on the board.
+        const bathrooms = categories.find((category) => category.slug === "build-bathrooms-renovation");
+        await Listing.collection.insertOne({title: "Bathrooms", company: pros, provider: echo, category: bathrooms?._id, status: "active", deletedAt: null});
     }));
 
     it("stores them in the operator, posted by the demo customers, with Tirana Pros' quotes, leads and order", async () => {
@@ -213,24 +220,24 @@ describe("the online demo jobs, posted on the apex (D172)", {timeout: 60000}, ()
         expect(leads).toHaveLength(10);
         expect(leads.every((lead) => String(lead.company) === String(pros) && lead.bid)).toBe(true);
         expect(leads.map((lead) => lead.status).sort()).toEqual(["lost", "lost", "quoted", "quoted", "quoted", "quoted", "quoted", "quoted", "won", "won"]);
-        // Tirana Pros has a logo listing: the two logo jobs reached it by matching, the rest it found on the board.
-        const logoJobs = stored.filter((task) => /graphics|brand identity/i.test(String(task.title))).map((task) => String(task._id));
-        expect(leads.filter((lead) => lead.origin === "matched").map((lead) => String(lead.taskRequest)).sort()).toEqual(logoJobs.sort());
+        // Tirana Pros has a bathroom listing: the bathroom job reached it by matching, the rest it found on the board.
+        const bathroomJobs = stored.filter((task) => /bathroom/i.test(String(task.title))).map((task) => String(task._id));
+        expect(leads.filter((lead) => lead.origin === "matched").map((lead) => String(lead.taskRequest)).sort()).toEqual(bathroomJobs.sort());
         const photos = await fixtures(() => Media.find({_id: {$in: stored.map((task) => task.mainImage)}}).lean());
         expect(photos.every((media) => (media.sharedWithCompanies ?? []).map(String).includes(String(pros)))).toBe(true);
 
         // The awarded job's order is Tirana Pros', for the buyer who posted the job.
-        const social = tasks.bySeedKey["task-02-social-graphics"];
-        const order = orders.bySeedKey["order-03-social-in-progress"];
-        expect([String(order?.company), String(order?.taskRequest), String(order?.customer)]).toEqual([String(pros), String(social?._id), String(social?.requester)]);
+        const bathroom = tasks.bySeedKey["task-02-bathroom-refit"];
+        const order = orders.bySeedKey["order-03-bathroom-task-in-progress"];
+        expect([String(order?.company), String(order?.taskRequest), String(order?.customer)]).toEqual([String(pros), String(bathroom?._id), String(bathroom?.requester)]);
 
         registerTasksPortalProvider();
         const page = await fixtures(() => getPortalProvider("tasks")!.browse({
             kind: "task", scope: {}, companyIds: [operator], skip: 0, limit: 24, filters: {}, languageCode: "en-US",
         }));
         expect(page.items.map((item) => plain(item.title)).sort()).toEqual([
-            "Full brand identity package", "Need a mobile app developer", "SEO audit for SaaS landing pages",
-            "Shopify store setup and theme customization", "Weekly podcast editing (4 episodes)", "WordPress to headless CMS migration",
+            "Build a two-storey house on our plot", "Fit-out of a 90 m² office", "Repair and repaint a five-storey facade",
+            "Retaining wall for a sloped garden", "Retile the kitchen floor and splashback", "Terrace leaking into the flat below",
         ]);
 
         // Seeding again changes nothing.

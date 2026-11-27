@@ -38,259 +38,235 @@ export type ListingSeed = {
     place?: {cityName: string; latitude: number; longitude: number; radiusKm: number};
 };
 
+const DURRES = {cityName: "Durrës", latitude: 41.3231, longitude: 19.4414};
+const TIRANA = {cityName: "Tirana", latitude: 41.3275, longitude: 19.8187};
+
+/**
+ * A construction company's services (the demo brigade, e.g. "Brigade Ndertimi"): building work done on site around
+ * Tirana and Durrës, each with its service area (D143), filed under the platform's Construction & Renovation section.
+ */
 export const defaultListingSeeds: readonly ListingSeed[] = [
     {
-        seedKey: "listing-01-logo-design",
-        title: "Professional Logo Design",
+        seedKey: "listing-01-apartment-renovation",
+        title: "Turnkey Apartment Renovation",
         description:
-            "I will create a unique, modern logo for your brand. Includes 3 initial concepts, unlimited revisions within scope, and delivery in vector and raster formats.",
-        categorySlug: "design-logo-branding",
-        price: 99,
+            "Full renovation of your apartment by one crew: strip-out, new wiring and plumbing, plastering, screed, tiles, doors and paint. One site manager, one schedule and one price for the whole job, handed over clean.",
+        categorySlug: "build-renovation-apartment",
+        price: 14000,
         pricingType: "fixed",
-        deliveryDays: 5,
+        deliveryDays: 60,
         status: "active",
-        tags: ["logo", "branding", "design", "identity"],
-        requirements: [
-            "Brand name",
-            "Brief description of your business",
-            "Preferred colors or style references",
-        ],
+        tags: ["renovation", "apartment", "turnkey", "interior"],
+        requirements: ["Floor plan or the apartment's size in m²", "Photos of every room", "The building administrator's rules for works"],
         faqs: [
             {
-                question: "How many revisions are included?",
-                answer: "Three revision rounds are included. Additional revisions can be purchased as an add-on.",
+                question: "What does the price include?",
+                answer: "Labour, standard materials and waste removal for an apartment up to 70 m². Tiles, sanitaryware and doors you choose above the standard range are charged at cost.",
             },
             {
-                question: "What file formats will I receive?",
-                answer: "You will receive PNG, JPG, SVG, and PDF exports suitable for print and web.",
+                question: "Can we live in the apartment during the works?",
+                answer: "Not during strip-out and installations (about three weeks). The finishing stage can be planned room by room.",
             },
         ],
+        place: {...TIRANA, radiusKm: 30},
     },
     {
-        seedKey: "listing-02-website-dev",
-        title: "Website Development",
+        seedKey: "listing-02-bathroom-renovation",
+        title: "Complete Bathroom Renovation",
         description:
-            "Full-stack website development with React and Node.js. Responsive design, SEO-friendly markup, and deployment assistance included.",
-        // The live database still carries the pre-rename slug "website-development";
-        // the category seeds ship "dev-website".
-        categorySlug: "dev-website",
-        price: 500,
+            "Old tiles and fittings out, new pipes, waterproofing, wall and floor tiles, sanitaryware and a walk-in shower or bath. Most bathrooms are finished in two weeks.",
+        categorySlug: "build-bathrooms-renovation",
+        price: 3200,
         pricingType: "fixed",
         deliveryDays: 14,
         status: "active",
-        tags: ["web", "react", "nodejs", "full-stack"],
-        requirements: ["Project brief or sitemap", "Brand assets if available", "Hosting preferences"],
+        tags: ["bathroom", "renovation", "tiling", "shower"],
+        requirements: ["Bathroom size and photos", "Whether you keep the current layout", "Your choice of tiles and fittings, or a budget for them"],
         faqs: [
             {
-                question: "Do you provide hosting setup?",
-                answer: "Yes, I can deploy to Vercel, Netlify, or your preferred VPS and document the handoff.",
+                question: "Is waterproofing included?",
+                answer: "Yes. Floors and shower walls get a liquid membrane with taped corners before tiling, every time.",
+            },
+            {
+                question: "Who buys the tiles and sanitaryware?",
+                answer: "You can choose them yourself or we order them with our trade discount. Either way we check quantities before work starts.",
             },
         ],
+        place: {...TIRANA, radiusKm: 35},
     },
     {
-        seedKey: "listing-03-blog-writing",
-        title: "Blog Article Writing",
+        seedKey: "listing-03-kitchen-renovation",
+        title: "Kitchen Renovation and Fitting",
         description:
-            "SEO-optimized blog articles of 1000+ words, researched and tailored to your audience. Includes meta title and description suggestions.",
-        categorySlug: "writing-articles",
-        price: 50,
+            "We remove the old kitchen, move water and power points where the new layout needs them, level walls, tile the splashback and fit the units and worktop.",
+        categorySlug: "build-kitchens-renovation",
+        price: 4200,
         pricingType: "fixed",
-        deliveryDays: 3,
+        deliveryDays: 21,
         status: "draft",
-        tags: ["writing", "seo", "blog", "content"],
-        requirements: [
-            "Target keyword or topic",
-            "Tone of voice guidelines",
-            "Internal links to promote if any",
-        ],
+        tags: ["kitchen", "renovation", "fitting", "worktop"],
+        requirements: ["Kitchen plan with measurements", "Appliance list", "Unit supplier, if you already chose one"],
         faqs: [
             {
-                question: "Do you handle keyword research?",
-                answer: "Yes — basic keyword research is included. Deeper competitive analysis is available as an add-on.",
-            },
-            {
-                question: "Can you match our brand voice?",
-                answer: "Share a style guide or 2–3 sample posts and I will mirror tone and terminology.",
+                question: "Do you make the kitchen units?",
+                answer: "We fit units from any supplier. Made-to-measure units are quoted with our carpenter after the site visit.",
             },
         ],
+        place: {...TIRANA, radiusKm: 30},
     },
     {
-        seedKey: "listing-04-social-media",
-        title: "Social Media Marketing Package",
+        seedKey: "listing-04-house-shell",
+        title: "House Shell Construction",
         description:
-            "Monthly social media management: content calendar, 12 post designs, caption copy, and basic performance reporting for one platform.",
-        categorySlug: "marketing-social",
-        price: 200,
+            "Foundations, reinforced concrete frame, slabs, block walls and the roof structure for houses up to 200 m², built to your architect's drawings and the building permit.",
+        categorySlug: "build-new-builds-shell",
+        price: 38000,
         pricingType: "fixed",
-        deliveryDays: 7,
+        deliveryDays: 120,
         status: "active",
-        tags: ["social-media", "marketing", "instagram", "content"],
-        requirements: [
-            "Brand guidelines",
-            "Access to social accounts or assets",
-            "Primary platform focus",
-        ],
+        tags: ["new build", "house", "shell", "concrete"],
+        requirements: ["Building permit", "Architectural and structural drawings", "Site access for a concrete pump"],
         faqs: [
             {
-                question: "Which platforms do you support?",
-                answer: "Instagram, Facebook, LinkedIn, and TikTok. This package covers one primary platform.",
+                question: "How is the price calculated?",
+                answer: "The listed price is for a 120 m² two-storey house. Larger houses are quoted from the structural drawings.",
+            },
+            {
+                question: "Who supervises the work?",
+                answer: "Our site engineer runs the crew every day; your supervising engineer signs off each concrete pour.",
             },
         ],
+        place: {...TIRANA, radiusKm: 60},
     },
     {
-        seedKey: "listing-05-video-editing",
-        title: "Professional Video Editing",
+        seedKey: "listing-05-tiling",
+        title: "Floor and Wall Tiling",
         description:
-            "Edit your raw footage into a polished video with color correction, sound leveling, subtitles, and motion graphics where needed.",
-        categorySlug: "video-editing",
-        price: 150,
+            "Ceramic, porcelain and large-format tiles laid level on floors and walls, with clean grout lines and silicone. Surface preparation and levelling included.",
+        categorySlug: "build-tiling-floor",
+        price: 22,
+        pricingType: "hourly",
+        deliveryDays: 5,
+        status: "active",
+        tags: ["tiling", "floor", "porcelain", "walls"],
+        requirements: ["Area in m²", "Tile size and type", "Photos of the current floor"],
+        faqs: [
+            {
+                question: "Do you lay large slabs?",
+                answer: "Yes, up to 120×280 cm with a suction lifting frame and a two-person crew.",
+            },
+        ],
+        place: {...DURRES, radiusKm: 40},
+    },
+    {
+        seedKey: "listing-06-plastering",
+        title: "Interior Plastering and Skim Coating",
+        description:
+            "Walls and ceilings plastered or skimmed smooth, ready for paint. Cracks, old wallpaper marks and uneven corners repaired first.",
+        categorySlug: "build-plastering-interior",
+        price: 18,
+        pricingType: "hourly",
+        deliveryDays: 7,
+        status: "inactive",
+        tags: ["plastering", "skim coat", "walls", "ceilings"],
+        requirements: ["Rooms and their size", "Whether the walls are painted or bare"],
+        faqs: [
+            {
+                question: "How long before we can paint?",
+                answer: "Skim coat is dry in two to three days; fresh plaster needs about a week, depending on the weather.",
+            },
+        ],
+        place: {...TIRANA, radiusKm: 30},
+    },
+    {
+        seedKey: "listing-07-masonry-crew",
+        title: "Masonry Crew: Brick and Block Walls",
+        description:
+            "A crew of three builds new partition and external walls in brick or block, door and window openings with lintels included. Booked by the hour, quoted for bigger jobs.",
+        categorySlug: "build-masonry-walls",
+        price: 30,
+        pricingType: "hourly",
+        deliveryDays: 3,
+        status: "active",
+        tags: ["masonry", "brick", "block", "walls", "crew"],
+        requirements: ["Wall lengths and heights", "Brick or block type", "Drawings if the wall is structural"],
+        faqs: [
+            {
+                question: "Is the rate per person?",
+                answer: "No, the hourly rate is for the whole crew of three, mortar mixer included.",
+            },
+            {
+                question: "Do you bring the materials?",
+                answer: "We can order blocks, cement and sand to the site; they are invoiced at cost with the delivery.",
+            },
+        ],
+        place: {...TIRANA, radiusKm: 40},
+    },
+    {
+        seedKey: "listing-08-roof-repair",
+        title: "Roof Repair and Leak Fixing",
+        description:
+            "Broken and slipped tiles replaced, flashing and valleys resealed, and the leak traced to its source. Photos of the roof before and after the repair.",
+        categorySlug: "build-roofing-repair",
+        price: 450,
         pricingType: "fixed",
         deliveryDays: 4,
         status: "active",
-        tags: ["video", "editing", "youtube", "reels"],
-        requirements: ["Raw footage via cloud link", "Script or outline", "Reference videos for style"],
+        tags: ["roof", "leak", "tiles", "repair"],
+        requirements: ["Where the water comes in", "Roof type (tiles, sheet or flat)", "Building height"],
         faqs: [
             {
-                question: "What is the max runtime?",
-                answer: "Up to 10 minutes for the base package. Longer edits can be quoted as an add-on.",
-            },
-            {
-                question: "Do you include music licensing?",
-                answer: "Royalty-free tracks are included. Premium licensed tracks are available separately.",
+                question: "Do you come after a storm?",
+                answer: "Yes. Emergency covering with a tarpaulin is possible the same day; the repair follows in dry weather.",
             },
         ],
+        place: {...DURRES, radiusKm: 50},
     },
     {
-        seedKey: "listing-06-voice-over",
-        title: "Professional Voice Over",
+        seedKey: "listing-09-terrace-waterproofing",
+        title: "Terrace and Flat Roof Waterproofing",
         description:
-            "Native English voice over for commercials, explainers, and e-learning. Clean studio recording with one revision round included.",
-        categorySlug: "audio-voiceover",
-        price: 75,
+            "Old membrane removed where needed, cracks sealed and a new bituminous or liquid membrane laid with proper falls to the drains. Ten-year written warranty.",
+        categorySlug: "build-waterproofing-terraces",
+        price: 1500,
         pricingType: "fixed",
-        deliveryDays: 2,
-        status: "inactive",
-        tags: ["voiceover", "audio", "narration", "commercial"],
-        requirements: [
-            "Final script",
-            "Pronunciation guide for names",
-            "Desired tone (warm, corporate, energetic)",
-        ],
-        faqs: [
-            {
-                question: "Which accents can you deliver?",
-                answer: "Neutral US and UK English by default; other accents on request.",
-            },
-            {
-                question: "What file formats are included?",
-                answer: "WAV and MP3 masters, plus a dry take without music bed.",
-            },
-        ],
-    },
-    {
-        seedKey: "listing-07-virtual-assistant",
-        title: "Virtual Assistant — Hourly",
-        description:
-            "Reliable virtual assistant for inbox management, scheduling, data entry, and light research. Billed hourly with weekly timesheets.",
-        categorySlug: "biz-virtual-assistant",
-        price: 25,
-        pricingType: "hourly",
-        deliveryDays: 1,
+        deliveryDays: 7,
         status: "active",
-        tags: ["virtual-assistant", "admin", "productivity", "remote"],
-        requirements: ["List of recurring tasks", "Tool access instructions", "Preferred working hours"],
+        tags: ["waterproofing", "terrace", "flat roof", "membrane"],
+        requirements: ["Terrace size in m²", "Photos of the surface and the drains", "Where the damp shows below"],
         faqs: [
             {
-                question: "What tools do you work in?",
-                answer: "Gmail, Outlook, Notion, Slack, Asana, HubSpot, and common spreadsheets.",
-            },
-            {
-                question: "Is there a minimum weekly commitment?",
-                answer: "Five hours per week minimum so onboarding stays efficient.",
+                question: "Does the tiling come off?",
+                answer: "Only if the membrane under it has failed. We test first and can often coat over sound tiles with a transparent system.",
             },
         ],
+        place: {...TIRANA, radiusKm: 40},
     },
     {
-        seedKey: "listing-08-product-photo",
-        title: "Product Photography & Retouching",
+        seedKey: "listing-10-facade-insulation",
+        title: "Facade Thermal Insulation",
         description:
-            "Studio-style product photos on white or lifestyle backgrounds, with professional retouching for e-commerce listings.",
-        categorySlug: "photo-product",
-        price: 120,
+            "External wall insulation with EPS or mineral wool boards, mesh, render and a coloured finish, scaffolding included. Lower heating bills and no more cold walls.",
+        categorySlug: "build-insulation-external",
+        price: 8500,
         pricingType: "fixed",
-        deliveryDays: 6,
+        deliveryDays: 30,
         status: "active",
-        tags: ["photography", "product", "ecommerce", "retouching"],
-        requirements: [
-            "Physical products shipped or local drop-off",
-            "Shot list or SKU list",
-            "Marketplace size requirements",
-        ],
+        tags: ["insulation", "facade", "energy", "render"],
+        requirements: ["Facade area or building photos from every side", "Number of floors", "The residents' approval for blocks of flats"],
         faqs: [
             {
-                question: "How many SKUs are included?",
-                answer: "Up to 10 SKUs with 3 angles each in the base package.",
+                question: "How thick is the insulation?",
+                answer: "8 cm EPS by default; 10 to 12 cm or mineral wool on request, priced per m².",
             },
             {
-                question: "Do you ship products back?",
-                answer: "Yes — return shipping is billed at cost after the shoot.",
+                question: "Is the scaffolding included?",
+                answer: "Yes, for buildings up to four floors. Higher buildings are quoted with rope access or a mast climber.",
             },
         ],
-    },
-    {
-        seedKey: "listing-09-mobile-apps",
-        title: "React Native Mobile App Development",
-        description:
-            "Cross-platform iOS and Android app development with React Native, including API integration, auth flows, and App Store submission support.",
-        categorySlug: "dev-mobile",
-        price: 800,
-        pricingType: "fixed",
-        deliveryDays: 21,
-        status: "active",
-        tags: ["mobile", "react-native", "ios", "android"],
-        requirements: [
-            "Wireframes or Figma designs",
-            "API documentation",
-            "Apple/Google developer account access",
-        ],
-        faqs: [
-            {
-                question: "Is backend development included?",
-                answer: "This listing covers the mobile client. Backend can be scoped separately or integrated if an API already exists.",
-            },
-        ],
-    },
-    {
-        seedKey: "listing-10-seo",
-        title: "SEO Audit & Optimization",
-        description:
-            "Comprehensive on-page SEO audit with actionable recommendations, keyword mapping, and implementation of priority fixes on up to 10 pages.",
-        categorySlug: "marketing-seo",
-        price: 180,
-        pricingType: "fixed",
-        deliveryDays: 5,
-        status: "active",
-        tags: ["seo", "marketing", "audit", "google"],
-        requirements: [
-            "Website URL",
-            "Google Search Console access if available",
-            "Primary target keywords",
-        ],
-        faqs: [
-            {
-                question: "Will you implement the fixes?",
-                answer: "Priority on-page fixes for up to 10 pages are included. Larger implementation can be scoped separately.",
-            },
-            {
-                question: "Do you guarantee rankings?",
-                answer: "No — SEO outcomes depend on competition and ongoing content. The deliverable is a clear, prioritized action plan.",
-            },
-        ],
+        place: {...TIRANA, radiusKm: 40},
     },
 ];
-
-const DURRES = {cityName: "Durrës", latitude: 41.3231, longitude: 19.4414};
-const TIRANA = {cityName: "Tirana", latitude: 41.3275, longitude: 19.8187};
 
 /** A home-repair provider's on-site services around Durrës and Tirana (D143): each has a service area. */
 export const homeServiceListingSeeds: readonly ListingSeed[] = [

@@ -22,10 +22,10 @@ export type OrderRevisionSeed = {
  */
 export const defaultOrderRevisionSeeds: readonly OrderRevisionSeed[] = [
     {
-        seedKey: "revision-01-social-headlines",
-        orderSeedKey: "order-03-social-in-progress",
-        deliverySeedKey: "delivery-02-social-first-pass",
-        reason: "Headlines are too small on the story format — please match the feed sizing.",
+        seedKey: "revision-01-bathroom-screen",
+        orderSeedKey: "order-03-bathroom-task-in-progress",
+        deliverySeedKey: "delivery-02-bathroom-first-pass",
+        reason: "Move the glass screen 10 cm towards the wall so the towel rail fits.",
         status: "pending",
     },
 ];

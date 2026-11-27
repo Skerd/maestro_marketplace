@@ -31,7 +31,7 @@ import {findMarketplaceOperatorId, marketplaceCategoryClause} from "@marketplace
 import {jobApproxPoint} from "@marketplaceModule/utilities/services/jobLocation";
 import {endJobLeads, openAwardOrder} from "@marketplaceModule/utilities/services/jobOutcome";
 
-/** Tirana Pros in the core company seed: online design, writing and tech work. */
+/** Tirana Pros in the core company seed: the construction demo (renovations, new builds); on the board it also quotes two online jobs. */
 const TIRANA_PROS_DEMO_VAT = "Z523456789Z";
 const LEAD_REFERENCE = {reason: "a lead in the provider's company points at the job in the marketplace operator", fields: ["TaskLead.taskRequest", "TaskLead.bid"]} as const;
 
@@ -135,8 +135,8 @@ const BOARD_TASKS: readonly DemoTask[] = [
 
 /** Board task photos: the task kits for online work, the home-services listing kits for on-site work (Unsplash ids). */
 const BOARD_PHOTO_KEYS: Readonly<Record<string, string>> = {
-    "board-01-tap": "home-01-leaks", "board-02-logo": "task-09-brand-identity", "board-03-shelves": "home-06-handyman",
-    "board-04-lights": "home-04-electrical", "board-05-translation": "task-07-business-plan", "board-06-drain": "home-02-drains",
+    "board-01-tap": "home-01-leaks", "board-02-logo": "board-02-logo", "board-03-shelves": "home-06-handyman",
+    "board-04-lights": "home-04-electrical", "board-05-translation": "board-05-translation", "board-06-drain": "home-02-drains",
     "board-07-cleaning": "home-05-cleaning", "board-08-boiler": "home-03-boilers",
 };
 
