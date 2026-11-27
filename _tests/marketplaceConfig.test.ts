@@ -6,7 +6,13 @@ vi.hoisted(() => {
 });
 import {connectTestDatabase, disconnectTestDatabase} from "@coreModule/_tests/testDatabase";
 
+vi.mock("@coreModule/utilities/middlewares/authMW", async () =>
+    (await import("@coreModule/_tests/httpHarness")).authMWStub);
+
 import {ObjectId} from "mongodb";
+import request from "supertest";
+import {allPermissionTags, appFor, callerHeader} from "@coreModule/_tests/httpHarness";
+import * as marketplaceConfigRoute from "@marketplaceModule/api/marketplace/private/marketplaceConfig";
 import Company from "@coreModule/database/schemas/company/company";
 import Currency from "@coreModule/database/schemas/currency/currency";
 import {asCrossTenant} from "@coreModule/utilities/endpoints/tenantScope";
@@ -72,4 +78,28 @@ describe("which companies the portal's services section shows (D142)", () => {
         // A company that never opened its settings still shows its services on its own site.
         expect((await marketplacePortalCompanyIds({companyId: withoutCurrency})).map(String)).toEqual([withoutCurrency.toString()]);
     }));
+});
+
+describe("the platform company's settings are the portal's job settings (D197)", () => {
+    const app = appFor([{...marketplaceConfigRoute, module: "marketplace"}]);
+    const read = (companyId: ObjectId, isPlatformOwner: boolean, _id: ObjectId) => request(app)
+        .post("/api/marketplace/marketplaceConfig/single")
+        .set(callerHeader({userId: new ObjectId().toString(), companyId: companyId.toString(), isAdmin: true, isPlatformOwner, permissions: allPermissionTags([MarketplaceConfig])}))
+        .send({_id: _id.toString()});
+
+    it("marks the platform's record for the edit form, and no other company's", async () => {
+        const platform = new ObjectId();
+        const [own, platformOwn] = await acrossCompanies(async () => {
+            const euro = await Currency.create({name: "Euro", symbol: "€", abbreviation: "EUR", decimalPlaces: 2, company: platform});
+            return Promise.all([
+                MarketplaceConfig.collection.insertOne({company: listed, currency: euro._id, listedOnPortal: true, deletedAt: null}),
+                MarketplaceConfig.collection.insertOne({company: platform, currency: euro._id, listedOnPortal: false, leadCap: 7, deletedAt: null}),
+            ]);
+        });
+
+        const platformRead = await read(platform, true, platformOwn.insertedId);
+        expect([platformRead.status, platformRead.body.isPlatform, platformRead.body.leadCap]).toEqual([200, true, 7]);
+        const providerRead = await read(listed, false, own.insertedId);
+        expect([providerRead.status, providerRead.body.isPlatform]).toEqual([200, undefined]);
+    });
 });

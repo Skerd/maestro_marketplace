@@ -1,5 +1,6 @@
 import {createCrudRouter} from "@coreModule/api/crudRouterFactory";
 import {registerPlatformRouter} from "@coreModule/utilities/security/platformListRegistry";
+import {isPlatformCompany} from "@coreModule/utilities/security/platformAccess";
 import {buildCreateDataFromSchemaDef, buildUpdateDataFromSchemaDef} from "@coreModule/api/buildUpdateDataFromSchemaDef";
 import {MarketplaceConfigSchemaDef} from "armonia/src/modules/marketplace/api/marketplace/private/marketplaceConfig/marketplaceConfig.schema-def";
 import {createMarketplaceConfigFormSchema} from "armonia/src/modules/marketplace/api/marketplace/private/marketplaceConfig/createMarketplaceConfig.form.validator";
@@ -23,6 +24,8 @@ export const {router} = createCrudRouter({
     toDTO: marketplaceConfigToDTO,
     toDTOArray: marketplaceConfigsToDTO,
     toSelect: marketplaceConfigsToSelect,
+    // The edit form reads one record: the platform company's are the portal's job settings only (D197).
+    enrichSingle: async (doc, params) => ({...marketplaceConfigToDTO(doc), ...(isPlatformCompany(params.company) ? {isPlatform: true} : {})}),
     selectSearchField: "_id",
     actions: MarketplaceConfigActions,
     buildCreateData: buildCreateDataFromSchemaDef(MarketplaceConfigSchemaDef),
