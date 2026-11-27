@@ -12,11 +12,11 @@ import {cityService} from "@coreModule/database/schemas/city/city.service";
 import {bidService} from "@marketplaceModule/database/schemas/bid/bid.service";
 import {listingCategoryService} from "@marketplaceModule/database/schemas/listingCategory/listingCategory.service";
 import {taskLeadJobToDTO} from "@marketplaceModule/utilities/mappers/taskLead/taskLeadMapper.dto";
-import {marketplaceCategoryClause} from "@marketplaceModule/utilities/services/marketplaceOperator";
+import {marketplaceCategoryClause} from "@marketplaceModule/utilities/services/marketplacePlatform";
 import {listingCategoryScope, listingCategoryScopeById} from "@marketplaceModule/utilities/shop/shopMarketplaceFilter";
 import {notHiddenByPlatform} from "@coreModule/database/plugins/platformHiddenPlugin";
 
-const QUOTES_REASON = "the public task board counts every company's quotes on the operator's tasks (D172)";
+const QUOTES_REASON = "the public task board counts every company's quotes on the platform's tasks (D172)";
 
 /** Quotes that still count on a task: waiting for the buyer, or the one that won; a quote the platform hid never does (D191). */
 const LIVE_QUOTE_STATUSES = ["pending", "accepted"];
@@ -28,11 +28,11 @@ const LIVE_QUOTE_STATUSES = ["pending", "accepted"];
 export const MIN_QUOTES_FOR_AVERAGE = 3;
 
 /**
- * The operator's tasks the public may see (D172): every one except those posted on a provider's own site, which stay
+ * The platform's tasks the public may see (D172): every one except those posted on a provider's own site, which stay
  * between the buyer and that provider (D143), and those the platform hid after a report (D191).
  */
-export function publicTaskClause(operatorId: ObjectId): Record<string, unknown> {
-    return {company: operatorId, restrictedToCompany: null, ...notHiddenByPlatform()};
+export function publicTaskClause(platformId: ObjectId): Record<string, unknown> {
+    return {company: platformId, restrictedToCompany: null, ...notHiddenByPlatform()};
 }
 
 /** Tasks still taking quotes: open and not past their expiry (the daily sweep closes them a little later). */
@@ -61,8 +61,8 @@ async function deliveryCategoryIds(delivery: string): Promise<ObjectId[]> {
 }
 
 /** The open public tasks a board query keeps (D172); null when its category slug matches nothing (an empty board). */
-export async function openPublicTaskFilter(operatorId: ObjectId, query: TaskBoardQuery): Promise<Record<string, unknown> | null> {
-    const filter: Record<string, unknown> = {...publicTaskClause(operatorId), ...openTaskClause()};
+export async function openPublicTaskFilter(platformId: ObjectId, query: TaskBoardQuery): Promise<Record<string, unknown> | null> {
+    const filter: Record<string, unknown> = {...publicTaskClause(platformId), ...openTaskClause()};
     const and: Record<string, unknown>[] = [];
     if (query.categorySlug || query.categoryId) {
         const scope = query.categorySlug ? await listingCategoryScope(query.categorySlug) : await listingCategoryScopeById(query.categoryId ?? "");

@@ -1,3 +1,4 @@
+import {findPlatformCompanyId} from "@coreModule/utilities/security/platformAccess";
 import {ObjectId} from "mongodb";
 import type {ClientSession, PipelineStage} from "mongoose";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
@@ -14,7 +15,7 @@ import {getLogger} from "@coreModule/loggers/serverLog";
 import {listingCategoryService} from "@marketplaceModule/database/schemas/listingCategory/listingCategory.service";
 import {taskLeadService} from "@marketplaceModule/database/schemas/taskLead/taskLead.service";
 import {NotificationEventCodes} from "@marketplaceModule/domain/notifications/notificationEventCodes";
-import {findMarketplaceOperatorId, marketplaceCategoryClause, marketplaceOperatorLimits} from "@marketplaceModule/utilities/services/marketplaceOperator";
+import {marketplaceCategoryClause, marketplaceJobLimits} from "@marketplaceModule/utilities/services/marketplacePlatform";
 import {marketplacePortalCompanyIds} from "@marketplaceModule/utilities/shop/marketplaceSellers";
 import {listingCategoryDescendants} from "@marketplaceModule/utilities/shop/shopMarketplaceFilter";
 import {emailNewLeads, type NewLead} from "@marketplaceModule/utilities/services/leadEmails";
@@ -31,7 +32,7 @@ export const JOB_LEAD_CAP = 10;
 const MAX_SERVICE_RADIUS_KM = 300;
 
 const READ_REASON = "a portal job is matched against every listed provider company's active listings";
-const LEAD_REFERENCE = {reason: "a lead in the provider's company points at the job in the marketplace operator", fields: ["TaskLead.taskRequest"]} as const;
+const LEAD_REFERENCE = {reason: "a lead in the provider's company points at the job in the platform company", fields: ["TaskLead.taskRequest"]} as const;
 
 export type JobMatch = {company: ObjectId; provider: ObjectId; listing: ObjectId; rating: number; distanceKm?: number};
 
@@ -71,15 +72,15 @@ async function categoryScope(categoryId: ObjectId): Promise<{ids: ObjectId[]; de
 
 /**
  * The companies whose providers a job may reach: the company a job was posted on (its own site), every company listed
- * on the portal for a job in the operator (the apex), and otherwise only the job's own company (a panel-made job).
+ * on the portal for a job in the platform company (the apex), and otherwise only the job's own company (a panel-made job).
  */
 async function candidateCompanies(job: ITaskRequest): Promise<ObjectId[]> {
     const restricted = nestedEntityToRef(job.restrictedToCompany);
     // Eligibility reads every company's marketplace settings, not only the request tenant's.
     if (restricted) return asCrossTenant(READ_REASON, () => marketplacePortalCompanyIds({companyId: restricted}));
-    const operatorId = await findMarketplaceOperatorId();
+    const platformId = await findPlatformCompanyId();
     const jobCompany = nestedEntityToRef(job.company);
-    if (operatorId && jobCompany && operatorId.equals(jobCompany)) return asCrossTenant(READ_REASON, () => marketplacePortalCompanyIds({}));
+    if (platformId && jobCompany && platformId.equals(jobCompany)) return asCrossTenant(READ_REASON, () => marketplacePortalCompanyIds({}));
     return jobCompany ? [jobCompany] : [];
 }
 
@@ -147,7 +148,7 @@ export async function findJobMatches(job: ITaskRequest, cap: number = JOB_LEAD_C
  */
 export async function createJobLeads(job: ITaskRequest, ctx: MatchContext): Promise<number> {
     const {logger, languageCode, session} = ctx;
-    const cap = (await marketplaceOperatorLimits()).leadCap ?? JOB_LEAD_CAP;
+    const cap = (await marketplaceJobLimits()).leadCap ?? JOB_LEAD_CAP;
     // A re-match tops the job up to its cap: the leads it already gave count (D143). A provider who quoted from the task
     // board was never notified, so their lead does not use up a notification (D172).
     const given = await asCrossTenant(READ_REASON, () => taskLeadService.count({taskRequest: job._id, origin: {$ne: "board"}}, {session: session ?? undefined}));
@@ -219,7 +220,7 @@ const REMATCH_REASON = "a provider's new or changed listing is matched to the op
 
 /**
  * Re-matching (D143): an active listing, new to the work or with a changed category or area, gets leads for the open
- * jobs it now fits, the operator's and its own company's, each job topped up to its cap. Best-effort after the
+ * jobs it now fits, the platform company's and its own company's, each job topped up to its cap. Best-effort after the
  * listing's commit; the daily sweep (`marketplace.taskRematch`) catches what this misses.
  */
 export async function matchListingToOpenJobs(listingId: ObjectId, ctx: MatchContext): Promise<number> {
@@ -230,7 +231,7 @@ export async function matchListingToOpenJobs(listingId: ObjectId, ctx: MatchCont
             if (!listing || listing.status !== "active" || listing.hiddenByPlatform || !categoryId) return 0;
             const scope = await categoryScope(categoryId);
             if (!scope) return 0;
-            const companies = [nestedEntityToRef(listing.company), await findMarketplaceOperatorId()].filter((id): id is ObjectId => !!id);
+            const companies = [nestedEntityToRef(listing.company), await findPlatformCompanyId()].filter((id): id is ObjectId => !!id);
             const jobs = await taskRequestService.find(
                 {company: {$in: companies}, status: "open", expiresAt: {$gt: new Date()}, category: {$in: scope.ids}, ...notHiddenByPlatform()},
                 {logger: ctx.logger, languageCode: ctx.languageCode},

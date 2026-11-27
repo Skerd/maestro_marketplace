@@ -1,3 +1,4 @@
+import {findPlatformCompanyId} from "@coreModule/utilities/security/platformAccess";
 import {Router} from "express";
 import {ObjectId} from "mongodb";
 import {asyncHandler} from "@coreModule/utilities/middlewares/asyncHandler";
@@ -8,7 +9,6 @@ import {apiValidationException} from "armonia/src/modules/core/helpers/exception
 import {asCrossTenant} from "@coreModule/utilities/endpoints/tenantScope";
 import {resolveStorefrontContext} from "@coreModule/utilities/marketing/portalStorefront";
 import {taskRequestService} from "@marketplaceModule/database/schemas/taskRequest/taskRequest.service";
-import {findMarketplaceOperatorId} from "@marketplaceModule/utilities/services/marketplaceOperator";
 import {JOB_POPULATE, JOB_SELECT} from "@marketplaceModule/utilities/services/taskLeads";
 import {toPortalSeller} from "@coreModule/utilities/mappers/portal/portalStorefrontMapper.dto";
 import {
@@ -27,8 +27,8 @@ import type {ShopTaskResponse} from "armonia/src/modules/marketplace/api/marketp
 /**
  * One task of the public task board (D172), for anyone: what a provider sees before the award (city level, the
  * approximate area), the quotes' count and average, the board it is posted on and the companies that quoted (names and
- * sites, never amounts). Only on the apex and the operator's own site; a task posted on a provider's own site is not
- * public (D143) and reads as not found.
+ * sites, never amounts). Only on the apex (D197); a task posted on a provider's own site is not public (D143) and reads
+ * as not found.
  */
 export const basePath = "/api/marketplace/shopTask";
 export const router = Router();
@@ -40,13 +40,13 @@ router.post(
     validateFormZod(shopMarketplaceIdFormSchema),
     asyncHandler(async (params: NotAuthenticatedMWType & ShopMarketplaceIdFormType): Promise<ShopTaskResponse> => {
         const {languageCode, origin, logger, id} = params;
-        const [ctx, operatorId] = await Promise.all([resolveStorefrontContext(origin, languageCode), findMarketplaceOperatorId()]);
-        if (!operatorId || (ctx.mode === "tenant" && !operatorId.equals(ctx.company._id))) {
+        const [ctx, platformId] = await Promise.all([resolveStorefrontContext(origin, languageCode), findPlatformCompanyId()]);
+        if (!platformId || (ctx.mode === "tenant" && !platformId.equals(ctx.company._id))) {
             throw apiValidationException("task_request_not_found", "", null, languageCode);
         }
-        return asCrossTenant("the public task board shows the operator's tasks to everyone (D172)", async () => {
+        return asCrossTenant("the public task board shows the platform's tasks to everyone (D172)", async () => {
             const task = await taskRequestService.findOne(
-                {_id: new ObjectId(id), ...publicTaskClause(operatorId)},
+                {_id: new ObjectId(id), ...publicTaskClause(platformId)},
                 {withDeleted: false, logger, languageCode},
                 [...JOB_POPULATE, {path: "company", select: TASK_SELLER_SELECT}],
                 JOB_SELECT,

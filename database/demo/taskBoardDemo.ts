@@ -1,3 +1,4 @@
+import {findPlatformCompanyId} from "@coreModule/utilities/security/platformAccess";
 import {ObjectId} from "mongodb";
 import dayjs from "dayjs";
 import type {HydratedDocument} from "mongoose";
@@ -27,13 +28,13 @@ import Review from "@marketplaceModule/database/schemas/review/review";
 import Listing from "@marketplaceModule/database/schemas/listing/listing";
 import ListingCategory from "@marketplaceModule/database/schemas/listingCategory/listingCategory";
 import {resolveListingPhotoIds, resolveTaskRequestPhotoIds} from "@marketplaceModule/database/demo/marketplace.demo.media";
-import {findMarketplaceOperatorId, marketplaceCategoryClause} from "@marketplaceModule/utilities/services/marketplaceOperator";
+import {marketplaceCategoryClause} from "@marketplaceModule/utilities/services/marketplacePlatform";
 import {jobApproxPoint} from "@marketplaceModule/utilities/services/jobLocation";
 import {endJobLeads, openAwardOrder} from "@marketplaceModule/utilities/services/jobOutcome";
 
 /** Tirana Pros in the core company seed: the construction demo (renovations, new builds); on the board it also quotes two online jobs. */
 const TIRANA_PROS_DEMO_VAT = "Z523456789Z";
-const LEAD_REFERENCE = {reason: "a lead in the provider's company points at the job in the marketplace operator", fields: ["TaskLead.taskRequest", "TaskLead.bid"]} as const;
+const LEAD_REFERENCE = {reason: "a lead in the provider's company points at the job in the platform company", fields: ["TaskLead.taskRequest", "TaskLead.bid"]} as const;
 
 type Provider = "fix" | "pros";
 type DemoLead = {
@@ -156,7 +157,7 @@ function kmBetween(a: {latitude: number; longitude: number}, b: {latitude: numbe
 }
 
 /**
- * The public task board's demo (D172, P21.2a): the core demo customers' tasks in the marketplace operator, each in one
+ * The public task board's demo (D172, P21.2a): the core demo customers' tasks in the platform company, each in one
  * state of the workflow, with matched and board leads and quotes in Adria Home Fix and Tirana Pros, two awards with
  * their orders (one in progress with a milestone paid from escrow, one completed and reviewed), a closed, an expired and
  * a private site task. Written directly with the fields the real flows write (the award through `openAwardOrder` and
@@ -168,17 +169,17 @@ export async function seedTaskBoardDemo(parentLogger: serverLogger | undefined, 
     logger.start("Seeding the task board demo...");
     const ctx = {logger, languageCode: "en-US"};
 
-    const operatorId = await findMarketplaceOperatorId();
-    const [operator, pros, euro, albania, buyers] = await Promise.all([
-        operatorId ? Company.findById(operatorId) : null,
+    const platformId = await findPlatformCompanyId();
+    const [platform, pros, euro, albania, buyers] = await Promise.all([
+        platformId ? Company.findById(platformId) : null,
         Company.findOne({vat: TIRANA_PROS_DEMO_VAT}),
         Currency.findOne({abbreviation: "EUR"}),
         Country.findOne({code: "AL"}).select("_id"),
         User.find({username: {$in: coreDemoCustomerSeeds.map((seed) => seed.username)}}),
     ]);
     const durres = albania ? await City.findOne({country: albania._id, name: "Durrës"}).select("_id") : null;
-    if (!operator || !euro || !albania || !durres || !buyers.length) {
-        logger.warn("Task board demo skipped: no operator, EUR, Albania/Durrës or demo customers yet.");
+    if (!platform || !euro || !albania || !durres || !buyers.length) {
+        logger.warn("Task board demo skipped: no platform, EUR, Albania/Durrës or demo customers yet.");
         logger.finish("Task board demo skipped.");
         return;
     }
@@ -188,7 +189,7 @@ export async function seedTaskBoardDemo(parentLogger: serverLogger | undefined, 
 
     for (const seed of BOARD_TASKS) {
         const name = demoSeedName(seed.seedKey);
-        if (await TaskRequest.exists({company: operator._id, name})) {
+        if (await TaskRequest.exists({company: platform._id, name})) {
             logger.debug(`Board task '${seed.seedKey}' already seeded`);
             continue;
         }
@@ -206,7 +207,7 @@ export async function seedTaskBoardDemo(parentLogger: serverLogger | undefined, 
             ? {street: seed.place.street, postalCode: "2001", country: albania._id, city: durres._id, latitude: seed.place.latitude, longitude: seed.place.longitude}
             : undefined;
         const approxPoint = jobApproxPoint(address);
-        const photos = await resolveDemoImagesFromUnsplash(boardPhotoIds(seed.seedKey), seed.seedKey, seed.title, operator, buyer._id, logger, "taskRequest");
+        const photos = await resolveDemoImagesFromUnsplash(boardPhotoIds(seed.seedKey), seed.seedKey, seed.title, platform, buyer._id, logger, "taskRequest");
         if (!photos.mainImageId) {
             logger.warn(`Board task '${seed.seedKey}' skipped: its photo could not be resolved`);
             continue;
@@ -227,11 +228,11 @@ export async function seedTaskBoardDemo(parentLogger: serverLogger | undefined, 
             mainImage: photos.mainImageId,
             imageGallery: photos.galleryIds,
             ...(seed.onFixSite ? {restrictedToCompany: fixCompany._id} : {}),
-            company: operator._id,
+            company: platform._id,
             createdBy: buyer._id,
         });
 
-        // Leads and quotes, in each provider's company; the quote sits next to the task in the operator.
+        // Leads and quotes, in each provider's company; the quote sits next to the task in the platform company.
         const bidByCompany = new Map<Provider, ObjectId>();
         for (const demo of seed.leads) {
             const company = companies[demo.company];
@@ -245,7 +246,7 @@ export async function seedTaskBoardDemo(parentLogger: serverLogger | undefined, 
             const area = listing?.serviceArea;
             const bid = demo.quote ? await Bid.create({
                 taskRequest: task._id, bidder: provider, bidderCompany: company._id, amount: demo.quote.amount, currency: euro._id,
-                proposal: demo.quote.proposal, deliveryDays: demo.quote.deliveryDays, status: "pending", company: operator._id, createdBy: provider,
+                proposal: demo.quote.proposal, deliveryDays: demo.quote.deliveryDays, status: "pending", company: platform._id, createdBy: provider,
             }) : null;
             if (bid) bidByCompany.set(demo.company, bid._id);
             await allowForeignReferences(LEAD_REFERENCE, () => TaskLead.create({

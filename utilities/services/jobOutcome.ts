@@ -20,7 +20,7 @@ export type EndedLead = {_id: ObjectId; company: ObjectId; provider: ObjectId; q
 
 const LEADS_REASON = "a job's outcome reaches the leads it gave in the providers' companies";
 const AWARD_REFERENCE = {
-    reason: "an awarded portal job's order, in the winning provider's company, points at the job and quote in the marketplace operator",
+    reason: "an awarded portal job's order, in the winning provider's company, points at the job and quote in the platform company",
     fields: ["Order.taskRequest", "Order.bid"],
 } as const;
 const OPEN_LEAD = ["new", "viewed", "quoted"];
@@ -85,7 +85,7 @@ export async function notifyEndedLeads(code: string, leads: EndedLead[], job: Pi
 /**
  * Opens the order for an accepted quote from a lead in the winning provider's company (D143), as a purchase from that
  * seller: the buyer is the customer, the price is the quote's, in the quote's currency (a platform list, D160).
- * The order keeps its job and quote, which stay in the operator.
+ * The order keeps its job and quote, which stay in the platform company.
  */
 export async function openAwardOrder(job: ITaskRequest, bid: IBid, ctx: Ctx): Promise<IOrder> {
     const providerCompany = nestedEntityToRef(bid.bidderCompany);

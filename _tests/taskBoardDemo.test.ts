@@ -50,8 +50,7 @@ import {createOrders} from "@marketplaceModule/database/schemas/order/order.defa
 import {getPortalProvider} from "@coreModule/domain/portal/portalProviderRegistry";
 import {registerTasksPortalProvider} from "@marketplaceModule/domain/portal/tasksPortalProvider";
 
-const operator = new ObjectId();
-// The service categories are the platform company's (D196).
+// The service categories and the portal's jobs are the platform company's (D196, D197).
 const platform = new ObjectId();
 const fix = new ObjectId();
 const pros = new ObjectId();
@@ -73,11 +72,10 @@ beforeEach(() => fixtures(async () => {
     const company = (_id: ObjectId, name: string, vat: string, siteSlug: string) =>
         ({_id, name, vat, siteSlug, isActive: true, modules: ["core", "finance", "marketplace"], createdBy: echo, deletedAt: null});
     await Company.collection.insertMany([
-        company(operator, "Kudoo Services", "Z000000001Z", "tasks"), company(pros, "Tirana Pros", "Z523456789Z", "pros"), company(fix, "Adria Home Fix", "Z623456789Z", "fix"),
+        company(pros, "Tirana Pros", "Z523456789Z", "pros"), company(fix, "Adria Home Fix", "Z623456789Z", "fix"),
         {_id: platform, name: "Platform", vat: "VAT-Platform", isPlatformOwner: true, isActive: true, modules: ["core"], deletedAt: null},
     ]);
     await MarketplaceConfig.collection.insertMany([
-        {company: operator, isOperator: true, listedOnPortal: false, deletedAt: null},
         {company: pros, listedOnPortal: true, deletedAt: null},
         {company: fix, listedOnPortal: true, deletedAt: null},
     ]);
@@ -120,7 +118,7 @@ describe("the task board demo (D172, P21.2a)", {timeout: 60000}, () => {
         const company = await fixCompany();
         await fixtures(() => seedTaskBoardDemo(undefined, company));
 
-        const tasks = await fixtures(() => TaskRequest.find({company: operator}).lean());
+        const tasks = await fixtures(() => TaskRequest.find({company: platform}).lean());
         expect(tasks).toHaveLength(8);
         const byKey = new Map(tasks.map((task) => [plain(task.name).replace("board-", ""), task]));
         expect(tasks.map((task) => task.status).sort()).toEqual(["awarded", "awarded", "closed", "closed", "open", "open", "open", "open"]);
@@ -166,7 +164,7 @@ describe("the task board demo (D172, P21.2a)", {timeout: 60000}, () => {
         await fixtures(() => seedTaskBoardDemo(undefined, company));
         registerTasksPortalProvider();
         const page = await fixtures(() => getPortalProvider("tasks")!.browse({
-            kind: "task", scope: {}, companyIds: [operator], skip: 0, limit: 24, filters: {}, languageCode: "en-US",
+            kind: "task", scope: {}, companyIds: [platform], skip: 0, limit: 24, filters: {}, languageCode: "en-US",
         }));
         expect(page.items.map((item) => plain(item.title)).sort())
             .toEqual(["Fix a dripping kitchen tap", "Hang shelves and assemble a wardrobe", "Logo for a new bakery in Tirana"]);
@@ -184,14 +182,14 @@ describe("the demo building jobs, posted on the apex (D172)", {timeout: 60000}, 
     async function seedOnlineJobs() {
         return fixtures(async () => {
             const logger = getLogger("test");
-            const [operatorDoc, prosDoc, echoUser, euro, albania, durres] = await Promise.all([
-                Company.findById(operator), Company.findById(pros), User.findById(echo), Currency.findOne({}), Country.findOne({}), City.findOne({}),
+            const [platformDoc, prosDoc, echoUser, euro, albania, durres] = await Promise.all([
+                Company.findById(platform), Company.findById(pros), User.findById(echo), Currency.findOne({}), Country.findOne({}), City.findOne({}),
             ]);
             const buyers = await User.find({username: {$in: coreDemoCustomerSeeds.map((seed) => seed.username)}});
-            if (!operatorDoc || !prosDoc || !echoUser || !euro || !albania || !durres) throw new Error("fixtures missing");
+            if (!platformDoc || !prosDoc || !echoUser || !euro || !albania || !durres) throw new Error("fixtures missing");
             const address = {street: "Rruga Ibrahim Rugova 1", postalCode: "1001", country: albania._id, city: durres._id, latitude: 41.3275, longitude: 19.8187};
-            const tasks = await createTaskRequests(logger, operatorDoc, buyers, euro, address);
-            const bids = await createBids(logger, operatorDoc, prosDoc, echoUser, euro, tasks);
+            const tasks = await createTaskRequests(logger, platformDoc, buyers, euro, address);
+            const bids = await createBids(logger, platformDoc, prosDoc, echoUser, euro, tasks);
             const orders = await createOrders(logger, prosDoc, echoUser, echoUser, euro, {listings: [], bySeedKey: {}}, tasks, bids);
             return {tasks, orders};
         });
@@ -205,17 +203,17 @@ describe("the demo building jobs, posted on the apex (D172)", {timeout: 60000}, 
         await Listing.collection.insertOne({title: "Bathrooms", company: pros, provider: echo, category: bathrooms?._id, status: "active", deletedAt: null});
     }));
 
-    it("stores them in the operator, posted by the demo customers, with Tirana Pros' quotes, leads and order", async () => {
+    it("stores them in the platform company, posted by the demo customers, with Tirana Pros' quotes, leads and order", async () => {
         const {tasks, orders} = await seedOnlineJobs();
 
         const stored = await fixtures(() => TaskRequest.find({}).lean());
         expect(stored).toHaveLength(10);
-        expect(stored.every((task) => String(task.company) === String(operator))).toBe(true);
+        expect(stored.every((task) => String(task.company) === String(platform))).toBe(true);
         const customers = (await fixtures(() => User.find({username: {$ne: "echo@echo.com"}}).lean())).map((user) => String(user._id));
         expect(new Set(stored.map((task) => String(task.requester)))).toEqual(new Set(customers));
 
         const bids = await fixtures(() => Bid.find({}).lean());
-        expect(bids.every((bid) => String(bid.company) === String(operator) && String(bid.bidderCompany) === String(pros))).toBe(true);
+        expect(bids.every((bid) => String(bid.company) === String(platform) && String(bid.bidderCompany) === String(pros))).toBe(true);
         const leads = await fixtures(() => TaskLead.find({}).lean());
         expect(leads).toHaveLength(10);
         expect(leads.every((lead) => String(lead.company) === String(pros) && lead.bid)).toBe(true);
@@ -233,7 +231,7 @@ describe("the demo building jobs, posted on the apex (D172)", {timeout: 60000}, 
 
         registerTasksPortalProvider();
         const page = await fixtures(() => getPortalProvider("tasks")!.browse({
-            kind: "task", scope: {}, companyIds: [operator], skip: 0, limit: 24, filters: {}, languageCode: "en-US",
+            kind: "task", scope: {}, companyIds: [platform], skip: 0, limit: 24, filters: {}, languageCode: "en-US",
         }));
         expect(page.items.map((item) => plain(item.title)).sort()).toEqual([
             "Build a two-storey house on our plot", "Fit-out of a 90 m² office", "Repair and repaint a five-storey facade",

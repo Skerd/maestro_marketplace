@@ -1,3 +1,4 @@
+import {findPlatformCompanyId} from "@coreModule/utilities/security/platformAccess";
 import {ObjectId} from "mongodb";
 import type {PortalBuyerTarget} from "@coreModule/utilities/security/portalBuyer";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
@@ -5,11 +6,10 @@ import {asCrossTenant} from "@coreModule/utilities/endpoints/tenantScope";
 import {orderService} from "@marketplaceModule/database/schemas/order/order.service";
 import {listingService} from "@marketplaceModule/database/schemas/listing/listing.service";
 import {orderMilestoneService} from "@marketplaceModule/database/schemas/orderMilestone/orderMilestone.service";
-import {findMarketplaceOperatorId} from "@marketplaceModule/utilities/services/marketplaceOperator";
 
 /**
  * The company a portal buyer route's record lives in, for the module gate (D143, `AuthMWOptions.portalBuyer`): the
- * seller of an order or listing, the operator for lists that span sellers. Reads only the record's company; the route
+ * seller of an order or listing, the platform company for what spans sellers (D197). Reads only the record's company; the route
  * still checks that the buyer is a party to it.
  */
 const REASON = "the module gate names the seller company of a portal buyer's record";
@@ -45,5 +45,8 @@ export const milestoneSeller: PortalBuyerTarget = async ({body}) => {
     return milestone ? nestedEntityToRef(milestone.company) : undefined;
 };
 
-/** Lists that span every seller (the buyer's orders) are the marketplace's: its operator answers for the module. */
-export const marketplaceOperator: PortalBuyerTarget = () => findMarketplaceOperatorId();
+/**
+ * What spans every seller (the buyer's orders, the portal's jobs and quotes) is the platform company's (D197), which
+ * answers the module gate for the portal's buyers without running the module.
+ */
+export const platformCompany: PortalBuyerTarget = () => findPlatformCompanyId();

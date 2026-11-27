@@ -28,9 +28,10 @@ import {findJobMatches} from "@marketplaceModule/utilities/services/jobMatching"
 import {taskLeadsToViews} from "@marketplaceModule/utilities/services/taskLeads";
 import {getLogger} from "@coreModule/loggers/serverLog";
 import {COLLECTED_DATA} from "@coreModule/database/collections";
-import {marketplaceOperatorLimits} from "@marketplaceModule/utilities/services/marketplaceOperator";
+import {marketplaceJobLimits} from "@marketplaceModule/utilities/services/marketplacePlatform";
 
-const operator = new ObjectId();
+// The platform company keeps the portal's jobs and their quotes, running core only (D197).
+const platform = new ObjectId();
 const provider = new ObjectId();
 const plumber = new ObjectId();
 const colleague = new ObjectId();
@@ -58,19 +59,22 @@ afterAll(async () => {
 
 beforeEach(() => fixtures(async () => {
     for (const collection of await mongoose.connection.db!.collections()) await collection.deleteMany({});
-    await Company.collection.insertMany([operator, provider].map((_id) => ({_id, name: String(_id), vat: String(_id), isActive: true, modules: ["marketplace"], deletedAt: null})));
+    await Company.collection.insertMany([
+        {_id: platform, name: "Platform", vat: "VAT-Platform", isActive: true, isPlatformOwner: true, modules: ["core"], deletedAt: null},
+        {_id: provider, name: String(provider), vat: String(provider), isActive: true, modules: ["marketplace"], deletedAt: null},
+    ]);
     await User.collection.insertMany([
         {_id: plumber, username: "pat@fix.test", name: "Pat", surname: "Plumber", companies: [provider]},
         {_id: colleague, username: "cole@fix.test", name: "Cole", surname: "League", companies: [provider]},
     ]);
-    euro = (await Currency.collection.insertOne({name: "Euro", symbol: "€", abbreviation: "EUR", decimalPlaces: 2, company: operator})).insertedId;
-    await MarketplaceConfig.collection.insertOne({company: operator, currency: euro, isOperator: true, listedOnPortal: false, deletedAt: null});
-    const city = (await City.collection.insertOne({name: "Durrës", company: operator})).insertedId;
-    const category = (await ListingCategory.collection.insertOne({name: "Leaks", slug: "leaks", delivery: "onsite", order: 0, company: operator, deletedAt: null})).insertedId;
+    euro = (await Currency.collection.insertOne({name: "Euro", symbol: "€", abbreviation: "EUR", decimalPlaces: 2, company: platform})).insertedId;
+    await MarketplaceConfig.collection.insertOne({company: platform, currency: euro, listedOnPortal: false, deletedAt: null});
+    const city = (await City.collection.insertOne({name: "Durrës", company: platform})).insertedId;
+    const category = (await ListingCategory.collection.insertOne({name: "Leaks", slug: "leaks", delivery: "onsite", order: 0, company: platform, deletedAt: null})).insertedId;
     job = (await TaskRequest.collection.insertOne({
         name: "TASK-1", title: "Leaking faucet", description: "Drips", category, budgetMax: 60, currency: euro,
         address: {street: "Rruga Tregtare 5", postalCode: "2001", city, latitude: 41.32, longitude: 19.45},
-        requester: buyer, status: "open", expiresAt: new Date(Date.now() + 86400000), company: operator, deletedAt: null,
+        requester: buyer, status: "open", expiresAt: new Date(Date.now() + 86400000), company: platform, deletedAt: null,
     })).insertedId;
     const listing = (await Listing.collection.insertOne({title: "Taps", company: provider, provider: plumber, category, status: "active", deletedAt: null})).insertedId;
     lead = (await TaskLead.collection.insertOne({name: "LEAD-1", taskRequest: job, provider: plumber, listing, distanceKm: 0.7, status: "new", company: provider, deletedAt: null, createdAt: new Date()})).insertedId;
@@ -93,13 +97,13 @@ describe("a provider's leads (D143)", () => {
         expect((await fixtures(() => TaskLead.collection.findOne({_id: lead})))?.status).toBe("viewed");
     });
 
-    it("turn a quote into a bid next to the job in the operator, once", async () => {
+    it("turn a quote into a bid next to the job in the platform company, once", async () => {
         const quoted = await call(asPlumber, "/quote", {_id: lead.toString(), amount: 45, deliveryDays: 1, proposal: "New cartridge and seals"});
         expect([quoted.status, quoted.body.message]).toEqual([200, "Quote sent"]);
 
         const bid = await fixtures(() => Bid.collection.findOne({taskRequest: job}));
         expect([String(bid?.company), String(bid?.bidder), String(bid?.bidderCompany), String(bid?.currency), bid?.amount, bid?.status])
-            .toEqual([String(operator), String(plumber), String(provider), String(euro), 45, "pending"]);
+            .toEqual([String(platform), String(plumber), String(provider), String(euro), 45, "pending"]);
         const stored = await fixtures(() => TaskLead.collection.findOne({_id: lead}));
         expect([stored?.status, String(stored?.bid)]).toEqual(["quoted", String(bid?._id)]);
 
@@ -135,7 +139,7 @@ describe("a lead's view (D143)", () => {
         expect(Object.keys(read.bid?.keys ?? {})).toEqual(expect.arrayContaining(["amount", "currency", "proposal", "deliveryDays", "status"]));
     });
 
-    // Found live on 2026-11-12: a route populates the lead's refs in the provider's tenant, where the operator's job
+    // Found live on 2026-11-12: a route populates the lead's refs in the provider's tenant, where the platform's job
     // reads as empty, so the document handed to the view had lost its job. The view reads the raw ids itself.
     it("still shows the job when the lead it is given lost its populated job", async () => {
         const populated = await withTenant(provider, async () => TaskLead.hydrate({...(await TaskLead.collection.findOne({_id: lead})), taskRequest: null}));
@@ -144,11 +148,11 @@ describe("a lead's view (D143)", () => {
     });
 });
 
-describe("the operator's job settings (D143)", () => {
+describe("the platform's job settings (D197)", () => {
     it("set how many providers a job reaches", async () => {
-        expect(await withTenant(operator, () => marketplaceOperatorLimits())).toEqual({});
-        await fixtures(() => MarketplaceConfig.collection.updateOne({company: operator}, {$set: {leadCap: 1, openJobLimit: 2}}));
-        expect(await withTenant(operator, () => marketplaceOperatorLimits())).toEqual({leadCap: 1, openJobLimit: 2});
+        expect(await withTenant(platform, () => marketplaceJobLimits())).toEqual({});
+        await fixtures(() => MarketplaceConfig.collection.updateOne({company: platform}, {$set: {leadCap: 1, openJobLimit: 2}}));
+        expect(await withTenant(platform, () => marketplaceJobLimits())).toEqual({leadCap: 1, openJobLimit: 2});
         // The cap is passed to the matching by `createJobLeads`; the matching honours it.
         expect(typeof findJobMatches).toBe("function");
     });

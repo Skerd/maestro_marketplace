@@ -1,4 +1,5 @@
 import {createCrudRouter} from "@coreModule/api/crudRouterFactory";
+import {registerPlatformRouter} from "@coreModule/utilities/security/platformListRegistry";
 import {buildCreateDataFromSchemaDef, buildUpdateDataFromSchemaDef} from "@coreModule/api/buildUpdateDataFromSchemaDef";
 import {MarketplaceConfigSchemaDef} from "armonia/src/modules/marketplace/api/marketplace/private/marketplaceConfig/marketplaceConfig.schema-def";
 import {createMarketplaceConfigFormSchema} from "armonia/src/modules/marketplace/api/marketplace/private/marketplaceConfig/createMarketplaceConfig.form.validator";
@@ -28,3 +29,6 @@ export const {router} = createCrudRouter({
     buildUpdateData: buildUpdateDataFromSchemaDef(MarketplaceConfigSchemaDef),
     rateLimits: {read: 60, write: 30, delete: 0},
 });
+
+// The platform company keeps the portal's job settings in its own settings record (D197).
+registerPlatformRouter(router, "marketplaceconfigs");

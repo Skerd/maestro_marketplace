@@ -1,5 +1,6 @@
 import {ObjectId} from "mongodb";
 import {createCrudRouter, selectIdsOf} from "@coreModule/api/crudRouterFactory";
+import {registerPlatformRouter} from "@coreModule/utilities/security/platformListRegistry";
 import {assertCanDelete} from "@coreModule/database/relationsRegistry";
 import {BidActions} from "@marketplaceModule/database/schemas/bid/bid.actions";
 import Bid, {type IBid} from "@marketplaceModule/database/schemas/bid/bid";
@@ -81,3 +82,6 @@ export const {router} = createCrudRouter<IBid, CreateBidFormType>({
     actions: BidActions,
     rateLimits: {read: 60, write: 30, delete: 20},
 });
+
+// The quotes on the portal's jobs sit next to the jobs in the platform company (D197).
+registerPlatformRouter(router, "marketplacebids");

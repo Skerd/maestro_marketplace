@@ -1,6 +1,6 @@
 import {afterAll, beforeAll, beforeEach, describe, expect, it, vi} from "vitest";
 
-// The operator and the sellers are found by their module, whatever the local `.env` enables.
+// The sellers are found by their module, whatever the local `.env` enables.
 vi.hoisted(() => {
     process.env.ENABLED_MODULES = "core,finance,marketplace";
 });
@@ -51,7 +51,8 @@ import {loadPublicTask} from "@marketplaceModule/utilities/services/taskBoard";
 import {taskQuoteStats} from "@marketplaceModule/utilities/services/publicTasks";
 import {bidVisibilityFilter} from "@marketplaceModule/utilities/services/marketplaceAccess";
 
-const operator = new ObjectId();
+// The platform company keeps the portal's tasks and decides disputes, running core only (D197).
+const platform = new ObjectId();
 const seller = new ObjectId();
 const bidderCompany = new ObjectId();
 const eur = new ObjectId();
@@ -67,8 +68,8 @@ const fixtures = <T>(fn: () => PromiseLike<T>): Promise<T> => asCrossTenant("tes
 
 const visitor: TestCaller = {userId: customer.toString(), companyId: new ObjectId().toString(), permissions: []};
 const sellerAdmin: TestCaller = {userId: provider.toString(), companyId: seller.toString(), isAdmin: true, permissions: allPermissionTags([Review, Dispute])};
-const operatorAdmin: TestCaller = {userId: new ObjectId().toString(), companyId: operator.toString(), isAdmin: true, permissions: allPermissionTags([Dispute])};
-const operatorStaff: TestCaller = {...operatorAdmin, userId: new ObjectId().toString(), isAdmin: false};
+const platformCompanyAdmin: TestCaller = {userId: new ObjectId().toString(), companyId: platform.toString(), isAdmin: true, isPlatformOwner: true, permissions: allPermissionTags([Dispute])};
+const platformCompanyStaff: TestCaller = {...platformCompanyAdmin, userId: new ObjectId().toString(), isAdmin: false};
 
 const call = (caller: TestCaller, method: "post" | "delete", path: string, body: object) =>
     request(app)[method](path).set(callerHeader(caller)).send(body);
@@ -93,13 +94,13 @@ beforeEach(() => fixtures(async () => {
     site.id = seller.toString();
     for (const collection of await mongoose.connection.db!.collections()) await collection.deleteMany({});
     const company = (_id: ObjectId, name: string, siteSlug: string) => ({_id, name, siteSlug, vat: `VAT-${name}`, isActive: true, modules: ["core", "finance", "marketplace"], deletedAt: null});
-    await Company.collection.insertMany([company(operator, "Operator", "tasks"), company(seller, "Seller", "seller"), company(bidderCompany, "Bidder", "bidder")]);
+    await Company.collection.insertMany([{_id: platform, name: "Platform", vat: "VAT-Platform", isActive: true, isPlatformOwner: true, modules: ["core"], deletedAt: null}, company(seller, "Seller", "seller"), company(bidderCompany, "Bidder", "bidder")]);
     await MarketplaceConfig.collection.insertMany([
-        {company: operator, currency: eur, isOperator: true, listedOnPortal: false, deletedAt: null},
+        {company: platform, currency: eur, listedOnPortal: false, deletedAt: null},
         {company: seller, currency: eur, listedOnPortal: true, deletedAt: null},
     ]);
     await Currency.collection.insertOne({_id: eur, name: "Euro", abbreviation: "EUR", symbol: "€", decimalPlaces: 2, company: seller, deletedAt: null});
-    await ListingCategory.collection.insertOne({_id: category, name: "Design", slug: "design", delivery: "remote", order: 0, company: operator, deletedAt: null});
+    await ListingCategory.collection.insertOne({_id: category, name: "Design", slug: "design", delivery: "remote", order: 0, company: platform, deletedAt: null});
 }));
 
 async function seedListing(title: string): Promise<ObjectId> {
@@ -166,7 +167,7 @@ describe("what the platform hides is gone from the public (D191)", () => {
     it("a hidden task leaves the task board and job matching", async () => {
         const task = new ObjectId();
         await fixtures(() => TaskRequest.collection.insertOne({
-            _id: task, title: "Logo for a bakery", name: "TASK-1", description: "A logo", company: operator, requester: customer,
+            _id: task, title: "Logo for a bakery", name: "TASK-1", description: "A logo", company: platform, requester: customer,
             category, status: "open", expiresAt: new Date(Date.now() + 86400000), currency: eur, deletedAt: null, createdAt: new Date(),
         }));
         await seedListing("Logo design");
@@ -174,16 +175,16 @@ describe("what the platform hides is gone from the public (D191)", () => {
         expect((await findJobMatches(job!)).map((match) => String(match.company))).toEqual([seller.toString()]);
         expect(String((await loadPublicTask(task.toString(), {logger, languageCode: lang}))._id)).toBe(task.toString());
 
-        await setHidden("marketplace.job", task, operator, true);
+        await setHidden("marketplace.job", task, platform, true);
         await expect(loadPublicTask(task.toString(), {logger, languageCode: lang})).rejects.toMatchObject({error_code: "task_request_not_found"});
         expect(await findJobMatches((await fixtures(() => TaskRequest.findById(task)))!)).toEqual([]);
-        expect(await snapshot("marketplace.job", task)).toMatchObject({title: "Logo for a bakery", companyId: operator, authorAccountId: customer, hidden: true});
+        expect(await snapshot("marketplace.job", task)).toMatchObject({title: "Logo for a bakery", companyId: platform, authorAccountId: customer, hidden: true});
     });
 
     it("a hidden listing reaches no job", async () => {
         const task = new ObjectId();
         await fixtures(() => TaskRequest.collection.insertOne({
-            _id: task, title: "Logo", name: "TASK-2", description: "A logo", company: operator, requester: customer,
+            _id: task, title: "Logo", name: "TASK-2", description: "A logo", company: platform, requester: customer,
             category, status: "open", expiresAt: new Date(Date.now() + 86400000), currency: eur, deletedAt: null, createdAt: new Date(),
         }));
         const listing = await seedListing("Logo design");
@@ -196,19 +197,19 @@ describe("what the platform hides is gone from the public (D191)", () => {
         const [shown, hidden] = [new ObjectId(), new ObjectId()];
         await fixtures(async () => {
             await TaskRequest.collection.insertOne({
-                _id: task, title: "Logo", name: "TASK-3", description: "A logo", company: operator, requester: customer,
+                _id: task, title: "Logo", name: "TASK-3", description: "A logo", company: platform, requester: customer,
                 category, status: "open", expiresAt: new Date(Date.now() + 86400000), currency: eur, deletedAt: null, createdAt: new Date(),
             });
             const bid = (_id: ObjectId, proposal: string) => ({
                 _id, name: `BID-${proposal}`, taskRequest: task, bidder: provider, bidderCompany, amount: 90, currency: eur,
-                proposal, deliveryDays: 3, status: "pending", company: operator, deletedAt: null, createdAt: new Date(),
+                proposal, deliveryDays: 3, status: "pending", company: platform, deletedAt: null, createdAt: new Date(),
             });
             await Bid.collection.insertMany([bid(shown, "Fair offer"), bid(hidden, "Pay me outside the platform")]);
         });
 
         await setHidden("marketplace.bid", hidden, bidderCompany, true);
         const buyer = {userId: customer.toString(), isAdmin: false};
-        const visible = await withTenant(operator, async () => Bid.find({company: operator, ...(await bidVisibilityFilter(operator, buyer, {}))}));
+        const visible = await withTenant(platform, async () => Bid.find({company: platform, ...(await bidVisibilityFilter(platform, buyer, {}))}));
         expect(visible.map((bid) => bid.proposal)).toEqual(["Fair offer"]);
         expect((await taskQuoteStats([{_id: task}])).get(task.toString())).toEqual({count: 1});
         expect(await snapshot("marketplace.bid", hidden)).toMatchObject({title: "Pay me outside the platform", companyId: bidderCompany, authorAccountId: provider, hidden: true});
@@ -229,7 +230,7 @@ describe("reviews are published by default (D191)", () => {
     });
 });
 
-describe("the marketplace operator decides disputes (D191)", () => {
+describe("the platform company decides disputes (D191, D197)", () => {
     async function seedDispute(): Promise<{dispute: ObjectId; order: ObjectId}> {
         const order = await seedOrder(await seedListing("Logo design"), "in_progress");
         const dispute = new ObjectId();
@@ -243,35 +244,35 @@ describe("the marketplace operator decides disputes (D191)", () => {
         const {dispute} = await seedDispute();
         for (const verb of ["startReview", "resolve", "close"]) {
             const refused = await call(sellerAdmin, "post", `/api/marketplace/dispute/${verb}`, {_id: dispute.toString(), resolution: "My call"});
-            expect([verb, refused.status, refused.body.error_code]).toEqual([verb, 403, "dispute_operator_only"]);
+            expect([verb, refused.status, refused.body.error_code]).toEqual([verb, 403, "dispute_platform_only"]);
         }
         const deleted = await call(sellerAdmin, "delete", "/api/marketplace/dispute", {_id: dispute.toString()});
-        expect([deleted.status, deleted.body.error_code]).toEqual([403, "dispute_operator_only"]);
+        expect([deleted.status, deleted.body.error_code]).toEqual([403, "dispute_platform_only"]);
         expect(await fixtures(() => Dispute.findById(dispute).lean())).toMatchObject({status: "open", deletedAt: null});
     });
 
-    it("lets the operator's admin decide it in the dispute's own company, and refuses the operator's other staff", async () => {
+    it("lets the platform company's admin decide it in the dispute's own company, and refuses its other staff", async () => {
         const {dispute, order} = await seedDispute();
-        const notAdmin = await call(operatorStaff, "post", "/api/marketplace/dispute/resolve", {_id: dispute.toString(), resolution: "Delivered"});
-        expect(notAdmin.body.error_code).toBe("dispute_operator_only");
+        const notAdmin = await call(platformCompanyStaff, "post", "/api/marketplace/dispute/resolve", {_id: dispute.toString(), resolution: "Delivered"});
+        expect(notAdmin.body.error_code).toBe("dispute_platform_only");
 
-        const resolved = await call(operatorAdmin, "post", "/api/marketplace/dispute/resolve", {_id: dispute.toString(), resolution: "The files were delivered"});
+        const resolved = await call(platformCompanyAdmin, "post", "/api/marketplace/dispute/resolve", {_id: dispute.toString(), resolution: "The files were delivered"});
         expect([resolved.status, resolved.body.error_code]).toEqual([200, undefined]);
         expect(await fixtures(() => Dispute.findById(dispute).lean())).toMatchObject({status: "resolved", resolution: "The files were delivered", company: seller});
         expect((await fixtures(() => Order.findById(order).lean()))?.status).toBe("completed");
     });
 
-    it("lists every company's disputes to the operator only, with the company and whether the caller decides", async () => {
+    it("lists every company's disputes to the platform company only, with the company and whether the caller decides", async () => {
         const {dispute} = await seedDispute();
-        const list = await call(operatorAdmin, "post", "/api/marketplace/dispute/operator", {offset: 0, limit: 10});
+        const list = await call(platformCompanyAdmin, "post", "/api/marketplace/dispute/platform", {offset: 0, limit: 10});
         expect(list.status).toBe(200);
         expect(list.body.data.map((row: {_id: string; company?: {name: string}; canDecide?: boolean}) => [row._id, row.company?.name, row.canDecide]))
             .toEqual([[dispute.toString(), "Seller", true]]);
-        expect((await call(operatorStaff, "post", "/api/marketplace/dispute/operator", {offset: 0, limit: 10})).body.data[0].canDecide).toBeUndefined();
+        expect((await call(platformCompanyStaff, "post", "/api/marketplace/dispute/platform", {offset: 0, limit: 10})).body.data[0].canDecide).toBeUndefined();
 
         const access = await call(sellerAdmin, "post", "/api/marketplace/dispute/access", {});
-        expect(access.body.data).toEqual({isOperator: false, canDecide: false});
-        const refused = await call(sellerAdmin, "post", "/api/marketplace/dispute/operator", {offset: 0, limit: 10});
-        expect(refused.body.error_code).toBe("dispute_operator_only");
+        expect(access.body.data).toEqual({isPlatform: false, canDecide: false});
+        const refused = await call(sellerAdmin, "post", "/api/marketplace/dispute/platform", {offset: 0, limit: 10});
+        expect(refused.body.error_code).toBe("dispute_platform_only");
     });
 });

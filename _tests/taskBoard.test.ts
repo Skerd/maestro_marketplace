@@ -35,7 +35,8 @@ import ListingCategory from "@marketplaceModule/database/schemas/listingCategory
 import MarketplaceConfig from "@marketplaceModule/database/schemas/marketplaceConfig/marketplaceConfig";
 import {createJobLeads} from "@marketplaceModule/utilities/services/jobMatching";
 
-const operator = new ObjectId();
+// The platform company keeps the portal's tasks and their quotes, and runs core only (D197).
+const platform = new ObjectId();
 const fix = new ObjectId();
 const pros = new ObjectId();
 const hidden = new ObjectId();
@@ -71,21 +72,21 @@ beforeEach(() => fixtures(async () => {
     const company = (_id: ObjectId, extra: Record<string, unknown> = {}) =>
         ({_id, name: String(_id), vat: String(_id), isActive: true, modules: ["core", "finance", "marketplace"], deletedAt: null, ...extra});
     // `pros` sells services but has nothing in these categories; `hidden` was hidden from the portal by the platform.
-    await Company.collection.insertMany([company(operator), company(fix), company(pros), company(hidden, {hiddenFromPortal: true})]);
+    await Company.collection.insertMany([company(platform, {isPlatformOwner: true, modules: ["core"]}), company(fix), company(pros), company(hidden, {hiddenFromPortal: true})]);
     await User.collection.insertMany([plumber, designer, translator, ghost, clerk, buyer].map((_id) => ({_id, username: `${_id}@test`, name: "N", surname: "S"})));
     const euro = (await Currency.collection.insertOne({name: "Euro", symbol: "€", abbreviation: "EUR", decimalPlaces: 2, deletedAt: null})).insertedId;
     await MarketplaceConfig.collection.insertMany([
-        {company: operator, currency: euro, isOperator: true, listedOnPortal: false, deletedAt: null},
+        {company: platform, currency: euro, listedOnPortal: false, deletedAt: null},
         {company: fix, currency: euro, listedOnPortal: true, deletedAt: null},
         {company: pros, currency: euro, listedOnPortal: true, deletedAt: null},
     ]);
     const city = (await City.collection.insertOne({name: "Durrës", deletedAt: null})).insertedId;
-    const leaks = (await ListingCategory.collection.insertOne({name: "Leaks", slug: "leaks", delivery: "onsite", order: 0, company: operator, deletedAt: null})).insertedId;
-    await ListingCategory.collection.insertOne({_id: design, name: "Design", slug: "design", delivery: "remote", order: 0, company: operator, deletedAt: null});
+    const leaks = (await ListingCategory.collection.insertOne({name: "Leaks", slug: "leaks", delivery: "onsite", order: 0, company: platform, deletedAt: null})).insertedId;
+    await ListingCategory.collection.insertOne({_id: design, name: "Design", slug: "design", delivery: "remote", order: 0, company: platform, deletedAt: null});
     const task = (_id: ObjectId, title: string, fields: Record<string, unknown> = {}) => ({
         _id, name: title, title, description: title, category: leaks, budgetMax: 60, currency: euro, requester: buyer, status: "open",
         address: {street: "Rruga Tregtare 5", postalCode: "2001", city, latitude: 41.32, longitude: 19.45},
-        expiresAt: new Date(Date.now() + 10 * DAY), createdAt: new Date(), company: operator, deletedAt: null, ...fields,
+        expiresAt: new Date(Date.now() + 10 * DAY), createdAt: new Date(), company: platform, deletedAt: null, ...fields,
     });
     await TaskRequest.collection.insertMany([
         task(jobs.tap, "Leaking faucet"),
@@ -111,7 +112,7 @@ describe("quoting from the task board (D172)", {timeout: 30000}, () => {
         expect([lead?.origin, lead?.status, String(lead?.provider), lead?.listing]).toEqual(["board", "quoted", String(designer), undefined]);
         const bid = await fixtures(() => Bid.collection.findOne({_id: lead?.bid}));
         expect([String(bid?.company), String(bid?.bidderCompany), String(bid?.bidder), bid?.amount, bid?.status])
-            .toEqual([String(operator), String(pros), String(designer), 50, "pending"]);
+            .toEqual([String(platform), String(pros), String(designer), 50, "pending"]);
 
         // A second quote from the same person or anyone else in the company waits for the first to be decided.
         expect((await quote(asDesigner, jobs.tap, 40)).body.error_code).toBe("bid_already_submitted");
@@ -128,8 +129,8 @@ describe("quoting from the task board (D172)", {timeout: 30000}, () => {
             .toBe("task_lead_not_open");
     });
 
-    it("refuses the operator, a company hidden from the portal, the buyer, a private site task and a closed task", async () => {
-        expect((await quote(as(clerk, operator), jobs.tap, 10)).body.error_code).toBe("task_board_bidder_not_allowed");
+    it("refuses the platform company, a company hidden from the portal, the buyer, a private site task and a closed task", async () => {
+        expect((await quote(as(clerk, platform), jobs.tap, 10)).body.error_code).toBe("task_board_bidder_not_allowed");
         expect((await quote(as(ghost, hidden), jobs.tap, 10)).body.error_code).toBe("task_board_bidder_not_allowed");
         expect((await quote(asDesigner, jobs.onFixSite, 10)).body.error_code).toBe("task_request_not_found");
         expect((await quote(asDesigner, jobs.closed, 10)).body.error_code).toBe("task_request_not_open");
@@ -141,11 +142,11 @@ describe("quoting from the task board (D172)", {timeout: 30000}, () => {
 
     it("does not let board leads use up a task's lead cap", async () => {
         expect((await quote(asPlumber, jobs.logo, 150)).status).toBe(200);
-        await fixtures(() => MarketplaceConfig.collection.updateOne({company: operator}, {$set: {leadCap: 1}}));
+        await fixtures(() => MarketplaceConfig.collection.updateOne({company: platform}, {$set: {leadCap: 1}}));
         const logo = await fixtures(() => TaskRequest.findById(jobs.logo));
         if (!logo) throw new Error("the logo task is missing");
         // The plumber's board lead is not a notification: the one the cap allows still goes to the matched designer.
-        expect(await withTenant(operator, () => createJobLeads(logo, {logger: getLogger("test"), languageCode: "en-US"}))).toBe(1);
+        expect(await withTenant(platform, () => createJobLeads(logo, {logger: getLogger("test"), languageCode: "en-US"}))).toBe(1);
         const leads = await fixtures(() => TaskLead.collection.find({taskRequest: jobs.logo}).sort({origin: 1}).toArray());
         expect(leads.map((lead) => [lead.origin, String(lead.provider)])).toEqual([["board", String(plumber)], ["matched", String(designer)]]);
     });

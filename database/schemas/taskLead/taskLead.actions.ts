@@ -18,7 +18,7 @@ import {publishTaskChange, pushQuoteToBuyer} from "@marketplaceModule/utilities/
 import type {ITaskLead} from "@marketplaceModule/database/schemas/taskLead/taskLead";
 import type {ITaskRequest} from "@marketplaceModule/database/schemas/taskRequest/taskRequest";
 
-const LEAD_BID_REFERENCE = {reason: "a lead records the quote its provider placed next to the job in the marketplace operator", fields: ["TaskLead.bid"]} as const;
+const LEAD_BID_REFERENCE = {reason: "a lead records the quote its provider placed next to the job in the platform company", fields: ["TaskLead.bid"]} as const;
 
 /**
  * A provider's answers to a lead (D143) and their quote from the task board (D172). Each is the lead provider's own (or an

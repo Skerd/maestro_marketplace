@@ -1,3 +1,4 @@
+import {findPlatformCompanyId} from "@coreModule/utilities/security/platformAccess";
 import {ObjectId} from "mongodb";
 import type {ClientSession} from "mongoose";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
@@ -19,19 +20,18 @@ import {taskLeadService} from "@marketplaceModule/database/schemas/taskLead/task
 import {taskRequestService} from "@marketplaceModule/database/schemas/taskRequest/taskRequest.service";
 import {bidService} from "@marketplaceModule/database/schemas/bid/bid.service";
 import {taskLeadQuoteToDTO} from "@marketplaceModule/utilities/mappers/taskLead/taskLeadMapper.dto";
-import {findMarketplaceOperatorId} from "@marketplaceModule/utilities/services/marketplaceOperator";
 import {JOB_POPULATE, JOB_SELECT, leadVisibilityFilter} from "@marketplaceModule/utilities/services/taskLeads";
 import {openPublicTaskFilter, publicTaskClause, taskQuoteStats, toPublicTask, type TaskBoardQuery} from "@marketplaceModule/utilities/services/publicTasks";
 
 type Ctx = {logger: serverLogger; languageCode: string; session?: ClientSession | null};
 
-const BOARD_REASON = "the task board shows the operator's public tasks to every services company (D172)";
-const LEAD_REFERENCE = {reason: "a lead in the provider's company points at the job in the marketplace operator", fields: ["TaskLead.taskRequest"]} as const;
+const BOARD_REASON = "the task board shows the platform's public tasks to every services company (D172)";
+const LEAD_REFERENCE = {reason: "a lead in the provider's company points at the job in the platform company", fields: ["TaskLead.taskRequest"]} as const;
 
 /**
  * Who may quote from the task board (D172): any company with the marketplace module that the portal may show (active,
- * not hidden by the platform owner, approved when it signed up by itself, D178), whatever its listings, except the
- * operator, which sells nothing (D143).
+ * not hidden by the platform owner, approved when it signed up by itself, D178), whatever its listings. The platform
+ * company, which keeps the tasks (D197), does not run the module, so it never quotes.
  */
 export async function assertTaskBoardBidder(companyId: ObjectId, languageCode: string): Promise<void> {
     if (!(await isTaskBoardBidder(companyId))) throw apiValidationException("task_board_bidder_not_allowed", "", null, languageCode);
@@ -39,13 +39,12 @@ export async function assertTaskBoardBidder(companyId: ObjectId, languageCode: s
 
 /** Whether a company may quote from the task board (see `assertTaskBoardBidder`). */
 export async function isTaskBoardBidder(companyId: ObjectId): Promise<boolean> {
-    const [eligible, approved, operatorId] = await Promise.all([
+    const [eligible, approved] = await Promise.all([
         asCrossTenant(BOARD_REASON, () => portalListedCompanyIds("marketplace", {}, {companyId})),
         // Quoting names the company on the apex, so a self-serve company quotes once the platform approved it (D178).
         companyService.count({_id: companyId, ...PORTAL_APPROVED_CLAUSE}),
-        findMarketplaceOperatorId(),
     ]);
-    return eligible.length > 0 && approved > 0 && !!operatorId && !operatorId.equals(companyId);
+    return eligible.length > 0 && approved > 0;
 }
 
 /**
@@ -68,11 +67,11 @@ export async function portalQuoteOptions(task: ITaskRequest, user: IUser, sessio
     });
 }
 
-/** A task of the public board (D172), read in the operator; a task posted on a provider's own site is not one. */
+/** A task of the public board (D172), read in the platform company; a task posted on a provider's own site is not one. */
 export async function loadPublicTask(id: string, ctx: Ctx): Promise<ITaskRequest> {
-    const operatorId = await findMarketplaceOperatorId();
-    const task = operatorId ? await asCrossTenant(BOARD_REASON, () => taskRequestService.findOne(
-        {_id: new ObjectId(id), ...publicTaskClause(operatorId)},
+    const platformId = await findPlatformCompanyId();
+    const task = platformId ? await asCrossTenant(BOARD_REASON, () => taskRequestService.findOne(
+        {_id: new ObjectId(id), ...publicTaskClause(platformId)},
         {session: ctx.session ?? undefined, logger: ctx.logger, languageCode: ctx.languageCode},
     )) : null;
     if (!task) throw apiValidationException("task_request_not_found", "", null, ctx.languageCode);
@@ -150,8 +149,8 @@ export async function taskBoardPage(
     caller: UserContext,
     ctx: Ctx,
 ): Promise<{data: TaskBoardTask[]; total: number}> {
-    const operatorId = await findMarketplaceOperatorId();
-    const filter = operatorId ? await openPublicTaskFilter(operatorId, query) : null;
+    const platformId = await findPlatformCompanyId();
+    const filter = platformId ? await openPublicTaskFilter(platformId, query) : null;
     if (!filter) return {data: [], total: 0};
     const opts = {logger: ctx.logger, languageCode: ctx.languageCode, withDeleted: false as const};
     const [tasks, total] = await asCrossTenant(BOARD_REASON, () => Promise.all([
@@ -163,9 +162,9 @@ export async function taskBoardPage(
 
 /** One task of the board, open or not, as the panel shows it (D172). */
 export async function taskBoardSingle(id: string, companyId: ObjectId, caller: UserContext, ctx: Ctx): Promise<TaskBoardTask> {
-    const operatorId = await findMarketplaceOperatorId();
-    const task = operatorId ? await asCrossTenant(BOARD_REASON, () => taskRequestService.findOne(
-        {_id: new ObjectId(id), ...publicTaskClause(operatorId)},
+    const platformId = await findPlatformCompanyId();
+    const task = platformId ? await asCrossTenant(BOARD_REASON, () => taskRequestService.findOne(
+        {_id: new ObjectId(id), ...publicTaskClause(platformId)},
         {logger: ctx.logger, languageCode: ctx.languageCode},
         JOB_POPULATE,
         JOB_SELECT,

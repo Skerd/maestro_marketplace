@@ -13,7 +13,8 @@ export const marketplaceConfigEditFormView: ViewConfig = {
     nodes: [
         {
             render: "#TitleWithCollapse",
-            props: {title: "form.settingsSectionTitle"},
+            // A provider's own settings; the platform company's settings are its job settings only (D197).
+            props: {title: "form.settingsSectionTitle", skipRenderWhenFormExtraTruthy: "isPlatform"},
             permissions: {readAny: ["listedOnPortal", "currency"], writeAny: ["listedOnPortal", "currency"]},
             children: [
                 {
@@ -51,7 +52,7 @@ export const marketplaceConfigEditFormView: ViewConfig = {
         {
             // What we provide (D196): the sections the company works in, which its listing form's category picker offers.
             render: "#TitleWithCollapse",
-            props: {title: "form.whatWeProvideSectionTitle"},
+            props: {title: "form.whatWeProvideSectionTitle", skipRenderWhenFormExtraTruthy: "isPlatform"},
             permissions: {readAny: ["branches"], writeAny: ["branches"]},
             children: [
                 {render: "#FormAlert", props: {message: "form.whatWeProvideHint"}},
@@ -76,12 +77,12 @@ export const marketplaceConfigEditFormView: ViewConfig = {
             ],
         },
         {
-            // The marketplace operator's own settings (D143); the settings page passes `isOperator` as a form extra.
+            // The portal's job settings, which only the platform company keeps (D197); the settings page passes `isPlatform`.
             render: "#TitleWithCollapse",
-            props: {title: "form.operatorSectionTitle", skipRenderWhenFormExtraNotTruthy: "isOperator"},
+            props: {title: "form.jobSettingsSectionTitle", skipRenderWhenFormExtraNotTruthy: "isPlatform"},
             permissions: {readAny: ["leadCap", "openJobLimit"], writeAny: ["leadCap", "openJobLimit"]},
             children: [
-                {render: "#FormAlert", props: {message: "form.operatorSectionHint"}},
+                {render: "#FormAlert", props: {message: "form.jobSettingsSectionHint"}},
                 {
                     render: "#FormGrid",
                     props: {columns: 3},

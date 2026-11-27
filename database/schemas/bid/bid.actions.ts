@@ -16,7 +16,7 @@ import type {ActionMessage, SingleForm} from "armonia/src/modules/core/types/sha
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {withTenant} from "@coreModule/utilities/endpoints/tenantScope";
 import {taskLeadService} from "@marketplaceModule/database/schemas/taskLead/taskLead.service";
-import {marketplaceOperator} from "@marketplaceModule/utilities/services/portalBuyerTargets";
+import {platformCompany} from "@marketplaceModule/utilities/services/portalBuyerTargets";
 import {inJobCompany} from "@marketplaceModule/utilities/services/portalJobs";
 import {endJobLeads, notifyEndedLeads, openAwardOrder} from "@marketplaceModule/utilities/services/jobOutcome";
 import {notHiddenByPlatform} from "@coreModule/database/plugins/platformHiddenPlugin";
@@ -88,8 +88,8 @@ export class BidActions {
         schema: validateSingleForm,
         // The caller's own record, or one they are a party to: the party check below decides (D14).
         selfService: true,
-        // A portal buyer's job and its bids live in the marketplace operator (D143).
-        portalBuyer: marketplaceOperator,
+        // A portal buyer's job and its bids live in the platform company (D197).
+        portalBuyer: platformCompany,
     })
     async accept(params: Record<string, any>): Promise<ActionMessage & {_id: string}> {
         return inJobCompany(params as TransactionRequiredParams & SingleForm, (p) => this.acceptBid(p));
@@ -162,8 +162,8 @@ export class BidActions {
         schema: validateSingleForm,
         // The caller's own record, or one they are a party to: the party check below decides (D14).
         selfService: true,
-        // A portal buyer's job and its bids live in the marketplace operator (D143).
-        portalBuyer: marketplaceOperator,
+        // A portal buyer's job and its bids live in the platform company (D197).
+        portalBuyer: platformCompany,
     })
     async reject(params: Record<string, any>): Promise<ActionMessage> {
         return inJobCompany(params as TransactionRequiredParams & SingleForm, (p) => this.rejectBid(p));

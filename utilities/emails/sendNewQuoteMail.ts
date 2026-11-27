@@ -18,7 +18,7 @@ const LOCALES_ROOT = path.join(__dirname, "static", "locales");
 const TEMPLATE_DIR = path.join(__dirname, "templates", "newQuote");
 
 export type NewQuoteEmail = {
-    /** The company that keeps the job (the marketplace operator): its SMTP sends the email. */
+    /** The company that keeps the job (the platform company): its SMTP sends the email. */
     companyId: string;
     languageCode: string;
     email: string;

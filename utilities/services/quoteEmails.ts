@@ -13,7 +13,7 @@ import {publishNewQuoteEmail} from "@marketplaceModule/kafka/kafkaProducer";
 import type {NewQuoteEmailEvent} from "@marketplaceModule/kafka/types";
 
 const logger = getLogger("marketplace_quote_emails");
-const REASON = "a new-quote email names the provider company that quoted on the buyer's job in the operator";
+const REASON = "a new-quote email names the provider company that quoted on the buyer's job in the platform company";
 
 export type NewQuote = {provider: ObjectId; providerCompany: ObjectId; amount: number; deliveryDays: number};
 

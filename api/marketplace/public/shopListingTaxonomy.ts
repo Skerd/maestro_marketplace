@@ -1,3 +1,4 @@
+import {findPlatformCompanyId} from "@coreModule/utilities/security/platformAccess";
 import {Router} from "express";
 import {ObjectId} from "mongodb";
 import type {Model} from "mongoose";
@@ -12,7 +13,7 @@ import {listingCategoryService} from "@marketplaceModule/database/schemas/listin
 import {resolveStorefrontContext, inStorefrontCatalog} from "@coreModule/utilities/marketing/portalStorefront";
 import {liveProviderCompanyClause} from "@marketplaceModule/utilities/shop/marketplaceSellers";
 import {publicListingClause} from "@marketplaceModule/utilities/shop/shopMarketplaceFilter";
-import {findMarketplaceOperatorId, marketplaceCategoryClause} from "@marketplaceModule/utilities/services/marketplaceOperator";
+import {marketplaceCategoryClause} from "@marketplaceModule/utilities/services/marketplacePlatform";
 import {asCrossTenant} from "@coreModule/utilities/endpoints/tenantScope";
 import {validateFormZod} from "@coreModule/utilities/middlewares/validateFormZod";
 import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
@@ -63,9 +64,10 @@ router.post(
         const {languageCode, origin, section} = params;
 
         const ctx = await resolveStorefrontContext(origin, languageCode);
-        // The operator's own site is the public task board (D172): like the apex, it offers every provider's work.
-        const operatorId = ctx.mode === "tenant" ? await findMarketplaceOperatorId() : undefined;
-        const taskBoard = ctx.mode === "tenant" && !!operatorId?.equals(ctx.company._id);
+        // The platform company keeps the public task board (D172, D197): on its own site, like the apex, it offers
+        // every provider's work.
+        const platformId = ctx.mode === "tenant" ? await findPlatformCompanyId() : undefined;
+        const taskBoard = ctx.mode === "tenant" && !!platformId?.equals(ctx.company._id);
         const view = <T>(read: () => Promise<T>): Promise<T> => taskBoard
             ? asCrossTenant("the task board offers every provider's categories (D172)", read)
             : inStorefrontCatalog(ctx, read);

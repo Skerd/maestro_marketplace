@@ -13,7 +13,7 @@ import {
 import type {TaskBoardPortalOptionsResponse, TaskBoardResponse, TaskBoardSingleResponse} from "armonia/src/modules/marketplace/api/marketplace/private/taskBoard/taskBoard.types";
 import TaskLead from "@marketplaceModule/database/schemas/taskLead/taskLead";
 import {loadPublicTask, portalQuoteOptions, taskBoardPage, taskBoardSingle} from "@marketplaceModule/utilities/services/taskBoard";
-import {marketplaceOperator} from "@marketplaceModule/utilities/services/portalBuyerTargets";
+import {platformCompany} from "@marketplaceModule/utilities/services/portalBuyerTargets";
 
 /**
  * The task board in the panel (D172): the open public tasks any services company may quote on, newest first, each with
@@ -53,8 +53,8 @@ router.post(
 
 router.post(
     "/portalOptions",
-    // A portal session lives in the platform company; the board's module is the operator's (D143).
-    authMW("private", {portalBuyer: marketplaceOperator}),
+    // A portal session lives in the platform company, which keeps the board's tasks and answers its module gate (D197).
+    authMW("private", {portalBuyer: platformCompany}),
     rateLimiter({windowMs: 60000, max: 60}),
     validateFormZod(validateSingleForm),
     asyncHandler(async (params: AuthenticatedMWType & SingleForm): Promise<TaskBoardPortalOptionsResponse> => {

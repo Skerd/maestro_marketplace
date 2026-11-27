@@ -23,12 +23,13 @@ import {disputesToSelect} from "@marketplaceModule/utilities/mappers/dispute/dis
 import {restoreUnlessKeyTaken} from "@coreModule/api/restoreUnlessKeyTaken";
 import {asPortalBuyer, isOrderParty, orderChildFilter} from "@marketplaceModule/utilities/services/marketplaceAccess";
 import {
-    assertDisputeOperator,
-    assertOperatorSession,
-    isMarketplaceOperator,
-    notifyOperatorOfDispute,
-    OPERATOR_DISPUTES_REASON,
-} from "@marketplaceModule/utilities/services/operatorDisputes";
+    assertDisputePlatformAdmin,
+    assertDisputePlatformSession,
+    notifyPlatformOfDispute,
+    PLATFORM_DISPUTES_REASON,
+} from "@marketplaceModule/utilities/services/platformDisputes";
+import {isPlatformCompany} from "@coreModule/utilities/security/platformAccess";
+import {registerPlatformRouter} from "@coreModule/utilities/security/platformListRegistry";
 import type {AuthenticatedMWType} from "@coreModule/utilities/middlewares/authMW";
 import {schemaSanitizer, type SchemaSanitizerMWType} from "@coreModule/utilities/middlewares/schemaSanitizerMW";
 import {dslFilterMW, type DslFilterMWType} from "@coreModule/utilities/middlewares/dslFilterMW";
@@ -60,7 +61,7 @@ async function buildDisputeCreate({order: orderRef, reason, actionUserCtx, compa
     };
 }
 
-/** Tells the other party of the order that a dispute was opened, and the marketplace operator, who decides it (D191). */
+/** Tells the other party of the order that a dispute was opened, and the platform company, which decides it (D191, D197). */
 async function notifyDisputeOpened(created: IDispute, params: CrudCreateParams<CreateDisputeFormType>) {
     const {session, logger, languageCode, company, actionUserCtx} = params;
     const order = await orderService.findOneOrThrow({_id: created.order._id, company: company._id}, {session, logger, languageCode});
@@ -80,7 +81,7 @@ async function notifyDisputeOpened(created: IDispute, params: CrudCreateParams<C
             },
         });
     });
-    await notifyOperatorOfDispute(created, order, {company, languageCode, session, logger});
+    await notifyPlatformOfDispute(created, order, {company, languageCode, session, logger});
 }
 
 const restoreDispute = restoreUnlessKeyTaken({
@@ -118,15 +119,15 @@ export const {router} = createCrudRouter<IDispute, CreateDisputeFormType>({
     /** Status and resolution via DisputeActions. */
     buildUpdateData: () => ({}),
     /**
-     * Only the marketplace operator's admins remove or restore a dispute (D191): an open one blocks delivery acceptance
+     * Only the platform company's admins remove or restore a dispute (D191, D197): an open one blocks delivery acceptance
      * and the payout, so neither party may make it go away.
      */
     overrideRestoreHandler: async (params) => {
-        await assertDisputeOperator(params.company._id, params.actionUserCtx, params.languageCode);
+        assertDisputePlatformAdmin(params.company, params.actionUserCtx, params.languageCode);
         return restoreDispute(params);
     },
     beforeDelete: async (params, doc) => {
-        await assertDisputeOperator(params.company._id, params.actionUserCtx, params.languageCode);
+        assertDisputePlatformAdmin(params.company, params.actionUserCtx, params.languageCode);
         await assertCanDelete(Dispute.modelName, doc._id, params.languageCode, params.session);
     },
     actions: DisputeActions,
@@ -151,13 +152,13 @@ router.put(
     })),
 );
 
-/** A dispute on the operator's list (D191): with the company whose order it is, and whether the caller decides it. */
-function toOperatorDispute(dispute: IDispute, canDecide: boolean): DisputeDTO {
+/** A dispute on the platform's list (D191, D197): with the company whose order it is, and whether the caller decides it. */
+function toPlatformDispute(dispute: IDispute, canDecide: boolean): DisputeDTO {
     return {...disputeToDTO(dispute), ...(canDecide ? {canDecide} : {})};
 }
 
-/** The fields the caller may read, plus the company the operator needs to see. */
-function operatorReadPopulate(params: SchemaSanitizerMWType): {populate: unknown[]; select?: string} {
+/** The fields the caller may read, plus the company the platform needs to see. */
+function platformReadPopulate(params: SchemaSanitizerMWType): {populate: unknown[]; select?: string} {
     const {populate, select} = SchemaGuard.generatePopulate(params.sanitizedReadFields, Dispute.schema);
     return {
         populate: [...[populate ?? []].flat(), {path: "company", select: "name"}],
@@ -166,10 +167,10 @@ function operatorReadPopulate(params: SchemaSanitizerMWType): {populate: unknown
 }
 
 /**
- * The marketplace operator's own routes (D191), for its Disputes list in the panel:
- * - POST "/access"          — whether the session company is the operator and the caller decides its disputes
- * - POST "/operator"        — a page of every company's disputes, newest first (the operator only)
- * - POST "/operator/single" — one of them
+ * The platform company's own routes (D191, D197), for its Disputes list in the panel:
+ * - POST "/access"          — whether the session company is the platform and the caller decides its disputes
+ * - POST "/platform"        — a page of every company's disputes, newest first (the platform company only)
+ * - POST "/platform/single" — one of them
  * Their decisions are this router's `startReview`, `resolve` and `close` actions, which run in the dispute's company.
  */
 router.post(
@@ -177,13 +178,13 @@ router.post(
     authMW("private"),
     rateLimiter({windowMs: 60000, max: 60}),
     asyncHandler(async ({company, actionUserCtx}: AuthenticatedMWType): Promise<DisputeAccessResponse> => {
-        const isOperator = await isMarketplaceOperator(company._id);
-        return {data: {isOperator, canDecide: isOperator && actionUserCtx.isAdmin}};
+        const isPlatform = isPlatformCompany(company);
+        return {data: {isPlatform, canDecide: isPlatform && actionUserCtx.isAdmin}};
     }),
 );
 
 router.post(
-    "/operator",
+    "/platform",
     authMW("private"),
     rateLimiter({windowMs: 60000, max: 60}),
     validateFormZod(validateTableForm),
@@ -191,30 +192,33 @@ router.post(
     dslFilterMW({model: "disputes"}),
     asyncHandler(async (params: AuthenticatedMWType & SchemaSanitizerMWType & DslFilterMWType & TableForm): Promise<DisputeListResponse> => {
         const {company, actionUserCtx, logger, languageCode, limit, offset, sortBy, sortOrder, dslFilterQuery} = params;
-        await assertOperatorSession(company._id, languageCode);
-        const {populate, select} = operatorReadPopulate(params);
+        assertDisputePlatformSession(company, languageCode);
+        const {populate, select} = platformReadPopulate(params);
         const filter: Record<string, unknown> = dslFilterQuery && Object.keys(dslFilterQuery).length > 0 ? {$and: [dslFilterQuery]} : {};
         const sort = sortBy && sortOrder ? {[sortBy]: sortOrder === "asc" ? 1 as const : -1 as const} : {createdAt: -1 as const};
-        const [docs, total] = await asCrossTenant(OPERATOR_DISPUTES_REASON, () => Promise.all([
+        const [docs, total] = await asCrossTenant(PLATFORM_DISPUTES_REASON, () => Promise.all([
             disputeService.find(filter, {logger, languageCode}, populate, select, sort, limit, offset ?? 0),
             disputeService.count(filter, {logger, languageCode}),
         ]));
-        return {data: docs.map((doc) => toOperatorDispute(doc, actionUserCtx.isAdmin)), total};
+        return {data: docs.map((doc) => toPlatformDispute(doc, actionUserCtx.isAdmin)), total};
     }),
 );
 
 router.post(
-    "/operator/single",
+    "/platform/single",
     authMW("private"),
     rateLimiter({windowMs: 60000, max: 60}),
     validateFormZod(validateSingleForm),
     schemaSanitizer({model: "disputes", requiredModes: ["read"]}),
     asyncHandler(async (params: AuthenticatedMWType & SchemaSanitizerMWType & SingleForm): Promise<DisputeDTO> => {
         const {company, actionUserCtx, logger, languageCode, _id} = params;
-        await assertOperatorSession(company._id, languageCode);
-        const {populate, select} = operatorReadPopulate(params);
-        const dispute = await asCrossTenant(OPERATOR_DISPUTES_REASON, () =>
+        assertDisputePlatformSession(company, languageCode);
+        const {populate, select} = platformReadPopulate(params);
+        const dispute = await asCrossTenant(PLATFORM_DISPUTES_REASON, () =>
             disputeService.findOneOrThrow({_id: new ObjectId(_id)}, {logger, languageCode}, populate, select));
-        return toOperatorDispute(dispute, actionUserCtx.isAdmin);
+        return toPlatformDispute(dispute, actionUserCtx.isAdmin);
     }),
 );
+
+// The platform company decides every company's disputes (D197) without running the module.
+registerPlatformRouter(router, "disputes");

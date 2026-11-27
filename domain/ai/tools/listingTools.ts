@@ -21,7 +21,7 @@ import type {AssistantTool, AssistantToolContext} from "@coreModule/domain/ai/to
 import {accessDenied, requirePermission} from "@coreModule/domain/ai/tools/assistantToolAccess";
 import {listingService} from "@marketplaceModule/database/schemas/listing/listing.service";
 import {listingCategoryService} from "@marketplaceModule/database/schemas/listingCategory/listingCategory.service";
-import {marketplaceCategoryClause} from "@marketplaceModule/utilities/services/marketplaceOperator";
+import {marketplaceCategoryClause} from "@marketplaceModule/utilities/services/marketplacePlatform";
 import {providerProfileService} from "@marketplaceModule/database/schemas/providerProfile/providerProfile.service";
 import type {ListingStatus, PricingType} from "@marketplaceModule/database/schemas/listing/listing";
 import {

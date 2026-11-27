@@ -5,9 +5,10 @@ import type {MarketplaceConfig as MarketplaceConfigDto} from "armonia/src/module
 import MarketplaceConfig from "./marketplaceConfig";
 import {marketplaceConfigService} from "./marketplaceConfig.service";
 import {marketplaceConfigToDTO} from "@marketplaceModule/utilities/mappers/marketplaceConfig/marketplaceConfigMapper.dto";
+import {isPlatformCompany} from "@coreModule/utilities/security/platformAccess";
 
 export class MarketplaceConfigActions {
-    /** Get-or-create the company's marketplace settings; used by the settings page. */
+    /** Get-or-create the company's marketplace settings; used by the settings page (the platform's are its job settings, D197). */
     @action({auth: "private", rateLimit: {windowMs: 60000, max: 60}, transaction: true})
     async ensure(params: Record<string, any>): Promise<MarketplaceConfigDto> {
         const {logger, languageCode, session, actionUserCtx, company} = params;
@@ -28,6 +29,6 @@ export class MarketplaceConfigActions {
         );
         const populate = SchemaGuard.generatePopulate(readFields, MarketplaceConfig.schema);
         const populated = await marketplaceConfigService.findById(doc._id, {session, logger, languageCode}, populate.populate);
-        return marketplaceConfigToDTO(populated ?? doc);
+        return {...marketplaceConfigToDTO(populated ?? doc), ...(isPlatformCompany(company) ? {isPlatform: true} : {})};
     }
 }

@@ -18,7 +18,8 @@ import {registerTasksPortalProvider} from "@marketplaceModule/domain/portal/task
 /* D178, P23.7: the services and tasks sections answer "what was listed after a date". */
 
 const provider = new ObjectId();
-const operator = new ObjectId();
+// The platform company keeps the portal's tasks (D197).
+const platform = new ObjectId();
 const since = new Date("2026-11-01T00:00:00Z");
 const day = (date: string) => new Date(`${date}T00:00:00Z`);
 const ids = {logo: new ObjectId(), seo: new ObjectId(), oldService: new ObjectId(), paused: new ObjectId(), tap: new ObjectId(), fence: new ObjectId(), oldTask: new ObjectId(), closed: new ObjectId()};
@@ -46,7 +47,7 @@ beforeEach(async () => {
     const db = mongoose.connection.db!;
     for (const collection of await db.collections()) await collection.deleteMany({});
     const company = (_id: ObjectId, name: string, siteSlug: string) => ({_id, name, siteSlug, isActive: true, modules: ["core", "finance", "marketplace"], deletedAt: null});
-    await db.collection("companies").insertMany([company(provider, "Pixel Studio", "pixel"), company(operator, "Operator", "tasks")]);
+    await db.collection("companies").insertMany([company(provider, "Pixel Studio", "pixel"), {_id: platform, name: "Platform", isActive: true, isPlatformOwner: true, modules: ["core"], deletedAt: null}]);
     const listing = (_id: ObjectId, title: string, createdAt: Date, extra: Record<string, unknown> = {}) => ({_id, company: provider, title, price: 100, status: "active", deletedAt: null, createdAt, ...extra});
     await Listing.collection.insertMany([
         listing(ids.logo, "Logo design", day("2026-11-03")),
@@ -55,7 +56,7 @@ beforeEach(async () => {
         listing(ids.paused, "Paused logo", day("2026-11-04"), {status: "paused"}),
     ]);
     const task = (_id: ObjectId, title: string, createdAt: Date, extra: Record<string, unknown> = {}) => ({
-        _id, company: operator, restrictedToCompany: null, title, status: "open", expiresAt: day("2099-01-01"), deletedAt: null, createdAt, ...extra,
+        _id, company: platform, restrictedToCompany: null, title, status: "open", expiresAt: day("2099-01-01"), deletedAt: null, createdAt, ...extra,
     });
     await TaskRequest.collection.insertMany([
         task(ids.tap, "Fix a tap", day("2026-11-03")),
@@ -77,11 +78,11 @@ describe("services and tasks new since a date (P23.7)", () => {
     });
 
     it("lists the open public tasks posted after the date, and the tasks a person keeps while open", async () => {
-        const all = await ask("tasks", operator, {kind: "task"});
+        const all = await ask("tasks", platform, {kind: "task"});
         expect(all.total).toBe(2);
         expect(titles(all)).toEqual(["Fix a tap", "Paint a fence"]);
-        expect(titles(await ask("tasks", operator, {kind: "task", query: "tap"}))).toEqual(["Fix a tap"]);
-        expect(titles(await ask("tasks", operator, {kind: "task", since: new Date(0), ids: [ids.oldTask.toString(), ids.closed.toString()]}))).toEqual(["Old tap"]);
+        expect(titles(await ask("tasks", platform, {kind: "task", query: "tap"}))).toEqual(["Fix a tap"]);
+        expect(titles(await ask("tasks", platform, {kind: "task", since: new Date(0), ids: [ids.oldTask.toString(), ids.closed.toString()]}))).toEqual(["Old tap"]);
     });
 });
 
@@ -96,7 +97,7 @@ describe("a listing's and a task's page (D181)", () => {
         expect(getPortalProvider("services")?.sitePath).toBe("services");
         expect(await at("services", provider, `/service?id=${ids.seo.toString()}`)).toMatchObject({schemaType: "Service", item: {title: "SEO audit"}});
         expect(await at("services", provider, `/service?id=${ids.paused.toString()}`)).toBeUndefined();
-        expect(await at("tasks", operator, `/task?id=${ids.tap.toString()}`)).toMatchObject({schemaType: "Demand", item: {title: "Fix a tap"}});
-        expect(await at("tasks", operator, `/task?id=${ids.closed.toString()}`)).toBeUndefined();
+        expect(await at("tasks", platform, `/task?id=${ids.tap.toString()}`)).toMatchObject({schemaType: "Demand", item: {title: "Fix a tap"}});
+        expect(await at("tasks", platform, `/task?id=${ids.closed.toString()}`)).toBeUndefined();
     });
 });

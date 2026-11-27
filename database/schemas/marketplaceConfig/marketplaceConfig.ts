@@ -22,14 +22,9 @@ export interface IMarketplaceConfig extends Document, IOwnershipPluginFields, IS
     currency: ICurrency;
     /** The top-level service sections the company works in ("What we provide", D196). */
     branches: IListingCategory[];
-    /**
-     * This company operates the marketplace (D143): it owns the shared service categories and the jobs posted on the
-     * portal. Exactly one per database, set only by the seed.
-     */
-    isOperator: boolean;
-    /** Operator only (D143): providers one job reaches; unset means `JOB_LEAD_CAP`. */
+    /** Read only from the platform company's settings (D197): providers one job reaches; unset means `JOB_LEAD_CAP`. */
     leadCap?: number;
-    /** Operator only (D143): open jobs one buyer may have; unset means `JOB_OPEN_LIMIT`. */
+    /** Read only from the platform company's settings (D197): open jobs one buyer may have; unset means `JOB_OPEN_LIMIT`. */
     openJobLimit?: number;
 }
 
@@ -54,12 +49,6 @@ const MarketplaceConfigSchema = new Schema<IMarketplaceConfig>(
         },
         leadCap: {type: SchemaTypes.Number, min: 1, max: 50, dynamicTableConfiguration: {hideColumn: true}},
         openJobLimit: {type: SchemaTypes.Number, min: 1, max: 50, dynamicTableConfiguration: {hideColumn: true}},
-        isOperator: {
-            type: SchemaTypes.Boolean,
-            default: false,
-            permissions: {self: {write: "no-permission"}, others: {write: "no-permission"}},
-            dynamicTableConfiguration: {hideColumn: true},
-        },
     },
     {accessMode: "loose"},
 );
@@ -72,4 +61,4 @@ const MarketplaceConfig = model<IMarketplaceConfig>("MarketplaceConfig", Marketp
 normalizeSchemaPermissions(MarketplaceConfig);
 export default MarketplaceConfig;
 addModelData(MarketplaceConfig, marketplaceConfigViews);
-validateSchemaDefAgainstMongoose(MarketplaceConfigSchema, MarketplaceConfigSchemaDef, "MarketplaceConfig", ["isOperator"]);
+validateSchemaDefAgainstMongoose(MarketplaceConfigSchema, MarketplaceConfigSchemaDef, "MarketplaceConfig");

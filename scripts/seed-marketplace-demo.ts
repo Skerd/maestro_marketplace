@@ -3,8 +3,8 @@
  * add-ons, task requests and bids, orders with deliveries, revisions and milestones, bookings, disputes, reviews,
  * promotions, and the escrow ledger rows) for the demo marketplace company without dropping the database. Every row is
  * keyed, so re-running adds only what is new. The demo is a construction company's (renovations, new builds, roofs,
- * facades). `--company=<name or id>` seeds another company instead, e.g. one a user created in the panel; jobs and
- * quotes need the marketplace operator company and are skipped without it.
+ * facades). `--company=<name or id>` seeds another company instead, e.g. one a user created in the panel; its jobs and
+ * quotes go to the platform company (D197), which keeps the portal's jobs.
  *
  * Usage (from maestro/):
  *   MONGODB_DB_NAME=xCloud-all npx ts-node --transpile-only -r tsconfig-paths/register modules/marketplace/scripts/seed-marketplace-demo.ts [--company="Brigade Ndertimi"]

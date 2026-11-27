@@ -22,7 +22,7 @@ export const taskLeadStatuses = ["new", "viewed", "quoted", "declined", "won", "
 export type TaskLeadStatus = (typeof taskLeadStatuses)[number];
 
 /**
- * A portal job (in the marketplace operator) that matched one of this company's providers (D143). It lives in the
+ * A portal job (in the platform company) that matched one of this company's providers (D143). It lives in the
  * provider's company, so its panel, permissions and notifications stay per company; only `taskRequest` points across.
  */
 export interface ITaskLead extends Document, IOwnershipPluginFields, ISoftDeletePluginFields, ILifeCyclePluginFields {
@@ -36,7 +36,7 @@ export interface ITaskLead extends Document, IOwnershipPluginFields, ISoftDelete
     /** Distance from the job's pin to that listing's pin; absent for online work. */
     distanceKm?: number;
     status: TaskLeadStatus;
-    /** The quote the provider placed from this lead: a bid next to the job, in the operator. */
+    /** The quote the provider placed from this lead: a bid next to the job, in the platform company. */
     bid?: IBid;
 }
 
@@ -46,7 +46,7 @@ const TaskLeadSchema = new Schema<ITaskLead>(
     {
         name: {type: SchemaTypes.String, permissions: serverOnly},
         // The allowlist is the redacted job (D143) and the panel's field access for `taskRequest.*`. A populate in the
-        // provider's tenant reads the operator's job as empty; the lead routes read it themselves (`taskLeadsToViews`).
+        // provider's tenant reads the platform's job as empty; the lead routes read it themselves (`taskLeadsToViews`).
         taskRequest: {
             type: SchemaTypes.ObjectId,
             ref: "TaskRequest",

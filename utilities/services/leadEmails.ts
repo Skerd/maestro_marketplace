@@ -19,7 +19,7 @@ import type {NewLeadEmailEvent} from "@marketplaceModule/kafka/types";
 import {listDisplayName} from "@coreModule/utilities/helpers/listNames";
 
 const logger = getLogger("marketplace_lead_emails");
-const REASON = "a new-lead email describes the operator's job to a provider in another company";
+const REASON = "a new-lead email describes the platform's job to a provider in another company";
 
 export type NewLead = {company: ObjectId; provider: ObjectId; lead: ObjectId; listing?: ObjectId; distanceKm?: number};
 

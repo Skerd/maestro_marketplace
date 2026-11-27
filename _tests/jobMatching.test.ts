@@ -19,8 +19,7 @@ import TaskLead from "@marketplaceModule/database/schemas/taskLead/taskLead";
 import type {ITaskRequest} from "@marketplaceModule/database/schemas/taskRequest/taskRequest";
 import {createJobLeads, findJobMatches} from "@marketplaceModule/utilities/services/jobMatching";
 
-const operator = new ObjectId();
-// The service categories are the platform company's (D196).
+// The service categories and the portal's jobs are the platform company's (D196, D197).
 const platform = new ObjectId();
 const durresFix = new ObjectId();
 const tiranaPros = new ObjectId();
@@ -45,9 +44,9 @@ afterAll(async () => {
 beforeEach(() => fixtures(async () => {
     for (const collection of await mongoose.connection.db!.collections()) await collection.deleteMany({});
     const company = (_id: ObjectId, name: string) => ({_id, name, vat: `VAT-${name}`, isActive: true, modules: ["core", "finance", "marketplace"], deletedAt: null});
-    await Company.collection.insertMany([company(operator, "Operator"), company(durresFix, "Durres Fix"), company(tiranaPros, "Tirana Pros"), company(notListed, "Quiet"), {_id: platform, name: "Platform", vat: "VAT-Platform", isPlatformOwner: true, isActive: true, modules: ["core"], deletedAt: null}]);
-    const config = (owner: ObjectId, listedOnPortal: boolean, isOperator = false) => ({company: owner, currency: new ObjectId(), listedOnPortal, isOperator, deletedAt: null});
-    await MarketplaceConfig.collection.insertMany([config(operator, false, true), config(durresFix, true), config(tiranaPros, true), config(notListed, false)]);
+    await Company.collection.insertMany([company(durresFix, "Durres Fix"), company(tiranaPros, "Tirana Pros"), company(notListed, "Quiet"), {_id: platform, name: "Platform", vat: "VAT-Platform", isPlatformOwner: true, isActive: true, modules: ["core"], deletedAt: null}]);
+    const config = (owner: ObjectId, listedOnPortal: boolean) => ({company: owner, currency: new ObjectId(), listedOnPortal, deletedAt: null});
+    await MarketplaceConfig.collection.insertMany([config(durresFix, true), config(tiranaPros, true), config(notListed, false)]);
     const category = (_id: ObjectId, slug: string, delivery: string, parent?: ObjectId) =>
         ({_id, name: slug, slug, delivery, order: 0, company: platform, deletedAt: null, ...(parent ? {parentListingCategory: parent} : {})});
     await ListingCategory.collection.insertMany([
@@ -74,7 +73,7 @@ beforeEach(() => fixtures(async () => {
 }));
 
 function job(fields: Partial<Record<string, unknown>> = {}): ITaskRequest {
-    return {_id: new ObjectId(), title: "Leaking tap", company: operator, requester: buyer, category: categories.leaks, address: {...TIRANA}, ...fields} as unknown as ITaskRequest;
+    return {_id: new ObjectId(), title: "Leaking tap", company: platform, requester: buyer, category: categories.leaks, address: {...TIRANA}, ...fields} as unknown as ITaskRequest;
 }
 const providers = (matches: {provider: ObjectId}[]) => matches.map((match) => match.provider.toString());
 
@@ -117,11 +116,11 @@ describe("job matching (D143)", () => {
 
     it("gives each provider one lead in their own company, shares the photos and never doubles up", async () => {
         const photo = new ObjectId();
-        await fixtures(() => Media.collection.insertOne({_id: photo, company: buyer, createdBy: buyer, sharedWithCompanies: [operator], deletedAt: null}));
+        await fixtures(() => Media.collection.insertOne({_id: photo, company: buyer, createdBy: buyer, sharedWithCompanies: [platform], deletedAt: null}));
         const posted = job({category: categories.plumbing, address: {latitude: 41.3253, longitude: 19.63}, mainImage: photo});
 
-        expect(await withTenant(operator, () => createJobLeads(posted, ctx))).toBe(2);
-        expect(await withTenant(operator, () => createJobLeads(posted, ctx))).toBe(0);
+        expect(await withTenant(platform, () => createJobLeads(posted, ctx))).toBe(2);
+        expect(await withTenant(platform, () => createJobLeads(posted, ctx))).toBe(0);
 
         const leads = await fixtures(() => TaskLead.collection.find({}).sort({company: 1}).toArray());
         expect(leads.map((lead) => [String(lead.company), String(lead.provider), String(lead.taskRequest), lead.status]).sort()).toEqual([
@@ -130,6 +129,6 @@ describe("job matching (D143)", () => {
         ].sort());
         expect(leads.every((lead) => typeof lead.distanceKm === "number")).toBe(true);
         const shared = await fixtures(() => Media.collection.findOne({_id: photo}));
-        expect(shared?.sharedWithCompanies.map(String).sort()).toEqual([operator, durresFix, tiranaPros].map(String).sort());
+        expect(shared?.sharedWithCompanies.map(String).sort()).toEqual([platform, durresFix, tiranaPros].map(String).sort());
     });
 });

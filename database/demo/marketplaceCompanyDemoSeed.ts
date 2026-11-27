@@ -1,3 +1,4 @@
+import {findPlatformCompanyId} from "@coreModule/utilities/security/platformAccess";
 import {ObjectId} from "mongodb";
 import {getLogger, serverLogger} from "@coreModule/loggers/serverLog";
 import Currency from "@coreModule/database/schemas/currency/currency";
@@ -26,7 +27,6 @@ import {createPromotions} from "@marketplaceModule/database/schemas/promotion/pr
 import {createEscrowTransactions} from "@marketplaceModule/database/demo/escrowTransactions.demo";
 import {CARD_PAYMENTS_AVAILABLE} from "armonia/src/modules/finance/helpers/cardPaymentAvailability";
 import {seedTaskBoardDemo} from "@marketplaceModule/database/demo/taskBoardDemo";
-import {findMarketplaceOperatorId} from "@marketplaceModule/utilities/services/marketplaceOperator";
 
 /**
  * The main user (echo@echo.com) is the provider and the buyer of the listing orders, so most marketplace demo rows
@@ -98,7 +98,7 @@ export async function seedMarketplaceCompanyDemoData(parentLogger: serverLogger 
     if (company.vat === HOME_SERVICES_DEMO_VAT) {
         // The home-repair provider only advertises on-site services with their service areas (D143).
         await createListings(logger, company, provider, currency, undefined, homeServiceListingSeeds);
-        // The last services company in the seed list: the operator and Tirana Pros exist now, so the public task
+        // The last services company in the seed list: the platform company and Tirana Pros exist now, so the public task
         // board's workflows can be seeded across them (D172).
         await seedTaskBoardDemo(logger, company);
         logger.finish("Finished seeding marketplace demo data!");
@@ -115,17 +115,17 @@ export async function seedMarketplaceCompanyDemoData(parentLogger: serverLogger 
     await createListingPackages(logger, company, provider, currency, listings);
     await createListingAddOns(logger, company, provider, currency, listings);
 
-    // Jobs are posted on the apex by portal customers and stored in the marketplace operator, where this company
-    // quotes on them like any provider (D143, D172); the order after an award opens here.
-    const operatorId = await findMarketplaceOperatorId();
-    const operator = operatorId ? await Company.findById(operatorId) : null;
+    // Jobs are posted on the apex by portal customers and stored in the platform company, where this company
+    // quotes on them like any provider (D172, D197); the order after an award opens here.
+    const platformId = await findPlatformCompanyId();
+    const platform = platformId ? await Company.findById(platformId) : null;
     const demoCustomers = await User.find({username: {$in: coreDemoCustomerSeeds.map((seed) => seed.username)}});
     const inSeedOrder = coreDemoCustomerSeeds.flatMap((seed) => demoCustomers.filter((user) => user.username === seed.username));
     const buyers = inSeedOrder.length ? inSeedOrder : [customer];
     let taskRequests: CreateTaskRequestsResult = {taskRequests: [], bySeedKey: {}};
     let bids: CreateBidsResult = {bids: [], bySeedKey: {}};
-    if (demoAddress && operator) {
-        taskRequests = await createTaskRequests(logger, operator, buyers, currency, {
+    if (demoAddress && platform) {
+        taskRequests = await createTaskRequests(logger, platform, buyers, currency, {
             street: demoAddress.street,
             postalCode: demoAddress.postalCode,
             country: demoAddress.country,
@@ -134,9 +134,9 @@ export async function seedMarketplaceCompanyDemoData(parentLogger: serverLogger 
             latitude: demoAddress.latitude,
             longitude: demoAddress.longitude,
         });
-        bids = await createBids(logger, operator, company, provider, currency, taskRequests);
+        bids = await createBids(logger, platform, company, provider, currency, taskRequests);
     } else {
-        logger.warn("Skipping task requests — Tirana geo or the marketplace operator not found.");
+        logger.warn("Skipping task requests — Tirana geo or the platform company not found.");
     }
 
     const orders = await createOrders(

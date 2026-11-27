@@ -2,7 +2,7 @@ import {ObjectId} from "mongodb";
 import {apiValidationException} from "armonia/src/modules/core/helpers/exceptions";
 import type {CrudOptions} from "@coreModule/database/services/baseCrudService";
 import {listingCategoryService} from "@marketplaceModule/database/schemas/listingCategory/listingCategory.service";
-import {marketplaceCategoryClause} from "@marketplaceModule/utilities/services/marketplaceOperator";
+import {marketplaceCategoryClause} from "@marketplaceModule/utilities/services/marketplacePlatform";
 
 /** Where an on-site provider works from and how far they travel (D143). */
 export type ServiceArea = {latitude: number; longitude: number; radiusKm: number};

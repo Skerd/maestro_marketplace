@@ -3,7 +3,7 @@ import {ObjectId} from "mongodb";
 import type {HydratedDocument} from "mongoose";
 import TaskRequest, {type ITaskRequest, type TaskRequestStatus} from "./taskRequest";
 import ListingCategory from "@marketplaceModule/database/schemas/listingCategory/listingCategory";
-import {marketplaceCategoryClause} from "@marketplaceModule/utilities/services/marketplaceOperator";
+import {marketplaceCategoryClause} from "@marketplaceModule/utilities/services/marketplacePlatform";
 import {getLogger, serverLogger} from "@coreModule/loggers/serverLog";
 import {ICompany} from "@coreModule/database/schemas/company/company";
 import {IUser} from "@coreModule/database/schemas/user/user";
@@ -134,13 +134,13 @@ export type CreateTaskRequestsResult = {
 };
 
 /**
- * The demo customers' building jobs, posted on the apex like real ones: stored in the marketplace operator (D143) and
+ * The demo customers' building jobs, posted on the apex like real ones: stored in the platform company (D197) and
  * shown on the public task board while open (D172). The buyers take turns, and none of them is a provider, so every
  * services company may quote on them.
  */
 export async function createTaskRequests(
     parentLogger: serverLogger,
-    operator: ICompany,
+    platform: ICompany,
     buyers: readonly IUser[],
     currency: ICurrency,
     address: DemoTaskAddress,
@@ -167,7 +167,7 @@ export async function createTaskRequests(
             }
 
             let existing = await TaskRequest.findOne({
-                company: operator._id,
+                company: platform._id,
                 name: {$in: demoSeedNameCandidates(seed.seedKey)},
             });
 
@@ -175,7 +175,7 @@ export async function createTaskRequests(
                 resolveTaskRequestPhotoIds(seed.seedKey),
                 seed.seedKey,
                 seed.title,
-                operator,
+                platform,
                 requester._id,
                 logger,
                 "taskRequest",
@@ -199,7 +199,7 @@ export async function createTaskRequests(
                 expiresAt: dayjs().add(seed.expiresInDays, "day").toDate(),
                 mainImage: mainImageId,
                 imageGallery: galleryIds,
-                company: operator._id,
+                company: platform._id,
                 createdBy: requester._id,
             };
 

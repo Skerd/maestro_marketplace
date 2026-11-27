@@ -1,8 +1,9 @@
 import {ObjectId} from "mongodb";
 import {mediaUploadMW} from "@coreModule/utilities/middlewares/mediaUploadMW";
 import {createCrudRouter, selectIdsOf, type CrudCreateParams} from "@coreModule/api/crudRouterFactory";
-import {marketplaceOperator} from "@marketplaceModule/utilities/services/portalBuyerTargets";
-import {asJobBuyer, assertJobOpenLimit, intoOperator, jobSiteCompany} from "@marketplaceModule/utilities/services/portalJobs";
+import {registerPlatformRouter} from "@coreModule/utilities/security/platformListRegistry";
+import {platformCompany} from "@marketplaceModule/utilities/services/portalBuyerTargets";
+import {asJobBuyer, assertJobOpenLimit, intoPlatform, jobSiteCompany} from "@marketplaceModule/utilities/services/portalJobs";
 import {assertJobAddress, createJobLeads} from "@marketplaceModule/utilities/services/jobMatching";
 import {runAfterCommit} from "@coreModule/utilities/middlewares/transactionUtils";
 import {publishTaskChange} from "@marketplaceModule/utilities/services/taskBoardEvents";
@@ -178,11 +179,11 @@ const BUYER_TASK_POPULATE = ["category", "currency", "address.country", "address
 
 /**
  * Buyer self-service routes (storefront account pages). Scoped hard to the authenticated requester, no admin model
- * permissions required. A buyer's jobs live in the marketplace operator (D143), which also answers the module gate.
+ * permissions required. A buyer's jobs live in the platform company (D197), which also answers the module gate.
  */
 router.post(
     "/my",
-    authMW("private", {portalBuyer: marketplaceOperator}),
+    authMW("private", {portalBuyer: platformCompany}),
     rateLimiter({windowMs: 60000, max: 60}),
     validateFormZod(validatePagedForm),
     asyncHandler((request: AuthenticatedMWType & PagedForm) => asJobBuyer(request, async (params) => {
@@ -205,7 +206,7 @@ router.post(
 
 router.post(
     "/mySingle",
-    authMW("private", {portalBuyer: marketplaceOperator}),
+    authMW("private", {portalBuyer: platformCompany}),
     rateLimiter({windowMs: 60000, max: 60}),
     validateFormZod(validateSingleForm),
     asyncHandler((request: AuthenticatedMWType & {_id: string}) => asJobBuyer(request, async (params) => {
@@ -233,12 +234,12 @@ router.post(
 
 /**
  * Buyer self-service create (storefront account): the same rules as PUT, without the model permission. The job is
- * saved in the marketplace operator with the operator's own currency and places, limited to the site's company when
+ * saved in the platform company (D197) with the currency and places the buyer chose, limited to the site's company when
  * posted on a company's own site, and handed to the matching providers as leads in their companies (D143).
  */
 router.put(
     "/createMine",
-    authMW("private", {portalBuyer: marketplaceOperator}),
+    authMW("private", {portalBuyer: platformCompany}),
     rateLimiter({windowMs: 60000, max: 30}),
     transactionHandler(),
     mediaUpload,
@@ -249,7 +250,7 @@ router.put(
             const {company, actionUserCtx, session, logger, languageCode} = params;
             const requester = new ObjectId(actionUserCtx.userId);
             await assertJobOpenLimit(company._id, requester, languageCode, session);
-            const data = await intoOperator(await buildTaskRequestCreate(params), company._id, requester, languageCode, session);
+            const data = await intoPlatform(await buildTaskRequestCreate(params), company._id, requester, languageCode, session);
             const created = await taskRequestService.create(
                 {...data, company: company._id, ...(restrictedToCompany ? {restrictedToCompany} : {})},
                 {session, logger, languageCode, auditUserId: actionUserCtx.userId},
@@ -261,3 +262,6 @@ router.put(
         });
     }),
 );
+
+// The platform company keeps every portal job (D197) and works on them without running the module.
+registerPlatformRouter(router, "taskrequests");

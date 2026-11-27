@@ -53,8 +53,6 @@ import Bid from "@marketplaceModule/database/schemas/bid/bid";
 import {withTenant} from "@coreModule/utilities/endpoints/tenantScope";
 
 const otherCompanyId = new ObjectId();
-// The shared category tree lives in the marketplace operator (D144), not in the seller.
-const operatorId = new ObjectId();
 // The service categories are the platform company's (D196).
 const platformId = new ObjectId();
 const currencyId = new ObjectId();
@@ -90,7 +88,6 @@ beforeEach(() => asCompany(async () => {
     ]);
     // Reference data belongs to each company, as seeded (D16 scopes it like any tenant data).
     await Currency.collection.insertOne({_id: currencyId, name: "Euro", symbol: "€", abbreviation: "EUR", decimalPlaces: 2, company: companyId});
-    await MarketplaceConfig.collection.insertOne({company: operatorId, currency: new ObjectId(), isOperator: true, listedOnPortal: false, deletedAt: null});
     await Company.collection.insertOne({_id: platformId, name: "Platform", vat: "VAT-Platform", isPlatformOwner: true, isActive: true, modules: ["core"], deletedAt: null});
 }));
 
@@ -305,19 +302,18 @@ describe("buyer self-service routes", {timeout: 30000}, () => {
         expect(second.body.error_code).toBe("dispute_already_exists_for_order");
     }));
 
-    // A buyer's jobs and their bids live in the marketplace operator (D143).
+    // A buyer's jobs and their bids live in the platform company (D197).
     it("lists the caller's task requests and shows the bids on their own only", () => asCompany(async () => {
-        await Company.collection.insertOne({_id: operatorId, name: "Operator", vat: "VAT-Operator", isActive: true, modules: ["marketplace"], deletedAt: null});
         const base = {
             title: "Paint my flat", description: "", category: new ObjectId(), budgetMax: 300, currency: currencyId,
             address: {street: "S", postalCode: "1000", country: new ObjectId(), city: new ObjectId(), latitude: 41, longitude: 19},
-            mainImage: new ObjectId(), status: "open", expiresAt: new Date(Date.now() + 86400000), company: operatorId,
+            mainImage: new ObjectId(), status: "open", expiresAt: new Date(Date.now() + 86400000), company: platformId,
         };
         const {insertedId: mine} = await TaskRequest.collection.insertOne({...base, name: "TASK-1", requester: customerId});
         await TaskRequest.collection.insertOne({...base, name: "TASK-2", requester: strangerId});
         await Bid.collection.insertOne({
             name: "BID-1", taskRequest: mine, bidder: providerId, amount: 200, currency: currencyId,
-            proposal: "Two coats", deliveryDays: 4, status: "pending", company: operatorId,
+            proposal: "Two coats", deliveryDays: 4, status: "pending", company: platformId,
         });
 
         const list = await post("/api/marketplace/taskRequest/my", {}, customer);

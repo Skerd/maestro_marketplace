@@ -88,7 +88,7 @@ const bid: ReportableDefinition = {
     typeLabel: {"en-US": "Bid", "de-CH": "Offerte", "fr-FR": "Offre", "it-IT": "Offerta", "sq-AL": "Ofertë"},
     snapshot: async ({recordId, session, logger, languageCode}) => {
         const found = await asCrossTenant(READ_REASON, () => bidService.findById(recordId, {session, logger, languageCode, withDeleted: false}, null, "name proposal company bidderCompany bidder hiddenByPlatform"));
-        // A quote from a lead is the quoting company's, kept next to the job in the operator (D143).
+        // A quote from a lead is the quoting company's, kept next to the job in the platform company (D197).
         const companyId = nestedEntityToRef(found?.bidderCompany) ?? nestedEntityToRef(found?.company);
         if (!found || !companyId) return null;
         const author = nestedEntityToRef(found.bidder);

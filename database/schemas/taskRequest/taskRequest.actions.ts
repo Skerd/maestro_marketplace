@@ -11,7 +11,7 @@ import {bidService} from "@marketplaceModule/database/schemas/bid/bid.service";
 import {emitNotificationEvent} from "@coreModule/domain/notifications/notificationEventBus";
 import {NotificationEventCodes} from "@marketplaceModule/domain/notifications/notificationEventCodes";
 import {assertOwnerOrAdmin} from "@marketplaceModule/utilities/services/marketplaceAccess";
-import {marketplaceOperator} from "@marketplaceModule/utilities/services/portalBuyerTargets";
+import {platformCompany} from "@marketplaceModule/utilities/services/portalBuyerTargets";
 import {inJobCompany} from "@marketplaceModule/utilities/services/portalJobs";
 import {createJobLeads} from "@marketplaceModule/utilities/services/jobMatching";
 import {endJobLeads, notifyEndedLeads, reviveJobLeads} from "@marketplaceModule/utilities/services/jobOutcome";
@@ -25,7 +25,6 @@ export const TASK_REQUEST_OPEN_DAYS = 30;
 export function taskRequestExpiry(from: Date = new Date()): Date {
     return new Date(from.getTime() + TASK_REQUEST_OPEN_DAYS * 24 * 60 * 60 * 1000);
 }
-
 
 /** Ids of the users with a pending bid on the task. */
 export async function pendingBidderIds(taskRequestId: ObjectId, companyId: ObjectId, opts: {logger: AuthenticatedMWType["logger"]; languageCode: string}): Promise<string[]> {
@@ -82,8 +81,8 @@ export class TaskRequestActions {
         schema: validateSingleForm,
         // The caller's own record, or one they are a party to: the party check below decides (D14).
         selfService: true,
-        // A portal buyer's job lives in the marketplace operator, which answers the module gate (D143).
-        portalBuyer: marketplaceOperator,
+        // A portal buyer's job lives in the platform company, which answers the module gate (D197).
+        portalBuyer: platformCompany,
     })
     async close(params: Record<string, any>): Promise<ActionMessage> {
         return inJobCompany(params as TransactionRequiredParams & SingleForm, (p) => this.closeJob(p));
@@ -111,8 +110,8 @@ export class TaskRequestActions {
         schema: validateSingleForm,
         // The caller's own record, or one they are a party to: the party check below decides (D14).
         selfService: true,
-        // A portal buyer's job lives in the marketplace operator, which answers the module gate (D143).
-        portalBuyer: marketplaceOperator,
+        // A portal buyer's job lives in the platform company, which answers the module gate (D197).
+        portalBuyer: platformCompany,
     })
     async reopen(params: Record<string, any>): Promise<ActionMessage> {
         return inJobCompany(params as TransactionRequiredParams & SingleForm, (p) => this.reopenJob(p));

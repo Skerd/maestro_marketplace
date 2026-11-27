@@ -47,7 +47,8 @@ import {emailNewLeads} from "@marketplaceModule/utilities/services/leadEmails";
 import {emailNewQuote} from "@marketplaceModule/utilities/services/quoteEmails";
 import {MARKETPLACE_KAFKA} from "@marketplaceModule/environment";
 
-const operator = new ObjectId();
+// The platform company keeps the job (D197); its mail settings send the buyer's email.
+const platform = new ObjectId();
 const provider = new ObjectId();
 const plumber = new ObjectId();
 const quietPlumber = new ObjectId();
@@ -75,13 +76,13 @@ beforeEach(() => fixtures(async () => {
         {_id: quietPlumber, username: "quiet@fix.test", name: "Quinn", companies: [provider], roles: [{company: provider, mutedNotifications: ["TASK_REQUEST_CREATED"]}]},
         {_id: buyer, username: "ana@client.test", name: "Ana", surname: "Client", fullName: "Ana Client", preferredLanguage: "sq-AL"},
     ]);
-    const category = (await ListingCategory.collection.insertOne({name: "Leaks & Taps", slug: "leaks", delivery: "onsite", order: 0, company: operator, deletedAt: null})).insertedId;
-    const city = (await City.collection.insertOne({name: "Durrës", company: operator})).insertedId;
-    const currency = (await Currency.collection.insertOne({name: "Euro", symbol: "€", abbreviation: "EUR", decimalPlaces: 2, company: operator})).insertedId;
+    const category = (await ListingCategory.collection.insertOne({name: "Leaks & Taps", slug: "leaks", delivery: "onsite", order: 0, company: platform, deletedAt: null})).insertedId;
+    const city = (await City.collection.insertOne({name: "Durrës", company: platform})).insertedId;
+    const currency = (await Currency.collection.insertOne({name: "Euro", symbol: "€", abbreviation: "EUR", decimalPlaces: 2, company: platform})).insertedId;
     listing = (await Listing.collection.insertOne({title: "Leaking Tap Repairs", company: provider, provider: plumber, category, status: "active", deletedAt: null})).insertedId;
     job = {
         _id: new ObjectId(), title: "Kitchen tap drips", category, currency, budgetMax: 60,
-        address: {street: "Rruga Tregtare 5", postalCode: "2001", city, latitude: 41.32, longitude: 19.45}, company: operator, requester: buyer,
+        address: {street: "Rruga Tregtare 5", postalCode: "2001", city, latitude: 41.32, longitude: 19.45}, company: platform, requester: buyer,
     } as unknown as ITaskRequest;
 }));
 
@@ -114,7 +115,7 @@ describe("new-quote emails (P12.4)", () => {
 
         expect(sent).toHaveLength(1);
         const [mail] = sent;
-        expect([mail.companyId, mail.to]).toEqual([operator.toString(), "ana@client.test"]);
+        expect([mail.companyId, mail.to]).toEqual([platform.toString(), "ana@client.test"]);
         expect(mail.subject).toBe("Ofertë e re për Kitchen tap drips — Adria Home Fix");
         expect(mail.html).toContain(`https://panel.example.test/services/account/jobs/${job._id.toString()}`);
         for (const shown of ["Pat Plumber, Adria Home Fix", "45 EUR", "2 ditë"]) expect(mail.html).toContain(shown);

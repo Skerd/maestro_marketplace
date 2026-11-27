@@ -2,7 +2,7 @@ import type {HydratedDocument} from "mongoose";
 import {ObjectId} from "mongodb";
 import Listing, {type IListing, type ListingStatus, type PricingType} from "./listing";
 import ListingCategory from "@marketplaceModule/database/schemas/listingCategory/listingCategory";
-import {marketplaceCategoryClause} from "@marketplaceModule/utilities/services/marketplaceOperator";
+import {marketplaceCategoryClause} from "@marketplaceModule/utilities/services/marketplacePlatform";
 import {getLogger, serverLogger} from "@coreModule/loggers/serverLog";
 import {ICompany} from "@coreModule/database/schemas/company/company";
 import {IUser} from "@coreModule/database/schemas/user/user";

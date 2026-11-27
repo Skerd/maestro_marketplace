@@ -13,7 +13,7 @@ import TaskLead from "@marketplaceModule/database/schemas/taskLead/taskLead";
 import Listing from "@marketplaceModule/database/schemas/listing/listing";
 import type {CreateTaskRequestsResult} from "@marketplaceModule/database/schemas/taskRequest/taskRequest.defaults";
 
-const LEAD_REFERENCE = {reason: "a lead in the provider's company points at the job and quote in the marketplace operator", fields: ["TaskLead.taskRequest", "TaskLead.bid"]} as const;
+const LEAD_REFERENCE = {reason: "a lead in the provider's company points at the job and quote in the platform company", fields: ["TaskLead.taskRequest", "TaskLead.bid"]} as const;
 
 /** The lead's state that goes with its quote's: waiting, won or lost (D143). */
 const LEAD_STATUS_OF_BID: Readonly<Record<BidStatus, TaskLeadStatus>> = {pending: "quoted", accepted: "won", rejected: "lost"};
@@ -118,7 +118,7 @@ export type CreateBidsResult = {
 
 /**
  * Seeds one demo quote per task request from the provider's company, the way a real one is stored (D143, D172): the
- * quote next to the job in the marketplace operator, and the provider's lead in its own company (matched when it has
+ * quote next to the job in the platform company, and the provider's lead in its own company (matched when it has
  * an active listing in the job's category, else from the board), which can open the job's photos.
  *
  * `Bid.name` is immutable and auto-generated, and the schema carries no tag field,
@@ -127,7 +127,7 @@ export type CreateBidsResult = {
  */
 export async function createBids(
     parentLogger: serverLogger,
-    operator: ICompany,
+    platform: ICompany,
     bidderCompany: ICompany,
     bidder: IUser,
     currency: ICurrency,
@@ -149,7 +149,7 @@ export async function createBids(
 
             const seedTag = demoSeedTag(seed.seedKey);
             let existing = await Bid.findOne({
-                company: operator._id,
+                company: platform._id,
                 taskRequest: taskRequest._id,
                 bidderCompany: bidderCompany._id,
             });
@@ -163,7 +163,7 @@ export async function createBids(
                 proposal: seed.proposal,
                 deliveryDays: seed.deliveryDays,
                 status: seed.status,
-                company: operator._id,
+                company: platform._id,
                 createdBy: bidder._id,
             };
 

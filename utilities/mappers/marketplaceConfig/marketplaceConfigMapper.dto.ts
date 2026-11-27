@@ -13,7 +13,6 @@ export function marketplaceConfigToDTO(config: IMarketplaceConfig): MarketplaceC
         listedOnPortal: config.listedOnPortal,
         currency: mapSnippet<CurrencySimple>()(config.currency, CurrencySimpleSnippet),
         branches: (config.branches ?? []).map((branch) => listingCategorySimpleToDTO(branch)).filter((branch): branch is ListingCategorySimple => !!branch),
-        isOperator: config.isOperator === true,
         ...(config.leadCap != null ? {leadCap: config.leadCap} : {}),
         ...(config.openJobLimit != null ? {openJobLimit: config.openJobLimit} : {}),
         ...mapSoftDeleteToDTO(config),

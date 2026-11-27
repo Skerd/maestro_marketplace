@@ -206,7 +206,7 @@ describe("What we provide (D196)", {timeout: 30000}, () => {
         expect(await labels({inCompanyBranches: true})).toContain("Graphics & Design › Logo & Brand Identity");
 
         const home = await idOf("home-services");
-        await MarketplaceConfig.collection.insertOne({company: sellerId, currency: new ObjectId(), listedOnPortal: true, isOperator: false, branches: [home], deletedAt: null});
+        await MarketplaceConfig.collection.insertOne({company: sellerId, currency: new ObjectId(), listedOnPortal: true, branches: [home], deletedAt: null});
         const offered = await labels({inCompanyBranches: true});
         expect(offered).toContain("Plumbing › Leaks & Taps");
         expect(offered).not.toContain("Graphics & Design › Logo & Brand Identity");

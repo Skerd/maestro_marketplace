@@ -14,7 +14,7 @@ import type {IOrder} from "@marketplaceModule/database/schemas/order/order";
 import {refundRemainingEscrow, releaseRemainingEscrow} from "@marketplaceModule/database/schemas/order/orderEscrow";
 import {emitNotificationEvent} from "@coreModule/domain/notifications/notificationEventBus";
 import {NotificationEventCodes} from "@marketplaceModule/domain/notifications/notificationEventCodes";
-import {inDisputeCompany} from "@marketplaceModule/utilities/services/operatorDisputes";
+import {inDisputeCompany} from "@marketplaceModule/utilities/services/platformDisputes";
 
 /** Loads a live dispute that is still open or under review, with its order. */
 async function loadOpenDispute(
@@ -56,7 +56,7 @@ async function notifyParties(params: TransactionRequiredParams, code: string, di
 }
 
 /**
- * The marketplace operator's decisions on a dispute (D191): only an admin of the operator company takes them, and each
+ * The platform company's decisions on a dispute (D191, D197): only an admin of the platform company takes them, and each
  * runs in the dispute's own company (`inDisputeCompany`), where its order, deliveries and escrow live. The seller and the
  * buyer never decide their own dispute; the seller may still cancel and refund the order.
  */

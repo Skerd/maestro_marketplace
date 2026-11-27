@@ -18,7 +18,7 @@ import {assertOwnerOrAdmin} from "@marketplaceModule/utilities/services/marketpl
 
 type Ctx = {logger: serverLogger; languageCode: string; session?: ClientSession | null};
 
-const JOB_REASON = "a lead shows the job it points at, which the marketplace operator keeps";
+const JOB_REASON = "a lead shows the job it points at, which the platform company keeps";
 /** What a provider may see of a job before the award (D143): no street, postcode, pin or buyer; the approximate place (D148). */
 export const JOB_POPULATE = ["category", "currency", "address.country", "address.state", "address.city", "mainImage", "imageGallery"];
 export const JOB_SELECT = "name title description category budgetMax currency address.country address.state address.city approxPoint status expiresAt createdAt mainImage imageGallery company";
@@ -45,7 +45,7 @@ export async function taskLeadsToViews(leads: ITaskLead[], ctx: Ctx): Promise<Ta
     if (!leads.length) return [];
     const opts = {logger: ctx.logger, languageCode: ctx.languageCode, session: ctx.session ?? undefined};
     // The leads' own reference ids, read unpopulated: a route's populate runs in the provider's tenant, where the
-    // operator's job and bid read as empty, so the documents handed in may have lost them.
+    // platform's job and bid read as empty, so the documents handed in may have lost them.
     const refs = await taskLeadService.find({_id: {$in: leads.map((lead) => lead._id)}}, opts, null, "taskRequest bid listing");
     const refsById = new Map(refs.map((row) => [row._id.toString(), {
         job: nestedEntityToRef(row.taskRequest),
@@ -97,7 +97,7 @@ export async function markLeadViewed(lead: ITaskLead, caller: UserContext, ctx: 
     return lead;
 }
 
-/** The job a lead points at, read in the operator; refused when it no longer takes quotes or the platform hid it (D191). */
+/** The job a lead points at, read in the platform company; refused when it no longer takes quotes or the platform hid it (D191). */
 export async function openLeadJob(lead: ITaskLead, ctx: Ctx): Promise<ITaskRequest> {
     if (lead.status !== "new" && lead.status !== "viewed") {
         throw apiValidationException("task_lead_not_open", "", null, ctx.languageCode);

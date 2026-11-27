@@ -22,7 +22,7 @@ import {taskRequestService} from "@marketplaceModule/database/schemas/taskReques
 import {bidService} from "@marketplaceModule/database/schemas/bid/bid.service";
 import {bidVisibilityFilter} from "@marketplaceModule/utilities/services/marketplaceAccess";
 import {listingCategoryService} from "@marketplaceModule/database/schemas/listingCategory/listingCategory.service";
-import {marketplaceCategoryClause} from "@marketplaceModule/utilities/services/marketplaceOperator";
+import {marketplaceCategoryClause} from "@marketplaceModule/utilities/services/marketplacePlatform";
 import type {TaskRequestStatus} from "@marketplaceModule/database/schemas/taskRequest/taskRequest";
 import type {BidStatus} from "@marketplaceModule/database/schemas/bid/bid";
 import {

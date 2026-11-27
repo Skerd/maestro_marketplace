@@ -106,9 +106,9 @@ export const defaultOrderSeeds: readonly OrderSeed[] = [
     },
 ];
 
-/** An awarded job's order is in the provider's company; the job and its quote are in the marketplace operator (D147). */
+/** An awarded job's order is in the provider's company; the job and its quote are in the platform company (D147). */
 const AWARD_REFERENCE = {
-    reason: "an awarded portal job's order, in the winning provider's company, points at the job and quote in the marketplace operator",
+    reason: "an awarded portal job's order, in the winning provider's company, points at the job and quote in the platform company",
     fields: ["Order.taskRequest", "Order.bid"],
 } as const;
 

@@ -147,7 +147,7 @@ function contentFor(code: MarketplaceCode, payload: Record<string, unknown>, rec
         case NotificationEventCodes.DISPUTE_RESOLVED:
         case NotificationEventCodes.DISPUTE_CLOSED:
             return {disputeId: payload.disputeId, orderId: payload.orderId, orderName: payload.orderName, ...providerKey(payload, receiverId, "providerDisputeId", payload.disputeId)};
-        // Every receiver is an operator admin, whose Disputes list opens it (D191).
+        // Every receiver is a platform admin, whose Disputes list opens it (D191).
         case NotificationEventCodes.DISPUTE_TO_DECIDE:
             return {disputeId: payload.disputeId, orderId: payload.orderId, orderName: payload.orderName, companyName: payload.companyName};
         case NotificationEventCodes.TASK_REQUEST_CREATED:

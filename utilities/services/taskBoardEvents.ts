@@ -1,3 +1,4 @@
+import {findPlatformCompanyId} from "@coreModule/utilities/security/platformAccess";
 import type {ObjectId} from "mongodb";
 import {
     MarketplaceWebSocketMessageCodes,
@@ -11,10 +12,9 @@ import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 import {pushWebsocketMessage, pushWebsocketRoomMessage} from "@coreModule/connections/connectToWebSocketServer";
 import type {serverLogger} from "@coreModule/loggers/serverLog";
 import {taskRequestService} from "@marketplaceModule/database/schemas/taskRequest/taskRequest.service";
-import {findMarketplaceOperatorId} from "@marketplaceModule/utilities/services/marketplaceOperator";
 import {publicTaskClause, taskQuoteStats} from "@marketplaceModule/utilities/services/publicTasks";
 
-const EVENTS_REASON = "the task board's live updates read the operator's task (D172)";
+const EVENTS_REASON = "the task board's live updates read the platform's task (D172)";
 
 /**
  * Tells everyone watching that a public task changed (D172): the board room and the task's own room get its public
@@ -23,9 +23,9 @@ const EVENTS_REASON = "the task board's live updates read the operator's task (D
  */
 export async function publishTaskChange(taskId: ObjectId, logger: serverLogger): Promise<void> {
     try {
-        const operatorId = await findMarketplaceOperatorId();
-        const task = operatorId ? await asCrossTenant(EVENTS_REASON, () => taskRequestService.findOne(
-            {_id: taskId, ...publicTaskClause(operatorId)},
+        const platformId = await findPlatformCompanyId();
+        const task = platformId ? await asCrossTenant(EVENTS_REASON, () => taskRequestService.findOne(
+            {_id: taskId, ...publicTaskClause(platformId)},
             {},
             [{path: "currency", select: "decimalPlaces"}],
             "status currency",

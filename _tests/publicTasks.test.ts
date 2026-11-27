@@ -42,8 +42,7 @@ import {registerTasksPortalProvider} from "@marketplaceModule/domain/portal/task
 import {marketplacePortalCompanyIds} from "@marketplaceModule/utilities/shop/marketplaceSellers";
 import {taskQuoteStats} from "@marketplaceModule/utilities/services/publicTasks";
 
-const operator = new ObjectId();
-// The service categories are the platform company's (D196).
+// The service categories and the portal's tasks are the platform company's (D196, D197).
 const platform = new ObjectId();
 const fix = new ObjectId();
 const pros = new ObjectId();
@@ -62,7 +61,7 @@ const DAY = 24 * 3600 * 1000;
 registerTasksPortalProvider();
 const board = getPortalProvider("tasks")!;
 const browse = (fields: Partial<PortalBrowseParams> = {}) => fixtures(() => board.browse({
-    kind: "task", scope: {}, companyIds: [operator], skip: 0, limit: 24, filters: {}, languageCode: "en-US", ...fields,
+    kind: "task", scope: {}, companyIds: [platform], skip: 0, limit: 24, filters: {}, languageCode: "en-US", ...fields,
 }));
 const titles = (result: {items: {title: string}[]}) => result.items.map((item) => item.title);
 
@@ -79,10 +78,10 @@ beforeEach(() => fixtures(async () => {
     host.site = undefined;
     for (const collection of await mongoose.connection.db!.collections()) await collection.deleteMany({});
     const company = (_id: ObjectId, name: string, siteSlug: string) => ({_id, name, siteSlug, vat: `VAT-${name}`, isActive: true, modules: ["core", "finance", "marketplace"], deletedAt: null});
-    await Company.collection.insertMany([company(operator, "Operator", "tasks"), company(fix, "Fix", "fix"), company(pros, "Pros", "pros"), {_id: platform, name: "Platform", vat: "VAT-Platform", isPlatformOwner: true, isActive: true, modules: ["core"], deletedAt: null}]);
-    // The operator even opted in: it still sells nothing (D143).
+    await Company.collection.insertMany([company(fix, "Fix", "fix"), company(pros, "Pros", "pros"), {_id: platform, name: "Platform", vat: "VAT-Platform", isPlatformOwner: true, isActive: true, modules: ["core"], deletedAt: null}]);
+    // The platform company keeps job settings, even listed on the portal: it runs no marketplace, so it sells nothing (D197).
     await MarketplaceConfig.collection.insertMany([
-        {company: operator, currency: eur, isOperator: true, listedOnPortal: true, deletedAt: null},
+        {company: platform, currency: eur, listedOnPortal: true, deletedAt: null},
         {company: fix, currency: eur, listedOnPortal: true, deletedAt: null},
     ]);
     await Currency.collection.insertMany([
@@ -99,7 +98,7 @@ beforeEach(() => fixtures(async () => {
     ]);
     const now = Date.now();
     const task = (_id: ObjectId, title: string, ageDays: number, fields: Record<string, unknown> = {}) => ({
-        _id, title, name: title, description: `${title} please`, company: operator, requester: buyer, status: "open",
+        _id, title, name: title, description: `${title} please`, company: platform, requester: buyer, status: "open",
         expiresAt: new Date(now + 10 * DAY), createdAt: new Date(now - ageDays * DAY), currency: eur, deletedAt: null, ...fields,
     });
     const inTirana = {address: {street: "Rruga e Durrësit 5", postalCode: "1001", city: tirana, latitude: 41.3275, longitude: 19.8187}, approxPoint: {latitude: 41.329, longitude: 19.821}};
@@ -114,7 +113,7 @@ beforeEach(() => fixtures(async () => {
         task(tasks.fixPanel, "Panel job", 0, {company: fix, category: categories.plumbing}),
     ]);
     const bid = (taskRequest: ObjectId, amount: number, status: string, bidderCompany = fix) =>
-        ({taskRequest, amount, status, currency: eur, bidder: new ObjectId(), bidderCompany, proposal: "I can", deliveryDays: 2, company: operator, deletedAt: null});
+        ({taskRequest, amount, status, currency: eur, bidder: new ObjectId(), bidderCompany, proposal: "I can", deliveryDays: 2, company: platform, deletedAt: null});
     await Bid.collection.insertMany([
         bid(tasks.tap, 50, "pending"), bid(tasks.tap, 65.55, "pending"), bid(tasks.tap, 70, "accepted"), bid(tasks.tap, 10, "rejected", pros),
         bid(tasks.logo, 120, "pending"), bid(tasks.logo, 140, "pending", pros),
@@ -122,14 +121,14 @@ beforeEach(() => fixtures(async () => {
 }));
 
 describe("public task board (D172)", {timeout: 30000}, () => {
-    it("is the operator's, on the apex and its own site only; the operator leaves the services section", async () => {
-        expect((await fixtures(() => board.companyIds({}))).map(String)).toEqual([operator.toString()]);
-        expect((await withTenant(operator, () => board.companyIds({companyId: operator}))).map(String)).toEqual([operator.toString()]);
+    it("is the platform company's, on the apex only; the platform company is not in the services section", async () => {
+        expect((await fixtures(() => board.companyIds({}))).map(String)).toEqual([platform.toString()]);
+        expect((await withTenant(platform, () => board.companyIds({companyId: platform}))).map(String)).toEqual([platform.toString()]);
         expect(await withTenant(fix, () => board.companyIds({companyId: fix}))).toEqual([]);
 
         expect((await fixtures(() => marketplacePortalCompanyIds({}))).map(String)).toEqual([fix.toString()]);
-        expect(await withTenant(operator, () => marketplacePortalCompanyIds({companyId: operator}))).toEqual([]);
-        expect((await fixtures(() => board.citiesByCompany([operator]))).get(operator.toString())?.sort()).toEqual(["Durrës", "Tirana"]);
+        expect(await withTenant(platform, () => marketplacePortalCompanyIds({companyId: platform}))).toEqual([]);
+        expect((await fixtures(() => board.citiesByCompany([platform]))).get(platform.toString())?.sort()).toEqual(["Durrës", "Tirana"]);
     });
 
     it("lists only open public tasks, newest first, with the budget as an 'up to' price", async () => {
@@ -139,7 +138,7 @@ describe("public task board (D172)", {timeout: 30000}, () => {
         expect(page.items[2]).toEqual({
             kind: "task", id: tasks.tap.toString(), title: "Leaking tap", subtitle: "plumbing", city: "Tirana",
             price: {amount: 80, currency: "EUR", upTo: true}, section: "tasks", path: `/task?id=${tasks.tap}`,
-            company: {name: "Operator", slug: "tasks"},
+            company: {name: "Platform", slug: platform.toString()},
         });
     });
 
@@ -170,7 +169,7 @@ describe("public task board (D172)", {timeout: 30000}, () => {
         const task = res.body.data;
         expect(task).toMatchObject({_id: tasks.tap.toString(), title: "Leaking tap", budgetMax: 80, status: "open", quotes: {count: 3, average: 61.85}});
         // The board it is posted on, and who quoted (once per company, a rejected quote not), by name and site only.
-        expect(task.seller).toEqual({_id: operator.toString(), name: "Operator", siteSlug: "tasks"});
+        expect(task.seller).toEqual({_id: platform.toString(), name: "Platform"});
         expect(task.quotedBy).toEqual([{_id: fix.toString(), name: "Fix", siteSlug: "fix"}]);
         const logo = (await post({id: tasks.logo.toString()})).body.data;
         expect(logo.quotedBy.map((company: {name: string}) => company.name).sort()).toEqual(["Fix", "Pros"]);
@@ -187,7 +186,7 @@ describe("public task board (D172)", {timeout: 30000}, () => {
         expect((await post({id: tasks.onFixSite.toString()})).body.error_code).toBe("task_request_not_found");
         expect((await post({id: tasks.fixPanel.toString()})).body.error_code).toBe("task_request_not_found");
 
-        host.site = operator.toString();
+        host.site = platform.toString();
         expect((await post({id: tasks.tap.toString()})).status).toBe(200);
         host.site = fix.toString();
         expect((await post({id: tasks.tap.toString()})).body.error_code).toBe("task_request_not_found");

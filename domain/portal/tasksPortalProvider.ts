@@ -1,3 +1,4 @@
+import {findPlatformCompanyId} from "@coreModule/utilities/security/platformAccess";
 import type {ObjectId} from "mongodb";
 import {registerPortalProvider} from "@coreModule/domain/portal/portalProviderRegistry";
 import type {PortalBrowseParams, PortalNewSinceContext} from "@coreModule/domain/portal/portalProvider.types";
@@ -5,11 +6,9 @@ import {catalogItems, filterValue, idClause, itemPagePath, newSinceClause, price
 import type {PortalScope} from "@coreModule/utilities/marketing/portalCompanies";
 import {publicMediaUrl} from "@coreModule/utilities/media/publicMediaUrl";
 import {PORTAL_CURRENCY_SELECT} from "@coreModule/utilities/mappers/portal/portalStorefrontMapper.dto";
-import {companyService} from "@coreModule/database/schemas/company/company.service";
 import {currencyService} from "@coreModule/database/schemas/currency/currency.service";
-import {isModuleEnabledForCompany} from "@coreModule/utilities/modules/companyModules";
 import {taskRequestService} from "@marketplaceModule/database/schemas/taskRequest/taskRequest.service";
-import {findMarketplaceOperatorId} from "@marketplaceModule/utilities/services/marketplaceOperator";
+
 import {openPublicTaskFilter, openTaskClause, publicTaskClause} from "@marketplaceModule/utilities/services/publicTasks";
 import {listDisplayName, type ListNames} from "@coreModule/utilities/helpers/listNames";
 
@@ -32,28 +31,27 @@ const TASK_SORT_SPECS: Record<string, Record<string, 1 | -1>> = {
 };
 
 /**
- * The task board belongs to the operator (D172): on the apex and on the operator's own site, while the operator is
- * active with the module; no other company's site has one.
+ * The task board belongs to the platform company, which keeps the portal's jobs (D172, D197): on the apex; no other
+ * company's site has one.
  */
 async function taskBoardCompanyIds(scope: PortalScope): Promise<ObjectId[]> {
-    const operatorId = await findMarketplaceOperatorId();
-    if (!operatorId || (scope.companyId && !operatorId.equals(scope.companyId))) return [];
-    const operator = await companyService.findById(operatorId, {}, [], "isActive modules");
-    return operator?.isActive === true && isModuleEnabledForCompany(operator, "marketplace") ? [operatorId] : [];
+    const platformId = await findPlatformCompanyId();
+    if (!platformId || (scope.companyId && !platformId.equals(scope.companyId))) return [];
+    return [platformId];
 }
 
 /** The cities of the open public tasks, for the cards and the "where" filter. */
 async function taskCities(companyIds: ObjectId[]): Promise<Map<string, string[]>> {
-    const [operatorId] = companyIds;
-    if (!operatorId) return new Map();
+    const [platformId] = companyIds;
+    if (!platformId) return new Map();
     const tasks = await taskRequestService.find(
-        {...publicTaskClause(operatorId), ...openTaskClause()},
+        {...publicTaskClause(platformId), ...openTaskClause()},
         {withDeleted: false},
         {path: "address.city", select: "name"},
         "address.city",
     );
     const names = new Set(tasks.flatMap((task) => task.address?.city?.name ? [task.address.city.name] : []));
-    return new Map([[operatorId.toString(), [...names]]]);
+    return new Map([[platformId.toString(), [...names]]]);
 }
 
 /**
@@ -79,9 +77,9 @@ async function comparableCurrencyIds(filter: Record<string, unknown>, picked?: s
  * `narrowing` keeps only the tasks a "new since" ask is about.
  */
 async function browseTasks({companyIds, query, city, priceMin, priceMax, sort, skip, limit, filters}: PortalBrowseParams, narrowing: Record<string, unknown> = {}) {
-    const [operatorId] = companyIds;
-    if (!operatorId) return {items: [], total: 0};
-    const filter = await openPublicTaskFilter(operatorId, {
+    const [platformId] = companyIds;
+    if (!platformId) return {items: [], total: 0};
+    const filter = await openPublicTaskFilter(platformId, {
         search: query, categorySlug: filterValue(filters, "category"), delivery: filterValue(filters, "delivery"), city,
     });
     if (!filter) return {items: [], total: 0};
@@ -117,7 +115,7 @@ async function browseTasks({companyIds, query, city, priceMin, priceMax, sort, s
     return {items, total};
 }
 
-/** The tasks section of the portal (D172): the public task board, on the apex and the operator's own site. */
+/** The tasks section of the portal (D172): the public task board, on the apex (D197). */
 export function registerTasksPortalProvider(): void {
     registerPortalProvider({
         key: "tasks",
