@@ -1,4 +1,5 @@
 import {Router} from "express";
+import {ObjectId} from "mongodb";
 import type {Model} from "mongoose";
 import {asyncHandler} from "@coreModule/utilities/middlewares/asyncHandler";
 import authMW from "@coreModule/utilities/middlewares/authMW";
@@ -13,6 +14,11 @@ import {liveProviderCompanyClause} from "@marketplaceModule/utilities/shop/marke
 import {publicListingClause} from "@marketplaceModule/utilities/shop/shopMarketplaceFilter";
 import {findMarketplaceOperatorId, marketplaceCategoryClause} from "@marketplaceModule/utilities/services/marketplaceOperator";
 import {asCrossTenant} from "@coreModule/utilities/endpoints/tenantScope";
+import {validateFormZod} from "@coreModule/utilities/middlewares/validateFormZod";
+import {nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
+import {listDisplayName} from "@coreModule/utilities/helpers/listNames";
+import {listingCategoryDescendants} from "@marketplaceModule/utilities/shop/shopMarketplaceFilter";
+import {shopListingTaxonomyFormSchema} from "armonia/src/modules/marketplace/api/marketplace/public/shopMarketplace/shopMarketplace.form.validator";
 import type {
     ShopListingLocation,
     ShopListingTaxonomyResponse,
@@ -30,13 +36,31 @@ async function placeNames(model: Model<any>, ids: unknown[]): Promise<Map<string
     return new Map(docs.map((doc) => [doc._id.toString(), {_id: doc._id.toString(), name: doc.name ?? ""}]));
 }
 
-/** Listing categories for the Services menu, and the places public listings cover for the location filter. */
+const CATEGORY_SELECT = "name names slug delivery parentListingCategory order";
+
+/** The categories with every category above them, one query per level (the tree is 4 deep). */
+async function withAncestors(ids: ObjectId[], clause: Record<string, unknown>): Promise<any[]> {
+    const rows = new Map<string, any>();
+    let wanted = ids;
+    while (wanted.length > 0) {
+        const found: any[] = await listingCategoryService.find({...clause, _id: {$in: wanted}}, {withDeleted: false}, undefined, CATEGORY_SELECT);
+        for (const row of found) rows.set(String(row._id), row);
+        wanted = found.map((row) => nestedEntityToRef(row.parentListingCategory)).filter((id): id is ObjectId => !!id && !rows.has(String(id)));
+    }
+    return [...rows.values()];
+}
+
+/**
+ * Service categories for the Services menu, the filters and the job form, and the places public listings cover for
+ * the location filter. The platform tree has thousands of categories (D196), so a page never gets all of them.
+ */
 router.post(
     "",
     authMW("public"),
     rateLimiter({windowMs: 60000, max: 60}),
+    validateFormZod(shopListingTaxonomyFormSchema),
     asyncHandler(async (params: any): Promise<ShopListingTaxonomyResponse> => {
-        const {languageCode, origin} = params;
+        const {languageCode, origin, section} = params;
 
         const ctx = await resolveStorefrontContext(origin, languageCode);
         // The operator's own site is the public task board (D172): like the apex, it offers every provider's work.
@@ -51,11 +75,10 @@ router.post(
                 ? {company: ctx.company._id}
                 : await liveProviderCompanyClause();
             Object.assign(activeMatch, companyFilter);
-            // One shared tree (D144); a company's own site keeps only the branches its listings use (below).
+            // The platform's tree (D196); a company's own site keeps only the categories its listings use (below).
             const categoryFilter = await marketplaceCategoryClause();
 
-            const [categories, categoryCounts, placeRows] = await Promise.all([
-                listingCategoryService.find(categoryFilter, {withDeleted: false}, undefined, "name slug delivery parentListingCategory order", {order: 1, name: 1}),
+            const [categoryCounts, placeRows] = await Promise.all([
                 listingService.aggregate([
                     {$match: activeMatch},
                     {$group: {_id: "$category", count: {$sum: 1}}},
@@ -79,18 +102,26 @@ router.post(
             }));
 
             const counts = new Map(categoryCounts.map((row) => [String(row._id), row.count]));
-            const parentOf = new Map(categories.map((category) => [category._id.toString(), category.parentListingCategory?.toString()]));
-            const used = new Set<string>();
-            for (const id of counts.keys()) {
-                for (let current: string | undefined = id; current && !used.has(current); current = parentOf.get(current)) used.add(current);
+            const usedIds = categoryCounts.map((row) => nestedEntityToRef(row._id)).filter((id): id is ObjectId => !!id);
+            const used = await withAncestors(usedIds, categoryFilter);
+            // The apex and the task board offer every section (anyone may post a job in any); a company's own site only its own.
+            const ownSite = ctx.mode === "tenant" && !taskBoard;
+            const sections = ownSite ? [] : await listingCategoryService.find({...categoryFilter, parentListingCategory: null}, {withDeleted: false}, undefined, CATEGORY_SELECT);
+            const byId = new Map<string, any>([...sections, ...used].map((row) => [String(row._id), row]));
+            if (section) {
+                const sectionId = new ObjectId(section);
+                const branchIds = [sectionId, ...await listingCategoryDescendants([sectionId])];
+                const branch = await listingCategoryService.find({...categoryFilter, _id: {$in: branchIds}}, {withDeleted: false}, undefined, CATEGORY_SELECT);
+                const usedHere = new Set(used.map((row) => String(row._id)));
+                for (const row of branch) if (!ownSite || usedHere.has(String(row._id))) byId.set(String(row._id), row);
             }
-            const shown = ctx.mode === "tenant" && !taskBoard ? categories.filter((category) => used.has(category._id.toString())) : categories;
+            const shown = [...byId.values()].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || listDisplayName(a).localeCompare(listDisplayName(b)));
 
             return {
                 data: {
                     categories: shown.map((category: any) => ({
                         _id: category._id.toString(),
-                        name: category.name ?? "",
+                        name: listDisplayName(category),
                         slug: category.slug ?? "",
                         parent: category.parentListingCategory ? category.parentListingCategory.toString() : undefined,
                         order: category.order,

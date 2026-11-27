@@ -49,6 +49,33 @@ export const marketplaceConfigEditFormView: ViewConfig = {
             ],
         },
         {
+            // What we provide (D196): the sections the company works in, which its listing form's category picker offers.
+            render: "#TitleWithCollapse",
+            props: {title: "form.whatWeProvideSectionTitle"},
+            permissions: {readAny: ["branches"], writeAny: ["branches"]},
+            children: [
+                {render: "#FormAlert", props: {message: "form.whatWeProvideHint"}},
+                {
+                    render: "#Field",
+                    permissions: {read: "branches", write: "branches"},
+                    field: {
+                        name: "branches",
+                        widget: "#ObjectIdChipsInput",
+                        label: "form.branchesLabel",
+                        widgetProps: {
+                            apiUrl: "/api/marketplace/listingCategory/select",
+                            postBody: {topLevel: true},
+                            placeholderKey: "form.selectBranch",
+                            removeTooltipKey: "form.removeBranch",
+                            selectPageSizeCreate: 50,
+                            selectPageSizeEdit: 50,
+                            labelRefFormExtraKey: "branches",
+                        },
+                    },
+                },
+            ],
+        },
+        {
             // The marketplace operator's own settings (D143); the settings page passes `isOperator` as a form extra.
             render: "#TitleWithCollapse",
             props: {title: "form.operatorSectionTitle", skipRenderWhenFormExtraNotTruthy: "isOperator"},

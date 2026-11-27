@@ -97,8 +97,8 @@ async function executeTaskRequests(rawArgs: unknown, ctx: AssistantToolContext):
 
     if (args.categoryName != null) {
         const categories = await listingCategoryService.find(
-            // The shared tree (D144): every company files under the operator's categories.
-            {...(await marketplaceCategoryClause()), name: regexClause(args.categoryName)},
+            // The platform's tree (D196): every company files under it; a name matches in any language.
+            {...(await marketplaceCategoryClause()), searchText: regexClause(args.categoryName.toLowerCase())},
             findOptions(ctx),
             undefined,
             "_id",
@@ -139,7 +139,7 @@ async function executeTaskRequests(rawArgs: unknown, ctx: AssistantToolContext):
         findOptions(ctx),
         [
             {path: "requester", select: "name surname fullName username"},
-            {path: "category", select: "name slug"},
+            {path: "category", select: "name names slug"},
             {path: "currency", select: "symbol abbreviation name"},
             {path: "address.city", select: "name"},
             {path: "address.country", select: "name"}

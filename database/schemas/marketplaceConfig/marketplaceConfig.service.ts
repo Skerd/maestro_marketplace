@@ -26,6 +26,12 @@ export class MarketplaceConfigService extends BaseCrudService<IMarketplaceConfig
         return mapSnippet<CurrencySimple>()(found, CurrencySimpleSnippet);
     }
 
+    /** The top-level service sections the company works in; empty when it chose none (D196). */
+    async branchesOf(companyId: ObjectId, options: CrudOptions = {}): Promise<ObjectId[]> {
+        const config = await this.findForCompany(companyId, options);
+        return (config?.branches ?? []).map((branch) => nestedEntityToRef(branch)).filter((branch): branch is ObjectId => !!branch);
+    }
+
     /** The company's marketplace settings, or null when the company never set them up. */
     async findForCompany(companyId: ObjectId, options: CrudOptions = {}): Promise<IMarketplaceConfig | null> {
         return this.findOne({company: companyId}, {...options, withDeleted: false});

@@ -26,6 +26,7 @@ import {TaskRequestSchemaDef} from "armonia/src/modules/marketplace/api/marketpl
 import {marketplaceConfigService} from "@marketplaceModule/database/schemas/marketplaceConfig/marketplaceConfig.service";
 import type {SelfServeBusinessType} from "@coreModule/domain/company/selfServeBusinessTypes";
 import {marketplaceReportables} from "@marketplaceModule/domain/reports/marketplaceReportables";
+import {seedServiceTaxonomy} from "@marketplaceModule/database/seeds/taxonomy/serviceTaxonomy.seed";
 
 export const marketplaceModels: Model<any>[] = [
     MarketplaceConfig,
@@ -87,4 +88,6 @@ export const moduleBootstrap = {
     selfServeBusinessTypes,
     // Listings, task requests, bids and reviews people can report to the platform's desk (D191).
     reportables: marketplaceReportables,
+    // The platform's service category tree (D196), seeded into the platform company at every database setup.
+    platformLists: seedServiceTaxonomy,
 };

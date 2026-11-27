@@ -20,6 +20,8 @@ import type {ITaskRequest} from "@marketplaceModule/database/schemas/taskRequest
 import {createJobLeads, findJobMatches} from "@marketplaceModule/utilities/services/jobMatching";
 
 const operator = new ObjectId();
+// The service categories are the platform company's (D196).
+const platform = new ObjectId();
 const durresFix = new ObjectId();
 const tiranaPros = new ObjectId();
 const notListed = new ObjectId();
@@ -43,11 +45,11 @@ afterAll(async () => {
 beforeEach(() => fixtures(async () => {
     for (const collection of await mongoose.connection.db!.collections()) await collection.deleteMany({});
     const company = (_id: ObjectId, name: string) => ({_id, name, vat: `VAT-${name}`, isActive: true, modules: ["core", "finance", "marketplace"], deletedAt: null});
-    await Company.collection.insertMany([company(operator, "Operator"), company(durresFix, "Durres Fix"), company(tiranaPros, "Tirana Pros"), company(notListed, "Quiet")]);
+    await Company.collection.insertMany([company(operator, "Operator"), company(durresFix, "Durres Fix"), company(tiranaPros, "Tirana Pros"), company(notListed, "Quiet"), {_id: platform, name: "Platform", vat: "VAT-Platform", isPlatformOwner: true, isActive: true, modules: ["core"], deletedAt: null}]);
     const config = (owner: ObjectId, listedOnPortal: boolean, isOperator = false) => ({company: owner, currency: new ObjectId(), listedOnPortal, isOperator, deletedAt: null});
     await MarketplaceConfig.collection.insertMany([config(operator, false, true), config(durresFix, true), config(tiranaPros, true), config(notListed, false)]);
     const category = (_id: ObjectId, slug: string, delivery: string, parent?: ObjectId) =>
-        ({_id, name: slug, slug, delivery, order: 0, company: operator, deletedAt: null, ...(parent ? {parentListingCategory: parent} : {})});
+        ({_id, name: slug, slug, delivery, order: 0, company: platform, deletedAt: null, ...(parent ? {parentListingCategory: parent} : {})});
     await ListingCategory.collection.insertMany([
         category(categories.home, "home", "onsite"),
         category(categories.plumbing, "plumbing", "onsite", categories.home),

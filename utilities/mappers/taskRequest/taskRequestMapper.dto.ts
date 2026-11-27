@@ -11,7 +11,7 @@ import {CountrySimpleSnippet} from "@coreModule/database/schemas/country/country
 import {StateSimpleSnippet} from "@coreModule/database/schemas/state/state.snippets";
 import {CitySimpleSnippet} from "@coreModule/database/schemas/city/city.snippets";
 import {SimpleUserSnippet} from "@coreModule/database/schemas/user/user.snippets";
-import {ListingCategorySimpleSnippet} from "@marketplaceModule/database/schemas/listingCategory/listingCategory.snippets";
+import {listingCategorySimpleToDTO} from "@marketplaceModule/utilities/mappers/listingCategory/listingCategoryMapper.dto";
 import {mapOwnershipToDTO, mapSoftDeleteToDTO, mapLifeCycleToDTO, mapPlatformHiddenToDTO} from "@coreModule/utilities/mappers/plugin/pluginMappers.dto";
 import {mapMedia, mapSnippet} from "@coreModule/utilities/mappers/common.mapper";
 
@@ -22,7 +22,7 @@ export function taskRequestToDTO(taskRequest: ITaskRequest, bidCount?: number): 
         name: taskRequest.name,
         title: taskRequest.title,
         description: taskRequest.description,
-        category: mapSnippet<ListingCategorySimple>()(taskRequest.category, ListingCategorySimpleSnippet),
+        category: listingCategorySimpleToDTO(taskRequest.category),
         budgetMax: taskRequest.budgetMax,
         currency: mapSnippet<CurrencySimple>()(taskRequest.currency, CurrencySimpleSnippet),
         address: taskRequest.address ? {

@@ -16,6 +16,7 @@ import {NotificationEventCodes} from "@marketplaceModule/domain/notifications/no
 import {sendNewLeadMail} from "@marketplaceModule/utilities/emails/sendNewLeadMail";
 import {publishNewLeadEmail} from "@marketplaceModule/kafka/kafkaProducer";
 import type {NewLeadEmailEvent} from "@marketplaceModule/kafka/types";
+import {listDisplayName} from "@coreModule/utilities/helpers/listNames";
 
 const logger = getLogger("marketplace_lead_emails");
 const REASON = "a new-lead email describes the operator's job to a provider in another company";
@@ -36,7 +37,7 @@ export async function emailNewLeads(job: ITaskRequest, leads: NewLead[]): Promis
             const cityId = nestedEntityToRef(job.address?.city);
             const currencyId = nestedEntityToRef(job.currency);
             const [category, city, currency] = await Promise.all([
-                categoryId ? listingCategoryService.findById(categoryId, {}, undefined, "name") : null,
+                categoryId ? listingCategoryService.findById(categoryId, {}, undefined, "name names") : null,
                 cityId ? cityService.findById(cityId, {}, undefined, "name") : null,
                 currencyId ? currencyService.findById(currencyId, {}, undefined, "abbreviation symbol") : null,
             ]);
@@ -65,7 +66,7 @@ export async function emailNewLeads(job: ITaskRequest, leads: NewLead[]): Promis
                     email: user.username,
                     fullName: user.fullName || `${user.name ?? ""} ${user.surname ?? ""}`.trim() || user.username,
                     jobTitle: job.title,
-                    categoryName: category?.name,
+                    categoryName: category ? listDisplayName(category, languageCode) : undefined,
                     cityName: city?.name,
                     distanceKm: lead.distanceKm,
                     budget,

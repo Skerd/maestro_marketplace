@@ -1,5 +1,6 @@
 import type {ViewConfig} from "armonia/src/modules/core/api/auxiliary/private/viewConfig";
 import {lifecycleSheetGroup} from "@coreModule/database/schemas/shared/lifecycleSheetGroup";
+import {LISTING_CATEGORY_NAME_MAX} from "armonia/src/modules/marketplace/api/marketplace/private/listingCategory/listingCategory.schema-def";
 
 export const listingCategorySheetView: ViewConfig = {
     model: "listingcategories",
@@ -74,7 +75,7 @@ const deliveryField = {
     widgetProps: {options: deliveryOptions, className: "grow w-full"},
 };
 
-/** The slug is generated from the name on create (unique per company) and is never typed (UX-05). */
+/** The slug is generated from the name on create (unique in the tree) and is never typed (UX-05). */
 const categoryCreateFormNodes: ViewConfig["nodes"] = [
     {
         render: "#TitleWithCollapse",
@@ -108,6 +109,64 @@ const categoryCreateFormNodes: ViewConfig["nodes"] = [
                         },
                     },
                     {render: "#Field", field: deliveryField},
+                ],
+            },
+        ],
+    },
+    {
+        // The name in each panel language (D196): companies and clients read the one of their language, else English.
+        render: "#TitleWithCollapse",
+        props: {title: "form.namesSectionTitle"},
+        children: [
+            {
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "names.en",
+                            widget: "#Input",
+                            label: "form.nameEnLabel",
+                            widgetProps: {maxLength: LISTING_CATEGORY_NAME_MAX},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "names.sq",
+                            widget: "#Input",
+                            label: "form.nameSqLabel",
+                            widgetProps: {maxLength: LISTING_CATEGORY_NAME_MAX},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "names.de",
+                            widget: "#Input",
+                            label: "form.nameDeLabel",
+                            widgetProps: {maxLength: LISTING_CATEGORY_NAME_MAX},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "names.fr",
+                            widget: "#Input",
+                            label: "form.nameFrLabel",
+                            widgetProps: {maxLength: LISTING_CATEGORY_NAME_MAX},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        field: {
+                            name: "names.it",
+                            widget: "#Input",
+                            label: "form.nameItLabel",
+                            widgetProps: {maxLength: LISTING_CATEGORY_NAME_MAX},
+                        },
+                    },
                 ],
             },
         ],
@@ -174,6 +233,70 @@ const categoryEditFormNodes: ViewConfig["nodes"] = [
                         },
                     },
                     {render: "#Field", permissions: {read: "delivery", write: "delivery"}, field: deliveryField},
+                ],
+            },
+        ],
+    },
+    {
+        // The name in each panel language (D196): companies and clients read the one of their language, else English.
+        render: "#TitleWithCollapse",
+        props: {title: "form.namesSectionTitle"},
+        permissions: {readAny: ["names"], writeAny: ["names"]},
+        children: [
+            {
+                render: "#FormGrid",
+                props: {columns: 2},
+                children: [
+                    {
+                        render: "#Field",
+                        permissions: {read: "names", write: "names"},
+                        field: {
+                            name: "names.en",
+                            widget: "#Input",
+                            label: "form.nameEnLabel",
+                            widgetProps: {maxLength: LISTING_CATEGORY_NAME_MAX},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "names", write: "names"},
+                        field: {
+                            name: "names.sq",
+                            widget: "#Input",
+                            label: "form.nameSqLabel",
+                            widgetProps: {maxLength: LISTING_CATEGORY_NAME_MAX},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "names", write: "names"},
+                        field: {
+                            name: "names.de",
+                            widget: "#Input",
+                            label: "form.nameDeLabel",
+                            widgetProps: {maxLength: LISTING_CATEGORY_NAME_MAX},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "names", write: "names"},
+                        field: {
+                            name: "names.fr",
+                            widget: "#Input",
+                            label: "form.nameFrLabel",
+                            widgetProps: {maxLength: LISTING_CATEGORY_NAME_MAX},
+                        },
+                    },
+                    {
+                        render: "#Field",
+                        permissions: {read: "names", write: "names"},
+                        field: {
+                            name: "names.it",
+                            widget: "#Input",
+                            label: "form.nameItLabel",
+                            widgetProps: {maxLength: LISTING_CATEGORY_NAME_MAX},
+                        },
+                    },
                 ],
             },
         ],

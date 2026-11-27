@@ -667,7 +667,7 @@ const listingCreateFormNodes: ViewConfig["nodes"] = [
                             label: "form.categoryLabel",
                             placeholder: "form.categoryPlaceholder",
                             required: true,
-                            widgetProps: {apiUrl: "/api/marketplace/listingCategory/select"},
+                            widgetProps: {apiUrl: "/api/marketplace/listingCategory/select", postBody: {inCompanyBranches: true}},
                         },
                     },
                     {
@@ -1011,7 +1011,7 @@ const listingEditFormNodes: ViewConfig["nodes"] = [
                             label: "form.categoryLabel",
                             placeholder: "form.categoryPlaceholder",
                             required: true,
-                            widgetProps: {apiUrl: "/api/marketplace/listingCategory/select"},
+                            widgetProps: {apiUrl: "/api/marketplace/listingCategory/select", postBody: {inCompanyBranches: true}},
                         },
                     },
                     {

@@ -14,10 +14,11 @@ import type {
 import type {ProviderAvailability} from "armonia/src/modules/marketplace/api/marketplace/private/providerProfile/providerProfile.dto";
 import {toPortalCurrency, toPortalSeller} from "@coreModule/utilities/mappers/portal/portalStorefrontMapper.dto";
 import type {PortalSeller} from "armonia/src/modules/core/api/portal/public/portal/portal.dto";
+import {listDisplayName} from "@coreModule/utilities/helpers/listNames";
 
 /** Populate paths for a listing card; the detail route adds packages and add-ons. */
 export const SHOP_LISTING_CARD_POPULATE = [
-    {path: "category", select: "name slug"},
+    {path: "category", select: "name names slug"},
     {path: "provider", select: "name surname"},
     {path: "company", select: "name logo siteSlug siteHost"},
     {path: "priceCurrency", select: "symbol abbreviation decimalPlaces"},
@@ -74,7 +75,7 @@ export function toShopListingCard(listing: any, promotions?: ShopPromotionMap): 
         : [];
     const prices = typeof listing.price === "number" ? [listing.price, ...packagePrices] : packagePrices;
     const category = listing.category && typeof listing.category === "object" && listing.category.name
-        ? {_id: listing.category._id.toString(), name: listing.category.name, slug: listing.category.slug ?? ""}
+        ? {_id: listing.category._id.toString(), name: listDisplayName(listing.category), slug: listing.category.slug ?? ""}
         : undefined;
 
     const seller: PortalSeller | undefined = toPortalSeller(listing.company);

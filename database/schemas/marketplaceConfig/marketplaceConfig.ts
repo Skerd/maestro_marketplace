@@ -8,6 +8,8 @@ import lifeCyclePlugin from "@coreModule/database/plugins/lifeCyclePlugin";
 import {ILifeCyclePluginFields, IOwnershipPluginFields, ISoftDeletePluginFields} from "@coreModule/database/types/plugin-fields";
 import {addModelData} from "@coreModule/database/collections";
 import {CurrencySimpleSnippet} from "@coreModule/database/schemas/currency/currency.snippets";
+import type {IListingCategory} from "@marketplaceModule/database/schemas/listingCategory/listingCategory";
+import {ListingCategorySimpleSnippet} from "@marketplaceModule/database/schemas/listingCategory/listingCategory.snippets";
 import {validateSchemaDefAgainstMongoose} from "@coreModule/database/utilities/validateSchemaDefAgainstMongoose";
 import {MarketplaceConfigSchemaDef} from "armonia/src/modules/marketplace/api/marketplace/private/marketplaceConfig/marketplaceConfig.schema-def";
 import {applyMarketplaceConfigIndexes} from "./marketplaceConfig.indexes";
@@ -18,6 +20,8 @@ export interface IMarketplaceConfig extends Document, IOwnershipPluginFields, IS
     listedOnPortal: boolean;
     /** The currency a listing, package or add-on priced without one is in. */
     currency: ICurrency;
+    /** The top-level service sections the company works in ("What we provide", D196). */
+    branches: IListingCategory[];
     /**
      * This company operates the marketplace (D143): it owns the shared service categories and the jobs posted on the
      * portal. Exactly one per database, set only by the seed.
@@ -38,6 +42,15 @@ const MarketplaceConfigSchema = new Schema<IMarketplaceConfig>(
             required: true,
             refAllowlist: CurrencySimpleSnippet,
             dynamicTableConfiguration: {refDisplayKey: ["abbreviation"]},
+        },
+        branches: {
+            type: [{
+                type: SchemaTypes.ObjectId,
+                ref: "ListingCategory",
+            }],
+            default: [],
+            refAllowlist: ListingCategorySimpleSnippet,
+            dynamicTableConfiguration: {hideColumn: true},
         },
         leadCap: {type: SchemaTypes.Number, min: 1, max: 50, dynamicTableConfiguration: {hideColumn: true}},
         openJobLimit: {type: SchemaTypes.Number, min: 1, max: 50, dynamicTableConfiguration: {hideColumn: true}},

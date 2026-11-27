@@ -12,7 +12,7 @@ import {CountrySimpleSnippet} from "@coreModule/database/schemas/country/country
 import {StateSimpleSnippet} from "@coreModule/database/schemas/state/state.snippets";
 import {CitySimpleSnippet} from "@coreModule/database/schemas/city/city.snippets";
 import {SimpleUserSnippet} from "@coreModule/database/schemas/user/user.snippets";
-import {ListingCategorySimpleSnippet} from "@marketplaceModule/database/schemas/listingCategory/listingCategory.snippets";
+import {listingCategorySimpleToDTO} from "@marketplaceModule/utilities/mappers/listingCategory/listingCategoryMapper.dto";
 import {PromotionSimpleSnippet} from "@marketplaceModule/database/schemas/promotion/promotion.snippets";
 import {mapMedia, mapSnippet} from "@coreModule/utilities/mappers/common.mapper";
 import {
@@ -30,7 +30,7 @@ export function listingToDTO(listing: IListing): Listing {
         name: listing.name,
         title: listing.title,
         description: listing.description,
-        category: mapSnippet<ListingCategorySimple>()(listing.category, ListingCategorySimpleSnippet),
+        category: listingCategorySimpleToDTO(listing.category),
         provider: mapSnippet<SimpleUser>()(listing.provider, SimpleUserSnippet),
         price: listing.price,
         priceCurrency: mapSnippet<CurrencySimple>()(listing.priceCurrency, CurrencySimpleSnippet),

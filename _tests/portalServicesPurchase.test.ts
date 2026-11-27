@@ -100,8 +100,8 @@ async function seedJobMarket() {
         await MarketplaceConfig.collection.insertOne({company: operator, currency: euro, isOperator: true, listedOnPortal: false, deletedAt: null});
         await MarketplaceConfig.collection.insertOne({company: seller, currency: new ObjectId(), listedOnPortal: true, deletedAt: null});
         const tirana = (await City.collection.insertOne({name: "Tirana", country: platformAlbania, company: platform})).insertedId;
-        const category = (await ListingCategory.collection.insertOne({name: "Painting", slug: "painting", delivery: "onsite", order: 0, company: operator, deletedAt: null})).insertedId;
-        const remoteCategory = (await ListingCategory.collection.insertOne({name: "Logo design", slug: "logo", delivery: "remote", order: 1, company: operator, deletedAt: null})).insertedId;
+        const category = (await ListingCategory.collection.insertOne({name: "Painting", slug: "painting", delivery: "onsite", order: 0, company: platform, deletedAt: null})).insertedId;
+        const remoteCategory = (await ListingCategory.collection.insertOne({name: "Logo design", slug: "logo", delivery: "remote", order: 1, company: platform, deletedAt: null})).insertedId;
         const photo = (await Media.collection.insertOne({company: platform, createdBy: buyer, deletedAt: null})).insertedId;
         const painter = new ObjectId();
         const listing = (await Listing.collection.insertOne({

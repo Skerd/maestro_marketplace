@@ -11,6 +11,7 @@ import {isModuleEnabledForCompany} from "@coreModule/utilities/modules/companyMo
 import {taskRequestService} from "@marketplaceModule/database/schemas/taskRequest/taskRequest.service";
 import {findMarketplaceOperatorId} from "@marketplaceModule/utilities/services/marketplaceOperator";
 import {openPublicTaskFilter, openTaskClause, publicTaskClause} from "@marketplaceModule/utilities/services/publicTasks";
+import {listDisplayName, type ListNames} from "@coreModule/utilities/helpers/listNames";
 
 type CatalogTask = {
     _id: ObjectId;
@@ -20,7 +21,7 @@ type CatalogTask = {
     budgetMax?: number;
     currency?: {abbreviation?: string};
     address?: {city?: {name?: string}};
-    category?: {name?: string};
+    category?: {name?: string; names?: ListNames};
 };
 
 /** A task's price is its "up to" budget (D146). */
@@ -95,7 +96,7 @@ async function browseTasks({companyIds, query, city, priceMin, priceMax, sort, s
     const [tasks, total] = await Promise.all([
         taskRequestService.findCatalogRows<CatalogTask>(filter, {
             select: "company title mainImage budgetMax currency address.city category createdAt",
-            populate: [{path: "category", select: "name"}, {path: "currency", select: PORTAL_CURRENCY_SELECT}, {path: "address.city", select: "name"}],
+            populate: [{path: "category", select: "name names"}, {path: "currency", select: PORTAL_CURRENCY_SELECT}, {path: "address.city", select: "name"}],
             sort: TASK_SORT_SPECS[sort ?? "newest"] ?? TASK_SORT_SPECS.newest,
             skip,
             limit,
@@ -106,7 +107,7 @@ async function browseTasks({companyIds, query, city, priceMin, priceMax, sort, s
         kind: "task",
         id: task._id.toString(),
         title: task.title,
-        subtitle: task.category?.name,
+        subtitle: task.category ? listDisplayName(task.category) : undefined,
         image: publicMediaUrl(task.mainImage),
         ...(task.budgetMax != null && task.currency?.abbreviation ? {price: {amount: task.budgetMax, currency: task.currency.abbreviation, upTo: true}} : {}),
         city: task.address?.city?.name,

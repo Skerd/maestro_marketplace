@@ -51,6 +51,8 @@ import {getPortalProvider} from "@coreModule/domain/portal/portalProviderRegistr
 import {registerTasksPortalProvider} from "@marketplaceModule/domain/portal/tasksPortalProvider";
 
 const operator = new ObjectId();
+// The service categories are the platform company's (D196).
+const platform = new ObjectId();
 const fix = new ObjectId();
 const pros = new ObjectId();
 const echo = new ObjectId();
@@ -72,6 +74,7 @@ beforeEach(() => fixtures(async () => {
         ({_id, name, vat, siteSlug, isActive: true, modules: ["core", "finance", "marketplace"], createdBy: echo, deletedAt: null});
     await Company.collection.insertMany([
         company(operator, "Kudoo Services", "Z000000001Z", "tasks"), company(pros, "Tirana Pros", "Z523456789Z", "pros"), company(fix, "Adria Home Fix", "Z623456789Z", "fix"),
+        {_id: platform, name: "Platform", vat: "VAT-Platform", isPlatformOwner: true, isActive: true, modules: ["core"], deletedAt: null},
     ]);
     await MarketplaceConfig.collection.insertMany([
         {company: operator, isOperator: true, listedOnPortal: false, deletedAt: null},
@@ -91,7 +94,7 @@ beforeEach(() => fixtures(async () => {
     for (const slug of [...slugs, ...remote]) {
         const _id = new ObjectId();
         ids.set(slug, _id);
-        await ListingCategory.collection.insertOne({_id, name: slug, slug, delivery: slugs.includes(slug) ? "onsite" : "remote", order: 0, company: operator, deletedAt: null});
+        await ListingCategory.collection.insertOne({_id, name: slug, slug, delivery: slugs.includes(slug) ? "onsite" : "remote", order: 0, company: platform, deletedAt: null});
     }
     // Adria Home Fix works around Durrës; Tirana Pros designs logos.
     await Listing.collection.insertMany([
@@ -192,7 +195,7 @@ describe("the online demo jobs, posted on the apex (D172)", {timeout: 60000}, ()
     }
 
     beforeEach(() => fixtures(async () => {
-        await ListingCategory.collection.insertMany(ONLINE.map((slug) => ({name: slug, slug, delivery: "remote", order: 0, company: operator, deletedAt: null})));
+        await ListingCategory.collection.insertMany(ONLINE.map((slug) => ({name: slug, slug, delivery: "remote", order: 0, company: platform, deletedAt: null})));
     }));
 
     it("stores them in the operator, posted by the demo customers, with Tirana Pros' quotes, leads and order", async () => {

@@ -43,6 +43,8 @@ import {marketplacePortalCompanyIds} from "@marketplaceModule/utilities/shop/mar
 import {taskQuoteStats} from "@marketplaceModule/utilities/services/publicTasks";
 
 const operator = new ObjectId();
+// The service categories are the platform company's (D196).
+const platform = new ObjectId();
 const fix = new ObjectId();
 const pros = new ObjectId();
 const buyer = new ObjectId();
@@ -77,7 +79,7 @@ beforeEach(() => fixtures(async () => {
     host.site = undefined;
     for (const collection of await mongoose.connection.db!.collections()) await collection.deleteMany({});
     const company = (_id: ObjectId, name: string, siteSlug: string) => ({_id, name, siteSlug, vat: `VAT-${name}`, isActive: true, modules: ["core", "finance", "marketplace"], deletedAt: null});
-    await Company.collection.insertMany([company(operator, "Operator", "tasks"), company(fix, "Fix", "fix"), company(pros, "Pros", "pros")]);
+    await Company.collection.insertMany([company(operator, "Operator", "tasks"), company(fix, "Fix", "fix"), company(pros, "Pros", "pros"), {_id: platform, name: "Platform", vat: "VAT-Platform", isPlatformOwner: true, isActive: true, modules: ["core"], deletedAt: null}]);
     // The operator even opted in: it still sells nothing (D143).
     await MarketplaceConfig.collection.insertMany([
         {company: operator, currency: eur, isOperator: true, listedOnPortal: true, deletedAt: null},
@@ -89,7 +91,7 @@ beforeEach(() => fixtures(async () => {
     ]);
     await City.collection.insertMany([{_id: tirana, name: "Tirana", deletedAt: null}, {_id: durres, name: "Durrës", deletedAt: null}]);
     const category = (_id: ObjectId, slug: string, delivery: string, parent?: ObjectId) =>
-        ({_id, name: slug, slug, delivery, order: 0, company: operator, deletedAt: null, ...(parent ? {parentListingCategory: parent} : {})});
+        ({_id, name: slug, slug, delivery, order: 0, company: platform, deletedAt: null, ...(parent ? {parentListingCategory: parent} : {})});
     await ListingCategory.collection.insertMany([
         category(categories.home, "home", "onsite"),
         category(categories.plumbing, "plumbing", "onsite", categories.home),

@@ -8,6 +8,7 @@ import {PORTAL_CURRENCY_SELECT} from "@coreModule/utilities/mappers/portal/porta
 import {listingService} from "@marketplaceModule/database/schemas/listing/listing.service";
 import {buildShopListingFilter, SHOP_LISTING_SORT_SPECS} from "@marketplaceModule/utilities/shop/shopMarketplaceFilter";
 import {marketplacePortalCompanyIds} from "@marketplaceModule/utilities/shop/marketplaceSellers";
+import {listDisplayName, type ListNames} from "@coreModule/utilities/helpers/listNames";
 
 type CurrencyRef = {abbreviation?: string};
 
@@ -20,9 +21,9 @@ async function browseServices({scope, companyIds, query, priceMin, priceMax, sor
     if (!filter) return {items: [], total: 0};
     Object.assign(filter, narrowing, {company: {$in: companyIds}});
     const [listings, total] = await Promise.all([
-        listingService.findCatalogRows<{_id: ObjectId; company: ObjectId; title: string; mainImage?: ObjectId; price?: number; priceCurrency?: CurrencyRef; address?: {city?: {name?: string}}; category?: {name?: string}; avgRating?: number; reviewCount?: number}>(filter, {
+        listingService.findCatalogRows<{_id: ObjectId; company: ObjectId; title: string; mainImage?: ObjectId; price?: number; priceCurrency?: CurrencyRef; address?: {city?: {name?: string}}; category?: {name?: string; names?: ListNames}; avgRating?: number; reviewCount?: number}>(filter, {
             select: "company title mainImage price priceCurrency address.city category avgRating reviewCount",
-            populate: [{path: "priceCurrency", select: PORTAL_CURRENCY_SELECT}, {path: "address.city", select: "name"}, {path: "category", select: "name"}],
+            populate: [{path: "priceCurrency", select: PORTAL_CURRENCY_SELECT}, {path: "address.city", select: "name"}, {path: "category", select: "name names"}],
             sort: SHOP_LISTING_SORT_SPECS[sort ?? "newest"],
             skip,
             limit,
@@ -33,7 +34,7 @@ async function browseServices({scope, companyIds, query, priceMin, priceMax, sor
         kind: "service",
         id: listing._id.toString(),
         title: listing.title,
-        subtitle: listing.category?.name,
+        subtitle: listing.category ? listDisplayName(listing.category) : undefined,
         image: publicMediaUrl(listing.mainImage),
         ...(listing.price != null && listing.priceCurrency?.abbreviation ? {price: {amount: listing.price, currency: listing.priceCurrency.abbreviation}} : {}),
         city: listing.address?.city?.name,

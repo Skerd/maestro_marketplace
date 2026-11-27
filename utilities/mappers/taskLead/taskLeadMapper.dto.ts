@@ -14,7 +14,7 @@ import {CountrySimpleSnippet} from "@coreModule/database/schemas/country/country
 import {StateSimpleSnippet} from "@coreModule/database/schemas/state/state.snippets";
 import {CitySimpleSnippet} from "@coreModule/database/schemas/city/city.snippets";
 import {SimpleUserSnippet} from "@coreModule/database/schemas/user/user.snippets";
-import {ListingCategorySimpleSnippet} from "@marketplaceModule/database/schemas/listingCategory/listingCategory.snippets";
+import {listingCategorySimpleToDTO} from "@marketplaceModule/utilities/mappers/listingCategory/listingCategoryMapper.dto";
 import {mapOwnershipToDTO, mapSoftDeleteToDTO, mapLifeCycleToDTO} from "@coreModule/utilities/mappers/plugin/pluginMappers.dto";
 import {mapMedia, mapSnippet, nestedEntityToRef} from "@coreModule/utilities/mappers/common.mapper";
 
@@ -30,7 +30,7 @@ export function taskLeadJobToDTO(job: ITaskRequest, awarded?: Pick<ITaskRequest,
         name: job.name,
         title: job.title,
         description: job.description,
-        category: mapSnippet<ListingCategorySimple>()(job.category, ListingCategorySimpleSnippet),
+        category: listingCategorySimpleToDTO(job.category),
         budgetMax: job.budgetMax,
         currency: mapSnippet<CurrencySimple>()(job.currency, CurrencySimpleSnippet),
         address: {

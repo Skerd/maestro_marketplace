@@ -55,6 +55,8 @@ import {withTenant} from "@coreModule/utilities/endpoints/tenantScope";
 const otherCompanyId = new ObjectId();
 // The shared category tree lives in the marketplace operator (D144), not in the seller.
 const operatorId = new ObjectId();
+// The service categories are the platform company's (D196).
+const platformId = new ObjectId();
 const currencyId = new ObjectId();
 const providerId = new ObjectId();
 const customerId = new ObjectId();
@@ -89,11 +91,12 @@ beforeEach(() => asCompany(async () => {
     // Reference data belongs to each company, as seeded (D16 scopes it like any tenant data).
     await Currency.collection.insertOne({_id: currencyId, name: "Euro", symbol: "€", abbreviation: "EUR", decimalPlaces: 2, company: companyId});
     await MarketplaceConfig.collection.insertOne({company: operatorId, currency: new ObjectId(), isOperator: true, listedOnPortal: false, deletedAt: null});
+    await Company.collection.insertOne({_id: platformId, name: "Platform", vat: "VAT-Platform", isPlatformOwner: true, isActive: true, modules: ["core"], deletedAt: null});
 }));
 
 async function seedCategory(name: string, parent?: ObjectId): Promise<{_id: ObjectId; slug: string}> {
     const slug = `lcat-${name.toLowerCase()}`;
-    const {insertedId} = await ListingCategory.collection.insertOne({name, slug, order: 0, delivery: "remote", company: operatorId, ...(parent && {parentListingCategory: parent})});
+    const {insertedId} = await ListingCategory.collection.insertOne({name, slug, order: 0, delivery: "remote", company: platformId, ...(parent && {parentListingCategory: parent})});
     return {_id: insertedId, slug};
 }
 

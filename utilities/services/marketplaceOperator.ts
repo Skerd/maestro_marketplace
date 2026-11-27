@@ -5,6 +5,7 @@ import {asCrossTenant} from "@coreModule/utilities/endpoints/tenantScope";
 import {companyService} from "@coreModule/database/schemas/company/company.service";
 import {isModuleEnabledForCompany} from "@coreModule/utilities/modules/companyModules";
 import {marketplaceConfigService} from "@marketplaceModule/database/schemas/marketplaceConfig/marketplaceConfig.service";
+import {platformRowsClause} from "@coreModule/utilities/security/platformAccess";
 
 /**
  * The seeded marketplace operator, "Kudoo Services" in the core company seed (D143). Only the seed uses it, to mark
@@ -34,20 +35,11 @@ export async function marketplaceOperatorCompanyId(languageCode: string): Promis
 }
 
 /**
- * The rows of the shared service category tree (D144): the operator's. Matches nothing while there is no operator,
- * so no company's leftover rows ever show.
+ * The rows of the shared service category tree (D196): the platform company's approved rows. Matches nothing while there
+ * is no platform company, so no company's leftover rows ever show.
  */
-export async function marketplaceCategoryClause(): Promise<Record<string, unknown>> {
-    const operatorId = await findMarketplaceOperatorId();
-    return operatorId ? {company: operatorId} : {_id: {$exists: false}};
-}
-
-/** Only a session in the operator company changes the shared categories (D144). */
-export async function assertMarketplaceOperatorSession(companyId: ObjectId, languageCode: string): Promise<void> {
-    const operatorId = await findMarketplaceOperatorId();
-    if (!operatorId || !operatorId.equals(companyId)) {
-        throw apiValidationException("listing_category_operator_only", "", null, languageCode);
-    }
+export function marketplaceCategoryClause(): Promise<Record<string, unknown>> {
+    return platformRowsClause();
 }
 
 /** The operator's job settings (D143), or nothing set: callers fall back to their defaults. */

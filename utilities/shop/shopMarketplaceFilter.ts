@@ -23,30 +23,34 @@ export function publicListingClause(): Record<string, unknown> {
     return {status: "active", ...notHiddenByPlatform()};
 }
 
-/** A category of the shared tree (D144), picked by `isRoot`, and every category below it; null when none matches. */
-async function categoryScope(isRoot: (category: {_id: ObjectId; slug?: string}) => boolean): Promise<ObjectId[] | null> {
-    const categories: any[] = await listingCategoryService.find(await marketplaceCategoryClause(), {withDeleted: false}, undefined, "slug parentListingCategory");
-    const root = categories.find(isRoot);
-    if (!root) return null;
-
-    const scope: ObjectId[] = [root._id];
-    for (let i = 0; i < scope.length; i++) {
-        const parentId = scope[i].toString();
-        for (const category of categories) {
-            if (category.parentListingCategory?.toString() === parentId) scope.push(category._id);
-        }
+/** The ids of every category below `rootIds` in the shared tree (D196), one query per level (the tree is 4 deep). */
+export async function listingCategoryDescendants(rootIds: ObjectId[]): Promise<ObjectId[]> {
+    const clause = await marketplaceCategoryClause();
+    const found: ObjectId[] = [];
+    let frontier = rootIds;
+    while (frontier.length > 0) {
+        const children = await listingCategoryService.find({...clause, parentListingCategory: {$in: frontier}}, {withDeleted: false}, undefined, "_id");
+        frontier = children.map((child) => child._id);
+        found.push(...frontier);
     }
-    return scope;
+    return found;
 }
 
-/** A category slug of the shared tree (D144) and every category below it; null when the slug matches nothing. */
+/** A category of the shared tree matched by `match`, and every category below it; null when none matches. */
+async function categoryScope(match: Record<string, unknown>): Promise<ObjectId[] | null> {
+    const root = await listingCategoryService.findOne({...await marketplaceCategoryClause(), ...match}, {withDeleted: false}, undefined, "_id");
+    if (!root) return null;
+    return [root._id, ...await listingCategoryDescendants([root._id])];
+}
+
+/** A category slug of the shared tree (D196) and every category below it; null when the slug matches nothing. */
 export function listingCategoryScope(slug: string): Promise<ObjectId[] | null> {
-    return categoryScope((category) => category.slug === slug);
+    return categoryScope({slug});
 }
 
-/** A category of the shared tree (D144) by id and every category below it; null when the id matches nothing. */
+/** A category of the shared tree (D196) by id and every category below it; null when the id matches nothing. */
 export function listingCategoryScopeById(id: string): Promise<ObjectId[] | null> {
-    return categoryScope((category) => category._id.toString() === id);
+    return ObjectId.isValid(id) ? categoryScope({_id: new ObjectId(id)}) : Promise.resolve(null);
 }
 
 /**

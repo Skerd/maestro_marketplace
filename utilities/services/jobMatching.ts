@@ -16,6 +16,7 @@ import {taskLeadService} from "@marketplaceModule/database/schemas/taskLead/task
 import {NotificationEventCodes} from "@marketplaceModule/domain/notifications/notificationEventCodes";
 import {findMarketplaceOperatorId, marketplaceCategoryClause, marketplaceOperatorLimits} from "@marketplaceModule/utilities/services/marketplaceOperator";
 import {marketplacePortalCompanyIds} from "@marketplaceModule/utilities/shop/marketplaceSellers";
+import {listingCategoryDescendants} from "@marketplaceModule/utilities/shop/shopMarketplaceFilter";
 import {emailNewLeads, type NewLead} from "@marketplaceModule/utilities/services/leadEmails";
 import {notHiddenByPlatform} from "@coreModule/database/plugins/platformHiddenPlugin";
 
@@ -52,29 +53,20 @@ export async function assertJobAddress(category: unknown, address: {latitude?: u
 
 /** The job's category with every category below it and above it in the shared tree, and its delivery. */
 async function categoryScope(categoryId: ObjectId): Promise<{ids: ObjectId[]; delivery: string} | null> {
-    const found = await listingCategoryService.find(await marketplaceCategoryClause(), {withDeleted: false}, undefined, "parentListingCategory delivery");
-    const rows = found.map((row) => ({
-        _id: String(row._id),
-        parent: nestedEntityToRef(row.parentListingCategory)?.toString(),
-        delivery: row.delivery,
-    }));
-    const byId = new Map(rows.map((row) => [row._id, row]));
-    const own = byId.get(categoryId.toString());
+    const clause = await marketplaceCategoryClause();
+    const own = await listingCategoryService.findOne({...clause, _id: categoryId}, {withDeleted: false}, undefined, "parentListingCategory delivery");
     if (!own) return null;
 
-    const ids = new Set<string>([own._id]);
-    for (let parent = own.parent; parent && !ids.has(parent); parent = byId.get(parent)?.parent) ids.add(parent);
-    const queue = [own._id];
-    while (queue.length) {
-        const current = queue.shift();
-        for (const row of rows) {
-            if (row.parent === current && !ids.has(row._id)) {
-                ids.add(row._id);
-                queue.push(row._id);
-            }
-        }
+    const ids: ObjectId[] = [own._id];
+    const seen = new Set([String(own._id)]);
+    for (let parent = nestedEntityToRef(own.parentListingCategory); parent && !seen.has(String(parent));) {
+        seen.add(String(parent));
+        ids.push(parent);
+        const above = await listingCategoryService.findOne({...clause, _id: parent}, {withDeleted: false}, undefined, "parentListingCategory");
+        parent = nestedEntityToRef(above?.parentListingCategory);
     }
-    return {ids: [...ids].map((id) => new ObjectId(id)), delivery: own.delivery ?? "remote"};
+    ids.push(...await listingCategoryDescendants([own._id]));
+    return {ids, delivery: own.delivery ?? "remote"};
 }
 
 /**
