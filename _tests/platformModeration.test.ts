@@ -9,6 +9,12 @@ const site = vi.hoisted(() => ({id: ""}));
 
 vi.mock("@coreModule/utilities/middlewares/authMW", async () =>
     (await import("@coreModule/_tests/httpHarness")).authMWStub);
+// The notices a request emits, in order (TD-T22).
+const notices = vi.hoisted(() => [] as {code: string; data: {receiverIds: string[]; payload: Record<string, unknown>}}[]);
+vi.mock("@coreModule/domain/notifications/notificationEventBus", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@coreModule/domain/notifications/notificationEventBus")>()),
+    emitNotificationEvent: (code: string, data: {receiverIds: string[]; payload: Record<string, unknown>}) => notices.push({code, data}),
+}));
 vi.mock("@coreModule/utilities/marketing/portalStorefront", async (importOriginal) => {
     const {setRequestTenant} = await import("@coreModule/utilities/endpoints/tenantScope");
     const {ObjectId: Id} = await import("mongodb");
@@ -29,6 +35,8 @@ import {allPermissionTags, appFor, callerHeader, type TestCaller} from "@coreMod
 import {asCrossTenant, withTenant} from "@coreModule/utilities/endpoints/tenantScope";
 import {getLogger} from "@coreModule/loggers/serverLog";
 import Company from "@coreModule/database/schemas/company/company";
+import Role from "@coreModule/database/schemas/role/role";
+import User from "@coreModule/database/schemas/user/user";
 import Currency from "@coreModule/database/schemas/currency/currency";
 import MarketplaceConfig from "@marketplaceModule/database/schemas/marketplaceConfig/marketplaceConfig";
 import ListingCategory from "@marketplaceModule/database/schemas/listingCategory/listingCategory";
@@ -239,6 +247,32 @@ describe("the platform company decides disputes (D191, D197)", () => {
         }));
         return {dispute, order};
     }
+
+    // TD-T22: a new dispute tells the platform company's admins, once, and only them.
+    it("tells the platform company's admins of a new dispute, once, and not its other staff", async () => {
+        const [adminRole, staffRole, platformAdminUser, platformStaffUser] = [new ObjectId(), new ObjectId(), new ObjectId(), new ObjectId()];
+        await fixtures(async () => {
+            await Role.collection.insertMany([
+                {_id: adminRole, name: "Administrator", slug: "administrator", company: platform, isAdmin: true, permissions: [], deletedAt: null},
+                {_id: staffRole, name: "Support", slug: "support", company: platform, isAdmin: false, permissions: [], deletedAt: null},
+            ]);
+            const member = (_id: ObjectId, role: ObjectId) => ({_id, username: `${_id}@platform.test`, name: "P", surname: "S", isBot: false, companies: [platform],
+                roles: [{_id: new ObjectId(), company: platform, active: "active", roles: [role], rolesCount: 1, unsuccessfulLogins: 0}]});
+            await User.collection.insertMany([member(platformAdminUser, adminRole), member(platformStaffUser, staffRole)]);
+        });
+        const order = await seedOrder(await seedListing("Logo design"), "in_progress");
+        notices.length = 0;
+
+        const raised = await request(app).put("/api/marketplace/dispute").set(callerHeader(sellerAdmin)).send({order: order.toString(), reason: "The client stopped answering"});
+        expect([raised.status, raised.body.error_code]).toEqual([200, undefined]);
+
+        const toDecide = notices.filter((notice) => notice.code === "DISPUTE_TO_DECIDE");
+        expect(toDecide).toHaveLength(1);
+        expect(toDecide[0].data.receiverIds).toEqual([platformAdminUser.toString()]);
+        expect(toDecide[0].data.payload).toMatchObject({companyId: platform.toString(), orderId: order.toString(), companyName: "Test company"});
+        // The other party hears of it in the seller's company.
+        expect(notices.filter((notice) => notice.code === "DISPUTE_OPENED").map((notice) => notice.data.receiverIds)).toEqual([[customer.toString()]]);
+    });
 
     it("refuses the seller's admin to start the review, resolve, close or delete a dispute", async () => {
         const {dispute} = await seedDispute();
